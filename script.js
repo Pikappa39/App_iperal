@@ -74,7 +74,7 @@ function mostraGiorni(anno, mese) {
             console.log(giorno);
         alert (giorno);
         //inserisce i giorni vuoti prima del primo giorno del mese
-
+//ssdwwd
 
    for (let i = 1; i <= giorni; i++) {
 
