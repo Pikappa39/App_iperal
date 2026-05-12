@@ -63,7 +63,7 @@ function mostraGiorni(anno, mese) {
     indice="giorni";
     let primoGiorno = new Date(anno, mese - 1, 1).getDay();
     primoGiorno = (primoGiorno === 0) ? 6 : primoGiorno - 1;
-    
+    console.log("primo giorno: " + primoGiorno);
     titolo.innerText = `Giorni ${mese}/${anno}`;
     anno=anno;
     container.innerHTML = "";
@@ -71,16 +71,18 @@ function mostraGiorni(anno, mese) {
        let data= new Date (anno,mese-1, 1);
        let giorno= data.toLocaleDateString("it-IT",{
         weekday: "long"});
-
+            console.log(giorno);
         alert (giorno);
-   /*for (let i = 1; i <= giorni; i++) {
-        let data= new Date (anno,mese-1, 1);
-        alert (data.getDay());
-                let giornosettimana= data.toLocaleDateString("it-IT",{
+        //inserisce i giorni vuoti prima del primo giorno del mese
+
+
+   for (let i = 1; i <= giorni; i++) {
+
+        let data= new Date (anno,mese-1, i);
+        let giornosettimana= data.toLocaleDateString("it-IT",{
         weekday:"short"
     });
-    let data= new Date (anno,mese-1, 1);
-        alert (data.getDay());
+    let data2= new Date (anno,mese-1, 1);
         const row= document.createElement("div");
         row.classList.add("row");
         const sfera = document.createElement("div");
@@ -95,7 +97,7 @@ function mostraGiorni(anno, mese) {
 
         
         
-    }*/
+    }
 };
 back.onclick=function(){
     if(indice==="anni"){
