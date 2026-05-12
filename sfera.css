@@ -1,6 +1,6 @@
 .sfera {
-    width: 100px;
-    height: 100px;
+    width: 100%;
+    aspect-ratio: 1/1;
     border-radius: 50%;
     background: linear-gradient(135deg, #0d6efd, #6610f2);
     color: white;
@@ -8,5 +8,15 @@
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    font-size: 12px;
 }
-    
+#contenitore.calendario {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+.opaco {
+    opacity: 0.3;
+}
