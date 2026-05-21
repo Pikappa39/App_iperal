@@ -9,14 +9,37 @@
     justify-content: center;
     font-weight: bold;
     font-size: 12px;
+    
 }
 #contenitore.calendario {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
     gap: 10px;
     max-width: 500px;
     margin: 0 auto;
 }
+
+#contenitore.calendario.griglia-giorni {
+    grid-template-columns: repeat(7, 1fr);
+}
+
+#contenitore.calendario.griglia-mesi {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+#contenitore.calendario.griglia-anni {
+    grid-template-columns: repeat(3, 1fr);
+}
 .opaco {
     opacity: 0.3;
+}
+textarea {
+    width: 100%;
+    height: 150px;
+}
+
+.vista-giorno {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: block;
 }
