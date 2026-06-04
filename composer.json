@@ -1,0 +1,17 @@
+{
+    "name": "luca/app_iperal-1",
+    "autoload": {
+        "psr-4": {
+            "Luca\\AppIperal1\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Pikappa39",
+            "email": "lorenziluca57@gmail.com"
+        }
+    ],
+    "require": {
+        "phpoffice/phpspreadsheet": "^5.7"
+    }
+}

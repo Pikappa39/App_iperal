@@ -23,7 +23,7 @@ session_start();
   <div class="container-fluid justify-content-right">
     
     <?php 
-    var_dump($_SESSION);
+    //var_dump($_SESSION);
     if (isset($_SESSION["user"])): ?>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
              <img id="profileImg" src="img\default.png"
