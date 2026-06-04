@@ -3,7 +3,7 @@ const titolo = document.getElementById("titolo");
 const back = document.getElementById("backbtn");
 let indice;
 let annocorrente;
-
+let mesecorrente;
 // 🔵 1. FUNZIONE ANNI (PARTE ALL'AVVIO)
 function mostraAnni() {
     indice = "anni";
@@ -70,6 +70,7 @@ function mostraMesi(anno) {
             var meseScelto = parseInt(this.getAttribute("data-mese"), 10);
             mostraGiorni(anno, meseScelto);
             annocorrente = anno;
+            mesecorrente = meseScelto;
         };
 
         container.appendChild(sfera);
@@ -94,6 +95,7 @@ function creaSferaGiorno(numero, opaco, messaggioAlert, giorno_parola) {
         };
     }
     sfera.onclick=function(){
+        
     mostragiorno();
     }
     container.appendChild(sfera);
@@ -217,7 +219,7 @@ back.onclick = function () {
         mostraMesi(annocorrente);
     }
     if (indice === "giorno") {
-        mostraGiorni(mesecorrente);
+        mostraGiorni(annocorrente,mesecorrente);
     }
 };
 

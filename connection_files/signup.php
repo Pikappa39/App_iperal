@@ -10,6 +10,13 @@ $email=$_POST['email'];
 $password=$_POST['password'];
 $badge=$_POST['badge'];
 try{
+    // Controlla se l'email è già registrata
+$stmt = $pdo->prepare("SELECT * FROM utenti WHERE email = ?");
+$stmt->execute([$email]);
+if ($stmt->fetch()) {
+    echo "Errore: Email già registrata.";
+    exit;
+}
 $stmt=$pdo->prepare("INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email) VALUES (?, ?, ?, ?, ?, ?)");
 $stmt->execute([$cf, $nome, $cognome, $badge, password_hash($password, PASSWORD_DEFAULT), $email]);
 }

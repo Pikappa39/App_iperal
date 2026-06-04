@@ -36,8 +36,9 @@
 
             <!-- form di registrazione -->
             <div class="container d-flex flex-column align-items-center mt-5 d-none" id="signup">
-              <form id="signupForm" class="w-50">
+              <form id="signupForm" onsubmit="return validateForm();" class="w-50">
                 <div class="form-group">
+                  
                   <label for="exampleInputEmail1">Email address</label>
                   <input type="email" class="form-control" id="regmail" name="email" aria-describedby="emailHelp" placeholder="Enter email">
                   <input type="email" class="form-control mt-2" id="confmail" name="confirm_email" aria-describedby="emailHelp" placeholder="Conferma email">
@@ -106,16 +107,20 @@ form.addEventListener("submit", function(e) {
         let data;
         try {
             data = JSON.parse(testo);
-            console.log(data);
+            console.log(data["logged"]);
         } catch {
             throw new Error("Risposta non valida: " + testo);
         }
         if (data.error_code && data.error) {
             console.error("[" + data.error_code + "] " + data.error);
         }
-        return data;
-    })
-    .catch((err) => console.error(err.message));
+        //se il  login è andato a buon fine mi reindirizza alla pagina principale, altrimenti mostra un messaggio di errore
+        if (data.logged) {
+            window.location.href = "index.php";
+        } else {
+            alert("Email o password errati");
+        }
+})
 });
 
 const signupForm = document.querySelector("#signupForm");
@@ -157,10 +162,28 @@ if (checkMail && checkPassword){
               cache: "no-cache"
           }).then(async (res) => {
               const testo = await res.text();
+              //se la risposta è Errore: Email già registrata. mostra 
             console.log("Risposta dal server: " + testo);
           })
 }
 });
 
+
+//funzione per validare il form di registrazione, controlla che le email e le password siano corrispondenti, se non lo sono mostra un messaggio di errore
+function validateForm() {
+  if (regmail.value != confmail.value) {
+    errorMessageEmail.style.display = "block";
+    return false;
+  } else {
+    errorMessageEmail.style.display = "none";
+  }
+  if (regpass.value != confpass.value) {
+    errorMessagePassword.style.display = "block";
+    return false;
+  } else {
+    errorMessagePassword.style.display = "none";
+  }
+  return true;
+}
 </script>
 </html>

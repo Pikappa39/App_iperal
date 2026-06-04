@@ -7,16 +7,17 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM utenti WHERE email = ?");
     $stmt->execute([$_POST["email"] ?? ""]);
     $user = $stmt->fetch();
-
     if ($user && password_verify($_POST["password"] ?? "", $user["password"])) {
         $_SESSION["user"] = [
             "cf" => $user["cod_fiscale"],
             "nome" => $user["nome"],
+            "avatar" => $user["avatar"],
         ];
         echo json_encode([
             "logged" => true,
             "nome" => $_SESSION["user"]["nome"],
             "cf" => $_SESSION["user"]["cf"],
+            "avatar" => $_SESSION["user"]["avatar"],
         ]);
     } else {
         echo json_encode([
