@@ -37,7 +37,7 @@ session_start();
         <a class="nav-link active" aria-current="page" href="#">Profilo</a>
         <a class="nav-link" href="connection_files/logout.php">Logout</a>
         <a class="nav-link" href="#">Pricing</a>
-        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
+        <a class="nav-link disabled" href="testjs.php" tabindex="-1" aria-disabled="true">Upload</a>
       </div>
     </div>
   </div>
@@ -61,11 +61,23 @@ session_start();
 <!--questo script prende il valore avatar da sessione e cambia 
 l'immagine del profilo con quello avatar, se non è presente un avatar mostra un'immagine di default-->
 <script>
-    const avatar = "<?php echo $_SESSION['user']['avatar'] ?? 'img/avatar1.png'; ?>";
+window.userSession = <?php 
+echo json_encode(
+    ($_SESSION["user"]["nome"] ?? "") . " " . ($_SESSION["user"]["cognome"] ?? "")
+); 
+?>;    const avatar = "<?php echo $_SESSION['user']['avatar'] ?? 'img/avatar1.png'; ?>";
     const profileImg = document.querySelector("#profileImg");
     if (profileImg) {
         profileImg.src = "img/" + avatar + ".png";
     }
+
+    const capo="<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
+    if(capo==="1"){
+      const uploadLink=document.querySelector(".nav-link.disabled");
+      uploadLink.classList.remove("disabled");
+    };
+    
 </script>
+<script src="script.js"></script>
 </body>
 </html>

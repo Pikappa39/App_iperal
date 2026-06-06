@@ -11,13 +11,16 @@ try {
         $_SESSION["user"] = [
             "cf" => $user["cod_fiscale"],
             "nome" => $user["nome"],
+            "cognome" => $user["cognome"],
             "avatar" => $user["avatar"],
+            "capo" => $user["capo"]
         ];
         echo json_encode([
             "logged" => true,
             "nome" => $_SESSION["user"]["nome"],
             "cf" => $_SESSION["user"]["cf"],
             "avatar" => $_SESSION["user"]["avatar"],
+            "cognome" => $_SESSION["user"]["cognome"],
         ]);
     } else {
         echo json_encode([

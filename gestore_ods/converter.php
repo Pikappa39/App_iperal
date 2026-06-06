@@ -5,7 +5,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 header("Content-Type: application/json; charset=utf-8");
 
 require __DIR__ . '/../vendor/autoload.php';
-$file = __DIR__ . '/../xlms/orario.ods';
+/*$file = __DIR__ . '/../xlms/orario.ods';
 
 if (!file_exists($file)) {
     die("File non trovato: " . $file);
@@ -38,6 +38,21 @@ foreach ($sheet->getRowIterator() as $row) {
 }
 
 header("Content-Type: application/json");
-echo json_encode($data);
+echo json_encode($data);*/
 
+$reader = IOFactory::createReader('Xlsx');
+$reader->setReadDataOnly(true);
+$spreadsheet = $reader->load(__DIR__ . '/../xlms/orario.ods');
+
+$worksheet = $spreadsheet->getActiveSheet();
+
+foreach ($worksheet->getRowIterator() as $row) {
+    $cellIterator = $row->getCellIterator();
+    // Loop through all cells, even if not set
+    $cellIterator->setIterateOnlyExistingCells(false);
+    
+    foreach ($cellIterator as $cell) {
+        echo $cell->getValue();
+    }
+}
 ?>
