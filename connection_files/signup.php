@@ -17,8 +17,17 @@ if ($stmt->fetch()) {
     echo "Errore: Email già registrata.";
     exit;
 }
-$stmt=$pdo->prepare("INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email) VALUES (?, ?, ?, ?, ?, ?)");
-$stmt->execute([$cf, $nome, $cognome, $badge, password_hash($password, PASSWORD_DEFAULT), $email]);
+$stmt=$pdo->prepare("INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->execute([
+    $cf,
+    $nome,
+    $cognome,
+    $badge,
+    password_hash($password, PASSWORD_DEFAULT),
+    $email,
+    "default",
+    0
+]);
 }
 catch(PDOException $e){
     echo "Errore durante la registrazione: " . $e->getMessage();

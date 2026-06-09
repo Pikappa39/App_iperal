@@ -1,58 +1,54 @@
 <?php
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-//questo file converte gli ods in json usabili dal calendario, prende in input un file ods e restituisce un file json con i dati del calendario
 header("Content-Type: application/json; charset=utf-8");
 
 require __DIR__ . '/../vendor/autoload.php';
-/*$file = __DIR__ . '/../xlms/orario.ods';
+require __DIR__ . '/orario_converter_lib.php';
 
-if (!file_exists($file)) {
-    die("File non trovato: " . $file);
+$inputDir = __DIR__ . '/../xlms';
+$outputDir = __DIR__ . '/../turni_json';
+
+if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
+    http_response_code(500);
+    echo json_encode(["error" => "Impossibile creare la cartella JSON"]);
+    exit;
 }
 
-$spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
-$sheet = $spreadsheet->getActiveSheet();
+$risultati = [];
+$files = glob($inputDir . DIRECTORY_SEPARATOR . '*.xlsx') ?: [];
 
-$data = [];
+foreach ($files as $file) {
+    $filename = basename($file);
 
-foreach ($sheet->getRowIterator() as $row) {
-
-    $cellIterator = $row->getCellIterator();
-    $cellIterator->setIterateOnlyExistingCells(false);
-
-    $rowData = [];
-
-    foreach ($cellIterator as $cell) {
-        $rowData[] = $cell->getValue();
+    if (str_starts_with($filename, '~') || str_starts_with($filename, '.~lock.')) {
+        continue;
     }
 
-    // salta righe vuote
-    if (!empty($rowData[0])) {
-        $data[] = [
-            "nome" => $rowData[0],
-            "giorno" => $rowData[1],
-            "orario" => $rowData[2]
+    try {
+        $spreadsheet = IOFactory::load($file);
+        $worksheet = $spreadsheet->getActiveSheet();
+        $converted = convertWorkbookToScheduleData($worksheet, $filename);
+
+        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted['settimana'] . '.json';
+        scriviJson($outputFile, $converted['data']);
+
+        $risultati[] = [
+            "file" => $filename,
+            "settimana" => $converted['settimana'],
+            "output" => basename($outputFile),
+            "righe" => count($converted['data']),
+        ];
+    } catch (Throwable $e) {
+        $risultati[] = [
+            "file" => $filename,
+            "error" => $e->getMessage(),
         ];
     }
 }
 
-header("Content-Type: application/json");
-echo json_encode($data);*/
-
-$reader = IOFactory::createReader('Xlsx');
-$reader->setReadDataOnly(true);
-$spreadsheet = $reader->load(__DIR__ . '/../xlms/orario.ods');
-
-$worksheet = $spreadsheet->getActiveSheet();
-
-foreach ($worksheet->getRowIterator() as $row) {
-    $cellIterator = $row->getCellIterator();
-    // Loop through all cells, even if not set
-    $cellIterator->setIterateOnlyExistingCells(false);
-    
-    foreach ($cellIterator as $cell) {
-        echo $cell->getValue();
-    }
-}
-?>
+echo json_encode([
+    "converted" => array_values(array_filter($risultati, fn ($item) => empty($item["skipped"]) && empty($item["error"]))),
+    "skipped" => array_values(array_filter($risultati, fn ($item) => !empty($item["skipped"]))),
+    "errors" => array_values(array_filter($risultati, fn ($item) => !empty($item["error"]))),
+], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

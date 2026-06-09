@@ -4,5 +4,5 @@ session_start();
 $_SESSION = [];
 session_destroy();
 
-header("Location: /App_iperal-1/");
+header("Location: ../index.php");
 exit;

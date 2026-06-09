@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="container d-flex flex-column align-items-center mt-5 " id="welcome">
-                <!-- form di login, visibile solo se non loggato, altrimenti mostrare un messaggio di benvenuto e un pulsante per il logout, se non loggato è visibile il form di registrazione -->
+                <!-- form di login -->
                 <div class="container d-flex flex-column align-items-center mt-5 visible" id="login">
             <h1>Login</h1>
             <form id="loginForm" class="w-50">
@@ -32,13 +32,10 @@
             </form>
             </div>
 
-
-
             <!-- form di registrazione -->
             <div class="container d-flex flex-column align-items-center mt-5 d-none" id="signup">
-              <form id="signupForm" onsubmit="return validateForm();" class="w-50">
+              <form id="signupForm" class="w-50">
                 <div class="form-group">
-                  
                   <label for="exampleInputEmail1">Email address</label>
                   <input type="email" class="form-control" id="regmail" name="email" aria-describedby="emailHelp" placeholder="Enter email">
                   <input type="email" class="form-control mt-2" id="confmail" name="confirm_email" aria-describedby="emailHelp" placeholder="Conferma email">
@@ -49,16 +46,14 @@
                   <p id="error-message-password" class="text-danger" style="display: none;">PASSWORD NON CORRISPONDENTI</p>
                 </div>
                 <label for="inputBadge" class="mt-3">Badge</label>
-                <input type="text" class="form-control" id="inputBadge" name="badge"placeholder="Badge">
+                <input type="text" class="form-control" id="inputBadge" name="badge" placeholder="Badge">
                 <label for="inputCF" class="mt-3">Codice fiscale</label>
                 <input type="text" class="form-control" id="inputCF" name="cf" placeholder="Codice fiscale">
                 <label for="inputNomeCognome" class="mt-3">Nome e Cognome</label>
                 <input type="text" class="form-control" name="nome" id="inputNome" placeholder="Nome">
-                <input type="text" class="form-control mt-2"name="cognome" id="inputCognome" placeholder="Cognome">
+                <input type="text" class="form-control mt-2" name="cognome" id="inputCognome" placeholder="Cognome">
                 <button type="submit" class="btn btn-primary mt-3">Submit</button>
-
               </form>
-
             </div>
             
           <div class="btn-group mt-3" role="group" aria-label="Basic example">
@@ -69,121 +64,91 @@
   </div>
 </body>
 
-
 <script>
-   var checkMail=false;
-  var checkPassword=false;
-const formlogin=document.getElementById("login");
-const formsignup=document.getElementById("signup");
-const btnLogin=document.getElementById("showLogin");
-const btnSignup=document.getElementById("showSignup");
-document.addEventListener("DOMContentLoaded", function(){
-  btnLogin.addEventListener("click", function(){
+const formlogin = document.getElementById("login");
+const formsignup = document.getElementById("signup");
+const btnLogin = document.getElementById("showLogin");
+const btnSignup = document.getElementById("showSignup");
+
+document.addEventListener("DOMContentLoaded", function () {
+  btnLogin.addEventListener("click", function () {
     formlogin.classList.remove("d-none");
     formsignup.classList.add("d-none");
   });
-  btnSignup.addEventListener("click", function(){
+
+  btnSignup.addEventListener("click", function () {
     formlogin.classList.add("d-none");
     formsignup.classList.remove("d-none");
-  })
-})
+  });
+});
+
 const form = document.querySelector("#loginForm");
 
-form.addEventListener("submit", function(e) {
-    e.preventDefault();
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
 
-    const formData = new FormData(this);
+  const formData = new FormData(this);
 
-    fetch("connection_files/signin.php", {
-        method: "POST",
-        body: formData,
-        cache: "no-cache"
-    })
-    .then(async (res) => {
-        const testo = await res.text();
-        if (!testo) {
-            throw new Error("Risposta vuota dal server (HTTP " + res.status + ")");
-        }
-        let data;
-        try {
-            data = JSON.parse(testo);
-            console.log(data["logged"]);
-        } catch {
-            throw new Error("Risposta non valida: " + testo);
-        }
-        if (data.error_code && data.error) {
-            console.error("[" + data.error_code + "] " + data.error);
-        }
-        //se il  login è andato a buon fine mi reindirizza alla pagina principale, altrimenti mostra un messaggio di errore
-        if (data.logged) {
-            window.location.href = "index.php";
-        } else {
-            alert("Email o password errati");
-        }
-})
+  fetch("connection_files/signin.php", {
+    method: "POST",
+    body: formData,
+    cache: "no-cache"
+  })
+  .then(async (res) => {
+      const testo = await res.text();
+      if (!testo) {
+          throw new Error("Risposta vuota dal server (HTTP " + res.status + ")");
+      }
+      let data;
+      try {
+          data = JSON.parse(testo);
+          console.log(data["logged"]);
+      } catch {
+          throw new Error("Risposta non valida: " + testo);
+      }
+      if (data.error_code && data.error) {
+          console.error("[" + data.error_code + "] " + data.error);
+      }
+      if (data.logged) {
+          window.location.href = "index.php";
+      } else {
+          alert("Email o password errati");
+      }
+  });
 });
 
 const signupForm = document.querySelector("#signupForm");
-
-
-//codice controllo password e email
 const regmail = document.getElementById("regmail");
-const confmail= document.getElementById('confmail');
-const regpass= document.getElementById("regpass");
-const confpass=document.getElementById("confpass");
+const confmail = document.getElementById("confmail");
+const regpass = document.getElementById("regpass");
+const confpass = document.getElementById("confpass");
 const errorMessageEmail = document.getElementById("error-message-email");
 const errorMessagePassword = document.getElementById("error-message-password");
-signupForm.addEventListener("submit", function(e){
-  console.log(confmail,regmail);
-e.preventDefault();
-if (regmail.value!=confmail.value){
-  errorMessageEmail.style.display="block";
-} else {
-  errorMessageEmail.style.display="none";
-  checkMail=true;
-}
-if(regpass.value!=confpass.value){
-  errorMessagePassword.style.display="block";
-}
-else{
-  errorMessagePassword.style.display="none";
-  checkPassword=true;
-}
-});
 
-signupForm.addEventListener("submit", function(e){
-e.preventDefault();
-const formData=new FormData(this);
-if (checkMail && checkPassword){
+signupForm.addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const emailOk = regmail.value === confmail.value;
+  const passwordOk = regpass.value === confpass.value;
+
+  errorMessageEmail.style.display = emailOk ? "none" : "block";
+  errorMessagePassword.style.display = passwordOk ? "none" : "block";
+
+  if (!emailOk || !passwordOk) {
+    return;
+  }
+
+  const formData = new FormData(this);
   console.log("Invio dati al server...");
-          fetch("connection_files/signup.php", {
-              method: "POST",
-              body: formData,
-              cache: "no-cache"
-          }).then(async (res) => {
-              const testo = await res.text();
-              //se la risposta è Errore: Email già registrata. mostra 
-            console.log("Risposta dal server: " + testo);
-          })
-}
+
+  fetch("connection_files/signup.php", {
+    method: "POST",
+    body: formData,
+    cache: "no-cache"
+  }).then(async (res) => {
+    const testo = await res.text();
+    console.log("Risposta dal server: " + testo);
+  });
 });
-
-
-//funzione per validare il form di registrazione, controlla che le email e le password siano corrispondenti, se non lo sono mostra un messaggio di errore
-function validateForm() {
-  if (regmail.value != confmail.value) {
-    errorMessageEmail.style.display = "block";
-    return false;
-  } else {
-    errorMessageEmail.style.display = "none";
-  }
-  if (regpass.value != confpass.value) {
-    errorMessagePassword.style.display = "block";
-    return false;
-  } else {
-    errorMessagePassword.style.display = "none";
-  }
-  return true;
-}
 </script>
 </html>

@@ -1,73 +1,81 @@
+<?php
+session_start();
+
+if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
+    header("Location: index.php");
+    exit;
+}
+?>
 <!DOCTYPE html>
-<html>
-    <body>
-<input type="file" id="excelFile"></input>
-<button type="submit" id="submit">Submit</button>
-<button type="button" id="back">Indietro</button>
-<input type="text" id="Nsettimana" placeholder="Numero settimana"></input>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload turni</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+    <div class="container">
+        <h1 class="mb-4">Carica file turni</h1>
 
-<script>
-    const giorni=[
-    "Lunedì",
-    "Martedì",
-    "Mercoledì",
-    "Giovedì",
-    "Venerdì",
-    "Sabato",
-    "Domenica"
-    ];
-    let orarioInserito = null; 
-    let json = null;
-document.getElementById("excelFile").addEventListener("change", (e) => {
+        <form id="uploadForm" class="d-grid gap-3" enctype="multipart/form-data">
+            <input type="file" id="excelFiles" name="excelFiles[]" class="form-control" accept=".xlsx" multiple required>
+            <button type="submit" class="btn btn-primary">Carica e converti</button>
+        </form>
 
-    const file = e.target.files[0];
-    const reader = new FileReader();
+        <div id="status" class="mt-3"></div>
 
-    reader.onload = (event) => {
+        <button type="button" id="back" class="btn btn-secondary mt-4">Indietro</button>
+    </div>
 
-        const data = new Uint8Array(event.target.result);
+    <script>
+        const form = document.getElementById("uploadForm");
+        const statusBox = document.getElementById("status");
+        const back = document.getElementById("back");
 
-        const workbook = XLSX.read(data, {
-            type: "array"
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+
+            statusBox.innerHTML = "Caricamento in corso...";
+
+            try {
+                const res = await fetch("connection_files/upload.php", {
+                    method: "POST",
+                    body: formData,
+                    cache: "no-cache"
+                });
+
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    throw new Error(text || "Risposta non valida");
+                }
+
+                if (!res.ok || data.ok === false) {
+                    statusBox.innerHTML = '<div class="alert alert-danger">' + (data.error || "Errore upload") + '</div>';
+                    return;
+                }
+
+                const items = (data.results || []).map((item) => {
+                    if (item.error) {
+                        return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
+                    }
+                    return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)</li>';
+                }).join('');
+
+                statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';
+            } catch (error) {
+                statusBox.innerHTML = '<div class="alert alert-danger">' + error.message + '</div>';
+            }
         });
 
-        const sheetName = workbook.SheetNames[0];
-
-        const sheet = workbook.Sheets[sheetName];
-
-         json = XLSX.utils.sheet_to_json(sheet,{
-            range:1,
-            raw:false,
-            defval:"RIPOSO"
+        back.addEventListener("click", () => {
+            window.location.href = "index.php";
         });
-        console.log(json);
-
- };
-
-    reader.readAsArrayBuffer(file);
-});
-
-document.getElementById("submit").addEventListener("click", (e) => {
-    const payload={
-        "settimana": document.getElementById("Nsettimana").value,
-        "orari": json
-    }
-    fetch("connection_files/upload.php", {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-})
-.then(res => res.text())
-.then(data => {
-    console.log("Server:", data);
-});
-})
-document.getElementById("back").addEventListener("click",(e)=>{
-    window.location.href="index.php";
-})
-</script>
+    </script>
 </body>
 </html>

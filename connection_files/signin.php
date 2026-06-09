@@ -12,8 +12,8 @@ try {
             "cf" => $user["cod_fiscale"],
             "nome" => $user["nome"],
             "cognome" => $user["cognome"],
-            "avatar" => $user["avatar"],
-            "capo" => $user["capo"]
+            "avatar" => $user["avatar"] ?? "default",
+            "capo" => $user["capo"] ?? 0
         ];
         echo json_encode([
             "logged" => true,
@@ -21,6 +21,7 @@ try {
             "cf" => $_SESSION["user"]["cf"],
             "avatar" => $_SESSION["user"]["avatar"],
             "cognome" => $_SESSION["user"]["cognome"],
+            "capo" => $_SESSION["user"]["capo"],
         ]);
     } else {
         echo json_encode([
