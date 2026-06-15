@@ -5,7 +5,7 @@ session_start();
 <html lang="it">
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="sfera.css?v=5">
+    <link rel="stylesheet" href="sfera.css?v=7">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <meta name="theme-color" content="#0d6efd">
@@ -31,6 +31,7 @@ session_start();
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="#">Profilo</a></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
+            <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item d-none" id="uploadItem" href="testjs.php">Upload</a></li>
@@ -67,10 +68,19 @@ session_start();
   <main id="contenitore" class="calendario mt-4 app-hidden" hidden></main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="script.js?v=5"></script>
-<script src="i_o_data.js"></script>
 <script>
+window.userSession = <?php
+echo json_encode(
+    ($_SESSION["user"]["nome"] ?? "") . " " . ($_SESSION["user"]["cognome"] ?? "")
+);
+?>;
+window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
+window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="script.js?v=8"></script>
+<script>
+(function () {
 const updateBanner = document.getElementById("updateBanner");
 const updateNowBtn = document.getElementById("updateNowBtn");
 const checkUpdatesItem = document.getElementById("checkUpdatesItem");
@@ -103,6 +113,7 @@ function showAppToast(message) {
         appToast.classList.add("app-hidden");
     }, 3200);
 }
+window.showAppToast = showAppToast;
 
 if ('serviceWorker' in navigator) {
     if (sessionStorage.getItem('appUpdated') === '1') {
@@ -197,23 +208,22 @@ if (checkUpdatesItem) {
     checkUpdatesItem.addEventListener('click', checkForUpdatesManually);
 }
 
-window.userSession = <?php 
-echo json_encode(
-    ($_SESSION["user"]["nome"] ?? "") . " " . ($_SESSION["user"]["cognome"] ?? "")
-); 
-?>;
-
 const avatar = "<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
 const profileImg = document.querySelector("#profileImg");
 if (profileImg) {
     profileImg.src = "img/" + avatar + ".png";
 }
 
-const capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
+const capo = window.capo || "0";
 const uploadItem = document.querySelector("#uploadItem");
+const noteAdminItem = document.querySelector("#noteAdminItem");
 if (uploadItem && capo === "1") {
     uploadItem.classList.remove("d-none");
 }
+if (noteAdminItem && capo === "1") {
+    noteAdminItem.classList.remove("d-none");
+}
+})();
 </script>
 </body>
 </html>

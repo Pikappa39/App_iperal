@@ -1,7 +1,7 @@
-const CACHE_NAME = "app-iperal-v5";
+const CACHE_NAME = "app-iperal-v8";
 const STATIC_ASSETS = [
-  "./script.js?v=5",
-  "./sfera.css?v=5",
+  "./script.js?v=8",
+  "./sfera.css?v=7",
   "./i_o_data.js",
   "./manifest.json",
   "./img/icon-192.png",
@@ -51,15 +51,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.includes("/connection_files/") || url.pathname.includes("/note_json/")) {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response(JSON.stringify({ ok: false, error: "offline" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      }))
+    );
+    return;
+  }
+
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request).catch(() => caches.match("./index.php"))
     );
     return;
   }
 
   if (!STATIC_ASSET_URLS.has(event.request.url)) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
     return;
   }
 
