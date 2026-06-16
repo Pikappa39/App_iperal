@@ -1,12 +1,13 @@
 <?php
 require __DIR__ . '/session_bootstrap.php';
+require __DIR__ . '/app_config.php';
 app_session_start();
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="sfera.css?v=7">
+    <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="img/icon-192.png">
     <meta name="theme-color" content="#0d6efd">
@@ -68,6 +69,10 @@ app_session_start();
   </div>
 
   <main id="contenitore" class="calendario mt-4 app-hidden" hidden></main>
+
+  <footer class="app-version" aria-label="Versione applicazione">
+    Versione <?php echo htmlspecialchars(APP_VERSION, ENT_QUOTES, 'UTF-8'); ?>
+  </footer>
 </div>
 
 <script>
@@ -80,10 +85,10 @@ window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
 window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="app_core.js?v=1"></script>
-<script src="app_calendar.js?v=1"></script>
-<script src="app_notes.js?v=1"></script>
-<script src="app_init.js?v=1"></script>
+<script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="app_calendar.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="app_notes.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="app_init.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script>
 (function () {
 const updateBanner = document.getElementById("updateBanner");
@@ -139,7 +144,7 @@ if ('serviceWorker' in navigator) {
     });
 
     window.addEventListener('load', function () {
-        navigator.serviceWorker.register('service-worker.js').then(function (registration) {
+        navigator.serviceWorker.register('service-worker.php').then(function (registration) {
             serviceWorkerRegistration = registration;
 
             const checkWaiting = function () {

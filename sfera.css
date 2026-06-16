@@ -25,6 +25,15 @@ body {
     padding: 20px 0 32px;
 }
 
+.app-version {
+    margin-top: 24px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    opacity: 0.75;
+}
+
 .app-header {
     display: grid;
     grid-template-columns: 1fr auto 1fr;

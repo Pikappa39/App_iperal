@@ -1,16 +1,29 @@
-const CACHE_NAME = "app-iperal-v8";
-const STATIC_ASSETS = [
-  "./script.js?v=8",
-  "./sfera.css?v=7",
-  "./i_o_data.js",
-  "./manifest.json",
-  "./img/icon-192.png",
-  "./img/icon-512.png",
-  "./img/default.png",
-  "./img/avatar1.png",
-  "./img/avatar2.png",
-  "./img/avatar3.png"
+<?php
+require __DIR__ . '/app_config.php';
+
+header('Content-Type: application/javascript; charset=utf-8');
+header('Service-Worker-Allowed: ./');
+
+$assetVersion = rawurlencode(APP_VERSION);
+$cacheName = 'app-iperal-v' . APP_VERSION;
+$staticAssets = [
+    './app_core.js?v=' . $assetVersion,
+    './app_calendar.js?v=' . $assetVersion,
+    './app_notes.js?v=' . $assetVersion,
+    './app_init.js?v=' . $assetVersion,
+    './sfera.css?v=' . $assetVersion,
+    './i_o_data.js',
+    './manifest.json',
+    './img/icon-192.png',
+    './img/icon-512.png',
+    './img/default.png',
+    './img/avatar1.png',
+    './img/avatar2.png',
+    './img/avatar3.png',
 ];
+?>
+const CACHE_NAME = <?php echo json_encode($cacheName); ?>;
+const STATIC_ASSETS = <?php echo json_encode($staticAssets, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES); ?>;
 const STATIC_ASSET_URLS = new Set(
   STATIC_ASSETS.map((asset) => new URL(asset, self.location.href).href)
 );
