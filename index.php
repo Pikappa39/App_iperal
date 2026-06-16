@@ -1,5 +1,6 @@
 <?php
-session_start();
+require __DIR__ . '/session_bootstrap.php';
+app_session_start();
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -29,7 +30,7 @@ session_start();
             <img id="profileImg" src="img/default.png" width="40" height="40" class="rounded-circle" alt="Profilo">
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="#">Profilo</a></li>
+            <li><a class="dropdown-item" >Profilo</a></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
@@ -52,6 +53,7 @@ session_start();
 
   <section id="homeScreen" class="home-screen">
     <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
+
   </section>
 
   <div class="app-toolbar app-hidden" hidden>
@@ -78,7 +80,10 @@ window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
 window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="script.js?v=8"></script>
+<script src="app_core.js?v=1"></script>
+<script src="app_calendar.js?v=1"></script>
+<script src="app_notes.js?v=1"></script>
+<script src="app_init.js?v=1"></script>
 <script>
 (function () {
 const updateBanner = document.getElementById("updateBanner");

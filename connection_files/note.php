@@ -2,7 +2,8 @@
 header("Content-Type: application/json; charset=utf-8");
 
 ob_start();
-session_start();
+require __DIR__ . '/../session_bootstrap.php';
+app_session_start();
 
 function jsonResponse(array $payload, int $status = 200): void {
     if (ob_get_length()) {

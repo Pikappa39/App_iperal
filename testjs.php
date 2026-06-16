@@ -1,5 +1,6 @@
 <?php
-session_start();
+require __DIR__ . '/session_bootstrap.php';
+app_session_start();
 
 if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
     header("Location: index.php");

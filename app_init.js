@@ -1,0 +1,49 @@
+back.onclick = function () {
+    if (appState.view === "home") {
+        return;
+    }
+
+    if (appState.view === "anni") {
+        alert("non puoi andare piu indietro di cosi");
+        return;
+    }
+
+    if (appState.view === "mesi") {
+        mostraAnni();
+        return;
+    }
+
+    if (appState.view === "giorni") {
+        mostraMesi(appState.currentYear);
+        return;
+    }
+
+    if (appState.view === "giorno") {
+        mostraGiorni(appState.currentYear, appState.currentMonth);
+        return;
+    }
+
+    if (appState.view === "noteAdmin") {
+        showHomeScreen();
+    }
+};
+
+if (openOrari) {
+    openOrari.addEventListener("click", () => {
+        appState.currentYear = today.getFullYear();
+        appState.currentMonth = today.getMonth() + 1;
+        mostraGiorni(appState.currentYear, appState.currentMonth);
+    });
+}
+
+if (homeBtn) {
+    homeBtn.addEventListener("click", showHomeScreen);
+}
+
+if (noteAdminItem) {
+    noteAdminItem.addEventListener("click", () => {
+        mostraNoteAdmin();
+    });
+}
+
+showHomeScreen();

@@ -1,36 +1,99 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-require 'connection.php';
-$nome=$_POST['nome'];
-$cognome=$_POST['cognome'];
-$cf=$_POST['cf'];
-$email=$_POST['email'];
-$password=$_POST['password'];
-$badge=$_POST['badge'];
-try{
-    // Controlla se l'email è già registrata
-$stmt = $pdo->prepare("SELECT * FROM utenti WHERE email = ?");
-$stmt->execute([$email]);
-if ($stmt->fetch()) {
-    echo "Errore: Email già registrata.";
+header("Content-Type: application/json; charset=utf-8");
+
+require __DIR__ . '/connection.php';
+
+function jsonResponse(array $payload, int $status = 200): void
+{
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
-$stmt=$pdo->prepare("INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->execute([
-    $cf,
-    $nome,
-    $cognome,
-    $badge,
-    password_hash($password, PASSWORD_DEFAULT),
-    $email,
-    "default",
-    0
-]);
+
+if (($_SERVER["REQUEST_METHOD"] ?? "GET") !== "POST") {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Metodo non consentito",
+    ], 405);
 }
-catch(PDOException $e){
-    echo "Errore durante la registrazione: " . $e->getMessage();
-    exit;
+
+if (!$connessione || !isset($pdo)) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Connessione al database non disponibile",
+    ], 500);
 }
-?>
+
+$nome = trim((string) ($_POST["nome"] ?? ""));
+$cognome = trim((string) ($_POST["cognome"] ?? ""));
+$cf = strtoupper(trim((string) ($_POST["cf"] ?? "")));
+$email = strtolower(trim((string) ($_POST["email"] ?? "")));
+$password = (string) ($_POST["password"] ?? "");
+$badge = trim((string) ($_POST["badge"] ?? ""));
+
+if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $badge === "") {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Compila tutti i campi obbligatori",
+    ], 400);
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Email non valida",
+    ], 400);
+}
+
+if (strlen($cf) < 11 || strlen($cf) > 16) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Codice fiscale non valido",
+    ], 400);
+}
+
+try {
+    $checks = [
+        ["email", $email, "Email già registrata"],
+        ["badge", $badge, "Badge già registrato"],
+        ["cod_fiscale", $cf, "Codice fiscale già registrato"],
+    ];
+
+    foreach ($checks as [$field, $value, $message]) {
+        $stmt = $pdo->prepare("SELECT 1 FROM utenti WHERE {$field} = ? LIMIT 1");
+        $stmt->execute([$value]);
+        if ($stmt->fetchColumn()) {
+            jsonResponse([
+                "ok" => false,
+                "error" => $message,
+            ], 409);
+        }
+    }
+
+    $stmt = $pdo->prepare(
+        "INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+
+    $stmt->execute([
+        $cf,
+        $nome,
+        $cognome,
+        $badge,
+        password_hash($password, PASSWORD_DEFAULT),
+        $email,
+        "default",
+        0,
+    ]);
+
+    jsonResponse([
+        "ok" => true,
+        "registered" => true,
+    ]);
+} catch (PDOException $e) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Errore durante la registrazione",
+        "details" => $e->getMessage(),
+    ], 500);
+}

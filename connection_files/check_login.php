@@ -1,5 +1,6 @@
 <?php
-session_start();
+require __DIR__ . '/../session_bootstrap.php';
+app_session_start();
 
 if (isset($_SESSION['user'])) {
     echo json_encode([

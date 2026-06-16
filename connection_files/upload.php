@@ -3,7 +3,8 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 header("Content-Type: application/json; charset=utf-8");
 
-session_start();
+require __DIR__ . '/../session_bootstrap.php';
+app_session_start();
 
 if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
     http_response_code(403);

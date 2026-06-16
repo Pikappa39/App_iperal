@@ -1,13 +1,15 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
-session_start();
+require __DIR__ . '/../session_bootstrap.php';
+app_session_start();
 require "connection.php";
 try {
     $stmt = $pdo->prepare("SELECT * FROM utenti WHERE email = ?");
     $stmt->execute([$_POST["email"] ?? ""]);
     $user = $stmt->fetch();
     if ($user && password_verify($_POST["password"] ?? "", $user["password"])) {
+        session_regenerate_id(true);
         $_SESSION["user"] = [
             "cf" => $user["cod_fiscale"],
             "nome" => $user["nome"],
