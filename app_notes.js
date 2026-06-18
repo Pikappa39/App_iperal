@@ -1,3 +1,4 @@
+//questa funzione createDayNotePanel crea il pannello per visualizzare e modificare le note di un giorno specifico
 function createDayNotePanel(giornoInfo) {
     const wrapper = document.createElement("div");
     wrapper.className = "note-panel";
@@ -43,7 +44,7 @@ function createDayNotePanel(giornoInfo) {
         saveButton
     };
 }
-
+//questa funzione setDayNotesSummary aggiorna il riepilogo delle note esistenti per un giorno specifico
 function setDayNotesSummary(existingNotes, dayNotes) {
     if (!Array.isArray(dayNotes) || dayNotes.length === 0) {
         existingNotes.textContent = "Nessuna nota salvata per questo giorno.";
@@ -54,7 +55,8 @@ function setDayNotesSummary(existingNotes, dayNotes) {
         ? "1 nota per questo giorno."
         : "Ci sono " + dayNotes.length + " note per questo giorno.";
 }
-
+//questa funzione loadDayNoteContent carica il contenuto della nota per un giorno specifico e aggiorna l'interfaccia utente
+//viene richiamata da mostragiorno e gestisce il caricamento asincrono delle note dal server
 async function loadDayNoteContent(anno, mese, giornoInfo, textarea, existingNotes, token) {
     try {
         const noteMese = await getMonthNotes(anno, mese);
@@ -72,7 +74,8 @@ async function loadDayNoteContent(anno, mese, giornoInfo, textarea, existingNote
         return null;
     }
 }
-
+//questa funzione bindSaveDayNoteButton associa l'evento di salvataggio della nota al pulsante "Salva" e gestisce la logica di invio al server
+//viene richiamata da mostragiorno e gestisce il salvataggio asincrono delle note sul server
 function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, status, saveButton) {
     saveButton.addEventListener("click", async function () {
         const currentToken = appState.noteViewToken;
@@ -165,8 +168,9 @@ async function mostragiorno(giornoInfo) {
     notePanel.textarea.focus();
     bindSaveDayNoteButton(anno, mese, giornoInfo, notePanel.textarea, notePanel.existingNotes, notePanel.status, notePanel.saveButton);
 }
-
+//questa funzione serve a generare le note di un utente
 function createAdminNoteCard(entry) {
+    //la costante
     const card = document.createElement("article");
     card.className = "admin-note-card";
 
@@ -192,7 +196,9 @@ function createAdminNoteCard(entry) {
 
     return card;
 }
-
+//questa funzione createAdminMonthSection crea una sezione per un mese specifico contenente le note degli utenti
+//viene richiamata da mostranoteadmin
+//viene richiamata in essa createadminnotecard che serve a generare le card conteneti le note di un utente
 function createAdminMonthSection(monthData) {
     const section = document.createElement("section");
     section.className = "admin-notes__month";

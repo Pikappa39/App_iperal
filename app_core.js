@@ -1,3 +1,4 @@
+//dichiaro variabili prendendole da index.php
 const container = document.getElementById("contenitore");
 const titolo = document.getElementById("titolo");
 const back = document.getElementById("backbtn");
@@ -24,7 +25,7 @@ const WEEK_DATA_DIRS = ["turni_json", "connection_files"];
 const NOTES_ENDPOINT = "connection_files/note.php";
 const today = new Date();
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
-
+//questa funzione imposta la vista corrente, il titolo e svuota il contenitore
 function setVista(classes, titoloTesto) {
     titolo.innerText = titoloTesto;
     container.className = classes;

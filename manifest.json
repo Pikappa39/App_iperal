@@ -1,3 +1,5 @@
+
+//quest file serve per configurare l'applicazione, contiene costanti e variabili globali che possono essere utilizzate in tutto il progetto
 {
   "name": "App Iperal",
   "short_name": "Iperal",

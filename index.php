@@ -31,7 +31,7 @@ app_session_start();
             <img id="profileImg" src="img/default.png" width="40" height="40" class="rounded-circle" alt="Profilo">
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" >Profilo</a></li>
+            <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
@@ -44,7 +44,7 @@ app_session_start();
       <?php endif; ?>
     </div>
   </header>
-
+<!-- Update Banner -->
   <div id="updateBanner" class="update-banner app-hidden" hidden role="status" aria-live="polite">
     <span>Nuova versione disponibile</span>
     <button type="button" id="updateNowBtn" class="btn btn-light btn-sm">Aggiorna</button>
@@ -56,7 +56,7 @@ app_session_start();
     <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
 
   </section>
-
+<!-- barra di navigazione, appare solo quando si è in una pagina secondaria e non nella home -->
   <div class="app-toolbar app-hidden" hidden>
     <button type="button" id="homebtn" class="btn btn-outline-dark btn-sm icon-btn" aria-label="Torna alla home" title="Home">
       <svg class="icon-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -76,18 +76,19 @@ app_session_start();
 </div>
 
 <script>
-window.userSession = <?php
-echo json_encode(
+window.userSession = <?php echo json_encode(
     ($_SESSION["user"]["nome"] ?? "") . " " . ($_SESSION["user"]["cognome"] ?? "")
 );
 ?>;
 window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
-window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>";
+window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>"
+window.avatar="<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_calendar.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_notes.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="userhome.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_init.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script>
 (function () {

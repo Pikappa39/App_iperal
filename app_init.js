@@ -26,6 +26,9 @@ back.onclick = function () {
     if (appState.view === "noteAdmin") {
         showHomeScreen();
     }
+    if (appState.view === "profilo") {
+        showHomeScreen();
+    }
 };
 
 if (openOrari) {
@@ -43,6 +46,11 @@ if (homeBtn) {
 if (noteAdminItem) {
     noteAdminItem.addEventListener("click", () => {
         mostraNoteAdmin();
+    });
+}
+if(profileItem){
+    profileItem.addEventListener("click", () => {
+        mostraProfilo();
     });
 }
 

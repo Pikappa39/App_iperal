@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/php_runtime.php';
+
 const APP_SESSION_LIFETIME = 60 * 60 * 24 * 30;
 
 function app_session_start(): void
@@ -19,4 +21,3 @@ function app_session_start(): void
 
     session_start();
 }
-

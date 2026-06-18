@@ -500,36 +500,55 @@ textarea {
     }
 
     .sfera {
+        width: 100%;
+        max-width: none;
         aspect-ratio: auto;
-        min-height: 68px;
+        min-height: 76px;
         border-radius: 14px;
-        padding: 10px 12px;
+        padding: 10px 14px;
         justify-content: stretch;
         box-shadow: 0 8px 18px rgba(39, 68, 214, 0.14);
     }
 
     .sfera__content {
         display: grid;
-        grid-template-columns: minmax(88px, 1fr) 42px minmax(96px, 1.2fr);
+        grid-template-columns: minmax(0, 0.95fr) 44px minmax(0, 1.05fr);
         align-items: center;
         gap: 8px;
+        min-width: 0;
         padding-top: 0;
         text-align: left;
     }
 
     .sfera__day {
-        font-size: 0.82rem;
+        min-width: 0;
+        font-size: 0.9rem;
+        line-height: 1.05;
         text-transform: capitalize;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .sfera__number {
-        font-size: 1.35rem;
+        font-size: 1.8rem;
         text-align: center;
     }
 
     .sfera__time {
-        font-size: 0.78rem;
+        min-width: 0;
+        font-size: 0.9rem;
+        line-height: 1.05;
         text-align: right;
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+
+    .sfera__note {
+        grid-column: 1 / -1;
+        font-size: 0.78rem;
+        line-height: 1.15;
+        text-align: left;
+        word-break: break-word;
     }
 
     .today {
@@ -544,4 +563,10 @@ textarea {
     .admin-note-card__date {
         text-align: left;
     }
+}
+
+.profilo_visuale{
+    display: flex;
+align-items: center;  
+justify-content: center;  
 }

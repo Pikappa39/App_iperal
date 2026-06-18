@@ -3,6 +3,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 header("Content-Type: application/json; charset=utf-8");
 
+require __DIR__ . '/../php_runtime.php';
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/orario_converter_lib.php';
 
