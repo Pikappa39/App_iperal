@@ -57,8 +57,12 @@ function showCalendarShell() {
 }
 
 function getCurrentUser() {
-    return (window.userSession || "").toString().trim().toUpperCase();
-}
+    const user = window.userSession;
+    if (!user) return "";
+
+    return (user.nome + " " + user.cognome)
+        .trim()
+        .toUpperCase();}
 
 function getCurrentUserKey() {
     return (window.userKey || "").toString().trim().toUpperCase();

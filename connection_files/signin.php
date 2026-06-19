@@ -15,7 +15,8 @@ try {
             "nome" => $user["nome"],
             "cognome" => $user["cognome"],
             "avatar" => $user["avatar"] ?? "default",
-            "capo" => $user["capo"] ?? 0
+            "capo" => $user["capo"] ?? 0,
+            "reparto"=> $user["reparto"],
         ];
         echo json_encode([
             "logged" => true,
@@ -24,6 +25,7 @@ try {
             "avatar" => $_SESSION["user"]["avatar"],
             "cognome" => $_SESSION["user"]["cognome"],
             "capo" => $_SESSION["user"]["capo"],
+            "reparto"=> $_SESSION["user"]["reparto"]
         ]);
     } else {
         echo json_encode([

@@ -76,10 +76,8 @@ app_session_start();
 </div>
 
 <script>
-window.userSession = <?php echo json_encode(
-    ($_SESSION["user"]["nome"] ?? "") . " " . ($_SESSION["user"]["cognome"] ?? "")
-);
-?>;
+window.userSession = <?php echo json_encode($_SESSION["user"] ?? null); ?>;
+
 window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
 window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>"
 window.avatar="<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
@@ -220,6 +218,7 @@ if (checkUpdatesItem) {
 }
 
 const avatar = "<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
+let reparto=  "<?php echo $_SESSION['user']['reparto'] ?? 'Jolly'; ?>";
 const profileImg = document.querySelector("#profileImg");
 if (profileImg) {
     profileImg.src = "img/" + avatar + ".png";
