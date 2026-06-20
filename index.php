@@ -37,6 +37,7 @@ app_session_start();
             <li><button type="button" class="dropdown-item" id="pushNotificationsItem">Attiva notifiche</button></li>
             <li><button type="button" class="dropdown-item" id="scheduleChangesItem">Aggiornamenti orari</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
+            <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item d-none" id="uploadItem" href="testjs.php">Upload</a></li>
@@ -102,6 +103,7 @@ window.pushPublicKey = <?php echo json_encode($pushPublicKey); ?>;
 <script src="app_notes.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="userhome.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_init.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="setting.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script>
 (function () {
 const updateBanner = document.getElementById("updateBanner");

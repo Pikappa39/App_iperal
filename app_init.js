@@ -62,6 +62,12 @@ if(profileItem){
     });
 }
 
+if(setting){
+    setting.addEventListener("click" ,()=>{
+        mostrasetting();
+    })
+}
+
 showHomeScreen();
 if (window.openScheduleChangesFromUrl) {
     window.openScheduleChangesFromUrl();

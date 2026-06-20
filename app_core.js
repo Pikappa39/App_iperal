@@ -8,7 +8,7 @@ const appToolbar = document.querySelector(".app-toolbar");
 const openOrari = document.getElementById("openOrari");
 const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
-
+const setting=document.getElementById("setting");
 const appState = {
     view: "home",
     currentYear: null,
