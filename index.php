@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/session_bootstrap.php';
 require __DIR__ . '/app_config.php';
+require __DIR__ . '/connection_files/push_lib.php';
 app_session_start();
 ?>
 <!DOCTYPE html>
@@ -8,8 +9,8 @@ app_session_start();
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="manifest" href="manifest.php?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="apple-touch-icon" href="img/icon-192.png?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <meta name="theme-color" content="#0d6efd">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,6 +34,8 @@ app_session_start();
           <ul class="dropdown-menu dropdown-menu-end">
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
+            <li><button type="button" class="dropdown-item" id="pushNotificationsItem">Attiva notifiche</button></li>
+            <li><button type="button" class="dropdown-item" id="scheduleChangesItem">Aggiornamenti orari</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
             <li><hr class="dropdown-divider"></li>
@@ -81,6 +84,17 @@ window.userSession = <?php echo json_encode($_SESSION["user"] ?? null); ?>;
 window.userKey = <?php echo json_encode($_SESSION['user']['cf'] ?? ''); ?>;
 window.capo = "<?php echo $_SESSION['user']['capo'] ?? '0'; ?>"
 window.avatar="<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
+<?php
+$pushPublicKey = '';
+if (isset($_SESSION['user'])) {
+    try {
+        $pushPublicKey = appPushPublicKey();
+    } catch (Throwable $e) {
+        error_log('Configurazione push non disponibile: ' . $e->getMessage());
+    }
+}
+?>
+window.pushPublicKey = <?php echo json_encode($pushPublicKey); ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
@@ -93,10 +107,12 @@ window.avatar="<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
 const updateBanner = document.getElementById("updateBanner");
 const updateNowBtn = document.getElementById("updateNowBtn");
 const checkUpdatesItem = document.getElementById("checkUpdatesItem");
+const pushNotificationsItem = document.getElementById("pushNotificationsItem");
 const appToast = document.getElementById("appToast");
 let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
+let pushStateLoaded = false;
 
 function showUpdateBanner() {
     if (!updateBanner) {
@@ -124,6 +140,100 @@ function showAppToast(message) {
 }
 window.showAppToast = showAppToast;
 
+function base64UrlToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+
+    return outputArray;
+}
+
+function updatePushButtonState(enabled) {
+    if (!pushNotificationsItem) {
+        return;
+    }
+
+    pushNotificationsItem.textContent = enabled ? "Notifiche attive" : "Attiva notifiche";
+}
+
+async function refreshPushState(registration) {
+    if (!registration || !registration.pushManager || pushStateLoaded) {
+        return;
+    }
+
+    pushStateLoaded = true;
+
+    try {
+        const subscription = await registration.pushManager.getSubscription();
+        updatePushButtonState(!!subscription);
+    } catch (error) {
+        console.error("Errore nel controllo push", error);
+    }
+}
+
+async function enablePushNotifications() {
+    if (!("Notification" in window) || !("PushManager" in window)) {
+        showAppToast("Le notifiche push non sono supportate su questo browser");
+        return;
+    }
+
+    if (!serviceWorkerRegistration) {
+        showAppToast("Il service worker non è ancora pronto");
+        return;
+    }
+
+    try {
+        const currentPermission = Notification.permission;
+        const permission = currentPermission === "default"
+            ? await Notification.requestPermission()
+            : currentPermission;
+
+        if (permission !== "granted") {
+            showAppToast("Permesso notifiche non concesso");
+            return;
+        }
+
+        const publicKey = (window.pushPublicKey || "").toString().trim();
+        if (!publicKey) {
+            showAppToast("Chiave push non disponibile");
+            return;
+        }
+
+        const existingSubscription = await serviceWorkerRegistration.pushManager.getSubscription();
+        const subscription = existingSubscription || await serviceWorkerRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: base64UrlToUint8Array(publicKey)
+        });
+
+        const response = await fetch("connection_files/push_subscribe.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(subscription.toJSON()),
+            cache: "no-store"
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            throw new Error(data.error || "Errore nel salvataggio della subscription");
+        }
+
+        updatePushButtonState(true);
+        showAppToast("Notifiche attivate");
+    } catch (error) {
+        console.error("Errore push", error);
+        showAppToast(error.message || "Non riesco ad attivare le notifiche");
+    }
+}
+
 if ('serviceWorker' in navigator) {
     if (sessionStorage.getItem('appUpdated') === '1') {
         sessionStorage.removeItem('appUpdated');
@@ -145,6 +255,7 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
         navigator.serviceWorker.register('service-worker.php').then(function (registration) {
             serviceWorkerRegistration = registration;
+            refreshPushState(registration);
 
             const checkWaiting = function () {
                 if (registration.waiting) {
@@ -217,6 +328,10 @@ if (checkUpdatesItem) {
     checkUpdatesItem.addEventListener('click', checkForUpdatesManually);
 }
 
+if (pushNotificationsItem) {
+    pushNotificationsItem.addEventListener("click", enablePushNotifications);
+}
+
 const avatar = "<?php echo $_SESSION['user']['avatar'] ?? 'default'; ?>";
 let reparto=  "<?php echo $_SESSION['user']['reparto'] ?? 'Jolly'; ?>";
 const profileImg = document.querySelector("#profileImg");
@@ -227,10 +342,10 @@ if (profileImg) {
 const capo = window.capo || "0";
 const uploadItem = document.querySelector("#uploadItem");
 const noteAdminItem = document.querySelector("#noteAdminItem");
-if (uploadItem && capo === "1") {
+if (uploadItem && (capo === "1" || capo==="3")) {
     uploadItem.classList.remove("d-none");
 }
-if (noteAdminItem && capo === "1") {
+if (noteAdminItem && (capo === "1" || capo==="3")) {
     noteAdminItem.classList.remove("d-none");
 }
 })();

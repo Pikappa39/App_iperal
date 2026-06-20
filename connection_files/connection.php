@@ -4,7 +4,7 @@ $connessione = false;
 try {
     $pdo = new PDO("mysql:host=localhost;dbname=iperal_01", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->exec("
+    $pdo->exec("
         CREATE TABLE IF NOT EXISTS utenti (
             cod_fiscale VARCHAR(16) PRIMARY KEY,
             nome VARCHAR(100),

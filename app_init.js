@@ -29,6 +29,9 @@ back.onclick = function () {
     if (appState.view === "profilo") {
         showHomeScreen();
     }
+    if (appState.view === "scheduleChanges") {
+        showHomeScreen();
+    }
 };
 
 if (openOrari) {
@@ -48,6 +51,11 @@ if (noteAdminItem) {
         mostraNoteAdmin();
     });
 }
+if (scheduleChangesItem) {
+    scheduleChangesItem.addEventListener("click", () => {
+        mostraModificheOrari();
+    });
+}
 if(profileItem){
     profileItem.addEventListener("click", () => {
         mostraProfilo();
@@ -55,3 +63,6 @@ if(profileItem){
 }
 
 showHomeScreen();
+if (window.openScheduleChangesFromUrl) {
+    window.openScheduleChangesFromUrl();
+}

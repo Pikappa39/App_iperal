@@ -12,6 +12,7 @@
         }
     ],
     "require": {
-        "phpoffice/phpspreadsheet": "^5.7"
+        "phpoffice/phpspreadsheet": "^5.7",
+        "minishlink/web-push": "^10.1"
     }
 }

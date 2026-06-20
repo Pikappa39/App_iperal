@@ -2,7 +2,8 @@
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 
-if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
+$capo = (int) ($_SESSION["user"]["capo"] ?? 0);
+if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
     header("Location: index.php");
     exit;
 }
@@ -65,7 +66,10 @@ if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
                     if (item.error) {
                         return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
                     }
-                    return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)</li>';
+                    const historyCount = item.history && Number.isFinite(Number(item.history.stored))
+                        ? ' - storico: ' + Number(item.history.stored) + ' modifiche'
+                        : '';
+                    return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)' + historyCount + '</li>';
                 }).join('');
 
                 statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';

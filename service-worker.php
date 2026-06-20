@@ -13,9 +13,9 @@ $staticAssets = [
     './app_init.js?v=' . $assetVersion,
     './sfera.css?v=' . $assetVersion,
     './i_o_data.js',
-    './manifest.json',
-    './img/icon-192.png',
-    './img/icon-512.png',
+    './manifest.php?v=' . $assetVersion,
+    './img/icon-192.png?v=' . $assetVersion,
+    './img/icon-512.png?v=' . $assetVersion,
     './img/default.png',
     './img/avatar1.png',
     './img/avatar2.png',
@@ -28,6 +28,20 @@ const STATIC_ASSET_URLS = new Set(
   STATIC_ASSETS.map((asset) => new URL(asset, self.location.href).href)
 );
 
+function offlineJsonResponse() {
+  return new Response(JSON.stringify({ ok: false, error: "offline" }), {
+    status: 503,
+    headers: { "Content-Type": "application/json; charset=utf-8" }
+  });
+}
+
+function offlinePageResponse() {
+  return new Response("Offline", {
+    status: 503,
+    headers: { "Content-Type": "text/plain; charset=utf-8" }
+  });
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -38,6 +52,58 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (error) {
+    payload = {
+      title: "App Iperal",
+      body: event.data ? event.data.text() : "",
+    };
+  }
+
+  const title = payload.title || "App Iperal";
+  const options = {
+    body: payload.body || "Hai una nuova notifica",
+    icon: "./img/icon-192.png",
+    badge: "./img/icon-192.png",
+    data: {
+      url: payload.url || "./index.php",
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetPath = (event.notification && event.notification.data && event.notification.data.url) || "./index.php";
+  const targetUrl = new URL(targetPath, self.location.href).href;
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+
+    for (const client of allClients) {
+      if ("focus" in client) {
+        client.navigate(targetUrl);
+        return client.focus();
+      }
+    }
+
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(targetUrl);
+    }
+
+    return undefined;
+  })());
 });
 
 self.addEventListener("activate", (event) => {
@@ -66,24 +132,25 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.includes("/connection_files/") || url.pathname.includes("/note_json/")) {
     event.respondWith(
-      fetch(event.request).catch(() => new Response(JSON.stringify({ ok: false, error: "offline" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      }))
+      fetch(event.request).catch(() => offlineJsonResponse())
     );
     return;
   }
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("./index.php"))
+      fetch(event.request).catch(() =>
+        caches.match("./index.php").then((response) => response || offlinePageResponse())
+      )
     );
     return;
   }
 
   if (!STATIC_ASSET_URLS.has(event.request.url)) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() =>
+        caches.match(event.request).then((response) => response || offlinePageResponse())
+      )
     );
     return;
   }
@@ -93,6 +160,8 @@ self.addEventListener("fetch", (event) => {
       const copy = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
       return response;
-    }).catch(() => caches.match(event.request))
+    }).catch(() =>
+      caches.match(event.request).then((response) => response || offlinePageResponse())
+    )
   );
 });

@@ -6,7 +6,8 @@ header("Content-Type: application/json; charset=utf-8");
 require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 
-if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
+$capo = (int) ($_SESSION["user"]["capo"] ?? 0);
+if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
     http_response_code(403);
     echo json_encode([
         "ok" => false,
@@ -17,6 +18,8 @@ if (!isset($_SESSION["user"]) || (int) ($_SESSION["user"]["capo"] ?? 0) !== 1) {
 
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../gestore_ods/orario_converter_lib.php';
+require __DIR__ . '/connection.php';
+require __DIR__ . '/push_lib.php';
 
 $outputDir = __DIR__ . '/../turni_json';
 
@@ -71,13 +74,99 @@ foreach ($tmpNames as $index => $tmpName) {
         $converted = convertWorkbookToScheduleData($worksheet, $originalName);
 
         $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted["settimana"] . ".json";
+        $previousData = appPushDecodeJsonFile($outputFile);
         scriviJson($outputFile, $converted["data"]);
+
+        $scheduleMeta = appPushExtractIsoWeekYear($originalName);
+        $changeSet = appPushBuildChangeSet(
+            $previousData,
+            $converted["data"],
+            $pdo,
+            $scheduleMeta['year'],
+            $scheduleMeta['week']
+        );
+        $batchId = bin2hex(random_bytes(16));
+        $historySummary = [
+            'batch' => $batchId,
+            'stored' => 0,
+            'errors' => [],
+        ];
+        $storedChangesByUser = [];
+
+        foreach ($changeSet['targets'] as $userCf => $entries) {
+            try {
+                $storedChangesByUser[$userCf] = appPushStoreScheduleChanges(
+                    $pdo,
+                    $batchId,
+                    (string) $userCf,
+                    (string) ($_SESSION['user']['cf'] ?? ''),
+                    $scheduleMeta['year'],
+                    $scheduleMeta['week'],
+                    $originalName,
+                    $entries
+                );
+                $historySummary['stored'] += $storedChangesByUser[$userCf];
+            } catch (Throwable $historyError) {
+                $historySummary['errors'][$userCf] = $historyError->getMessage();
+            }
+        }
+
+        $pushSummary = [
+            'general' => null,
+            'targets' => [],
+        ];
+
+        if ($changeSet['generalChanged']) {
+            try {
+                $pushSummary['general'] = appPushSendPayload($pdo, [
+                    'title' => 'Nuovi orari caricati',
+                    'body' => 'Gli orari sono stati aggiornati dal capo',
+                    'url' => './index.php',
+                ]);
+            } catch (Throwable $pushError) {
+                $pushSummary['general'] = [
+                    'error' => $pushError->getMessage(),
+                ];
+            }
+        }
+
+        foreach ($changeSet['targets'] as $userCf => $entries) {
+            if (!is_array($entries) || $entries === []) {
+                continue;
+            }
+
+            $firstChange = $entries[0];
+            $changeCount = count($entries);
+            $body = $changeCount === 1
+                ? 'Orario del ' . ($firstChange['dateLabel'] ?? 'giorno selezionato') . ' modificato da capo'
+                : 'Hai ' . $changeCount . ' modifiche di orario';
+            $title = $changeCount === 1
+                ? 'Orario modificato'
+                : 'Orari aggiornati';
+            $changeUrl = !empty($storedChangesByUser[$userCf])
+                ? './index.php?changes=1&batch=' . rawurlencode($batchId)
+                : './index.php';
+
+            try {
+                $pushSummary['targets'][$userCf] = appPushSendPayload($pdo, [
+                    'title' => $title,
+                    'body' => $body,
+                    'url' => $changeUrl,
+                ], $userCf);
+            } catch (Throwable $pushError) {
+                $pushSummary['targets'][$userCf] = [
+                    'error' => $pushError->getMessage(),
+                ];
+            }
+        }
 
         $results[] = [
             "file" => $originalName,
             "settimana" => $converted["settimana"],
             "output" => basename($outputFile),
             "righe" => count($converted["data"]),
+            "history" => $historySummary,
+            "push" => $pushSummary,
         ];
     } catch (Throwable $e) {
         $results[] = [

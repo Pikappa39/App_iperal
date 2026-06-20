@@ -28,7 +28,7 @@ function mostraProfilo() {
 
     const reparto = reparti[userSession.reparto] || userSession.reparto;
     let ruolo;
-    switch(userSession.capo){
+    switch(Number(userSession.capo)){
         case 0:
             ruolo="Addetto alle vendite";
             break;
@@ -39,7 +39,10 @@ function mostraProfilo() {
             ruolo="Vice Capo";
             break;
         case 3:
-            ruolo="Admin"
+            ruolo="Admin";
+            break;
+        default:
+            ruolo="Ruolo non definito";
     }
 
     // --- TITOLO ---

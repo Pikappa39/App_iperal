@@ -132,7 +132,8 @@ try {
 
     if ($method === "GET") {
         if (isset($_GET["all"]) && $_GET["all"] === "1") {
-            if (!$hasSessionUser || (int) ($sessionUser["capo"] ?? 0) !== 1) {
+            $capo = (int) ($sessionUser["capo"] ?? 0);
+            if (!$hasSessionUser || !in_array($capo, [1, 3], true)) {
                 jsonResponse([
                     "ok" => false,
                     "error" => "Accesso negato",
