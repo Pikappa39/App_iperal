@@ -1,3 +1,13 @@
 /vendor/
 /storage/push_vapid.json
 /app_local_env.php
+# Dati generati o locali: non pubblicare con Git
+/note_json/*.json
+!/note_json/.gitkeep
+!/note_json/.htaccess
+
+/turni_json/*.json
+/xlms/
+
+.DS_Store
+*.log
