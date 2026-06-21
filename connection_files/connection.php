@@ -58,6 +58,20 @@ try {
         $pdo->exec("ALTER TABLE utenti ADD COLUMN reparto VARCHAR(20) NULL DEFAULT NULL");
     }
 
+    // Il file Excel contiene solo il nominativo. Questa tabella conserva la
+    // scelta fatta dal capo tra quel nominativo e l'utente reale del reparto.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS schedule_name_mappings (
+            reparto VARCHAR(20) NOT NULL,
+            schedule_name VARCHAR(191) NOT NULL,
+            user_cf VARCHAR(16) NOT NULL,
+            created_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (reparto, schedule_name),
+            INDEX idx_schedule_name_mappings_user (user_cf)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+    );
+
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

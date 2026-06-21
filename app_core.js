@@ -363,13 +363,19 @@ function updateMonthNotesCache(anno, mese, dataKey, entries) {
     appState.monthNotesPromises[monthKey] = Promise.resolve(normalized);
 }
 
-function getOrarioDaSettimana(dataSettimana, user, giornoParola) {
-    if (!Array.isArray(dataSettimana) || !user) {
+function getOrarioDaSettimana(dataSettimana, userCf, userName, giornoParola) {
+    if (!Array.isArray(dataSettimana) || (!userCf && !userName)) {
         return "";
     }
 
     const soloAddetto = dataSettimana.find((riga) => {
-        return (riga.ADDETTO || "").toString().trim().toUpperCase() === user;
+        const rowCf = (riga.COD_FISCALE || "").toString().trim().toUpperCase();
+        if (userCf && rowCf) {
+            return rowCf === userCf;
+        }
+
+        // Compatibilità con i file storici, caricati prima delle associazioni.
+        return (riga.ADDETTO || "").toString().trim().toUpperCase() === userName;
     });
 
     if (!soloAddetto) {
@@ -380,11 +386,12 @@ function getOrarioDaSettimana(dataSettimana, user, giornoParola) {
 }
 
 async function mostraOrari(Nsettimana, giorno_parola) {
-    const user = getCurrentUser();
-    if (!user) {
+    const userCf = getCurrentUserKey();
+    const userName = getCurrentUser();
+    if (!userCf && !userName) {
         return "";
     }
 
     const data = await getWeekData(Nsettimana);
-    return getOrarioDaSettimana(data, user, giorno_parola);
+    return getOrarioDaSettimana(data, userCf, userName, giorno_parola);
 }

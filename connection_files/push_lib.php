@@ -308,12 +308,14 @@ function appPushIndexRows(array $rows): array
             continue;
         }
 
+        $userCf = appPushNormalizeText((string) ($row['COD_FISCALE'] ?? ''));
         $name = appPushNormalizeLabel((string) ($row['ADDETTO'] ?? ''));
-        if ($name === '') {
+        $key = $userCf !== '' ? 'CF:' . $userCf : 'NAME:' . $name;
+        if ($key === 'NAME:') {
             continue;
         }
 
-        $indexed[$name] = $row;
+        $indexed[$key] = $row;
     }
 
     return $indexed;
@@ -329,9 +331,13 @@ function appPushBuildChangeSet(array $previousRows, array $currentRows, PDO $pdo
     $generalChanged = $previousIndex === [] && $currentIndex !== [];
     $targets = [];
 
-    foreach ($currentIndex as $scheduleName => $currentRow) {
-        $previousRow = $previousIndex[$scheduleName] ?? null;
-        $scheduleUser = appPushMatchUser($userIndex, $scheduleName);
+    foreach ($currentIndex as $scheduleKey => $currentRow) {
+        $previousRow = $previousIndex[$scheduleKey] ?? null;
+        $scheduleName = (string) ($currentRow['ADDETTO'] ?? '');
+        $scheduleCf = trim((string) ($currentRow['COD_FISCALE'] ?? ''));
+        $scheduleUser = $scheduleCf !== ''
+            ? ['cod_fiscale' => $scheduleCf]
+            : appPushMatchUser($userIndex, $scheduleName);
 
         if (!is_array($previousRow)) {
             $generalChanged = true;
@@ -372,8 +378,8 @@ function appPushBuildChangeSet(array $previousRows, array $currentRows, PDO $pdo
         }
     }
 
-    foreach ($previousIndex as $scheduleName => $_row) {
-        if (!isset($currentIndex[$scheduleName])) {
+    foreach ($previousIndex as $scheduleKey => $_row) {
+        if (!isset($currentIndex[$scheduleKey])) {
             $generalChanged = true;
         }
     }

@@ -24,6 +24,24 @@ function normalizzaAddetto(string $addetto): string
     return normalizzaSpazi($addetto);
 }
 
+function normalizzaChiaveAddetto(string $addetto): string
+{
+    $addetto = normalizzaSpazi($addetto);
+    if ($addetto === '') {
+        return '';
+    }
+
+    $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $addetto);
+    if ($ascii !== false) {
+        $addetto = $ascii;
+    }
+
+    $addetto = mb_strtoupper($addetto, 'UTF-8');
+    $addetto = preg_replace('/[^A-Z0-9 ]+/', ' ', $addetto) ?? $addetto;
+
+    return normalizzaSpazi($addetto);
+}
+
 function valoreCella($worksheet, int $col, int $row): string
 {
     $value = (string) $worksheet->getCell([$col, $row])->getFormattedValue();
@@ -113,6 +131,23 @@ function convertWorkbookToScheduleData($worksheet, string $fallbackName = ''): a
         'settimana' => (int) $settimana,
         'data' => $data,
     ];
+}
+
+function associaUtentiAlleRigheOrario(array $rows, array $mappings): array
+{
+    foreach ($rows as &$row) {
+        $key = normalizzaChiaveAddetto((string) ($row['ADDETTO'] ?? ''));
+        $userCf = trim((string) ($mappings[$key] ?? ''));
+
+        if ($key === '' || $userCf === '') {
+            throw new RuntimeException('Manca l\'associazione per il nominativo "' . ($row['ADDETTO'] ?? '') . '".');
+        }
+
+        $row['COD_FISCALE'] = $userCf;
+    }
+    unset($row);
+
+    return $rows;
 }
 
 function scriviJson(string $outputFile, array $data): void

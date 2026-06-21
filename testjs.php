@@ -27,8 +27,21 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 
         <form id="uploadForm" class="d-grid gap-3" enctype="multipart/form-data">
             <input type="file" id="excelFiles" name="excelFiles[]" class="form-control" accept=".xlsx" multiple required>
-            <button type="submit" class="btn btn-primary">Carica e converti</button>
+            <button type="submit" id="submitUpload" class="btn btn-primary">Analizza file e associa nominativi</button>
         </form>
+
+        <div id="mappingPanel" class="card mt-4" hidden>
+            <div class="card-body">
+                <h2 class="h5">Associa i nominativi</h2>
+                <p class="text-muted mb-3">Il file Excel non contiene il codice fiscale. Seleziona l'utente corretto per ogni nominativo: la scelta verrà ricordata per i prossimi caricamenti del tuo reparto.</p>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Nominativo nel file</th><th>Utente registrato</th></tr></thead>
+                        <tbody id="mappingRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
         <div id="status" class="mt-3"></div>
 
@@ -39,34 +52,111 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         const form = document.getElementById("uploadForm");
         const statusBox = document.getElementById("status");
         const back = document.getElementById("back");
+        const submitUpload = document.getElementById("submitUpload");
+        const mappingPanel = document.getElementById("mappingPanel");
+        const mappingRows = document.getElementById("mappingRows");
+        let readyToUpload = false;
+
+        function showError(message) {
+            statusBox.innerHTML = "";
+            const alert = document.createElement("div");
+            alert.className = "alert alert-danger";
+            alert.textContent = message;
+            statusBox.appendChild(alert);
+        }
+
+        async function sendForm(mode, mappings = null) {
+            const formData = new FormData(form);
+            formData.append("mode", mode);
+            if (mappings !== null) {
+                formData.append("mappings", JSON.stringify(mappings));
+            }
+
+            const res = await fetch("connection_files/upload.php", {
+                method: "POST",
+                body: formData,
+                cache: "no-cache"
+            });
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                throw new Error(text || "Risposta non valida");
+            }
+            if (!res.ok || data.ok === false) {
+                throw new Error(data.error || "Errore upload");
+            }
+            return data;
+        }
+
+        function renderMappings(data) {
+            mappingRows.innerHTML = "";
+            const users = Array.isArray(data.users) ? data.users : [];
+
+            (data.names || []).forEach((entry) => {
+                const tr = document.createElement("tr");
+                const nameCell = document.createElement("td");
+                nameCell.textContent = entry.name;
+
+                const userCell = document.createElement("td");
+                const select = document.createElement("select");
+                select.className = "form-select schedule-mapping";
+                select.dataset.key = entry.key;
+                select.required = true;
+
+                const placeholder = document.createElement("option");
+                placeholder.value = "";
+                placeholder.textContent = "Seleziona utente…";
+                select.appendChild(placeholder);
+
+                users.forEach((user) => {
+                    const option = document.createElement("option");
+                    option.value = user.cod_fiscale;
+                    option.textContent = `${user.nome} ${user.cognome} (${user.cod_fiscale})`;
+                    option.selected = user.cod_fiscale === entry.userCf;
+                    select.appendChild(option);
+                });
+
+                userCell.appendChild(select);
+                tr.append(nameCell, userCell);
+                mappingRows.appendChild(tr);
+            });
+
+            mappingPanel.hidden = false;
+            readyToUpload = true;
+            submitUpload.textContent = "Salva associazioni e carica turni";
+        }
+
+        function getMappings() {
+            const mappings = {};
+            const selects = mappingRows.querySelectorAll(".schedule-mapping");
+            for (const select of selects) {
+                if (!select.value) {
+                    select.focus();
+                    throw new Error("Scegli un utente per ogni nominativo.");
+                }
+                mappings[select.dataset.key] = select.value;
+            }
+            return mappings;
+        }
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const formData = new FormData(form);
-
-            statusBox.innerHTML = "Caricamento in corso...";
+            submitUpload.disabled = true;
 
             try {
-                const res = await fetch("connection_files/upload.php", {
-                    method: "POST",
-                    body: formData,
-                    cache: "no-cache"
-                });
-
-                const text = await res.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch {
-                    throw new Error(text || "Risposta non valida");
-                }
-
-                if (!res.ok || data.ok === false) {
-                    statusBox.innerHTML = '<div class="alert alert-danger">' + (data.error || "Errore upload") + '</div>';
+                if (!readyToUpload) {
+                    statusBox.textContent = "Analisi del file in corso...";
+                    const data = await sendForm("preview");
+                    renderMappings(data);
+                    statusBox.textContent = "Controlla le associazioni e conferma il caricamento.";
                     return;
                 }
 
+                statusBox.textContent = "Caricamento in corso...";
+                const data = await sendForm("upload", getMappings());
                 const items = (data.results || []).map((item) => {
                     if (item.error) {
                         return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
@@ -79,8 +169,18 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 
                 statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';
             } catch (error) {
-                statusBox.innerHTML = '<div class="alert alert-danger">' + error.message + '</div>';
+                showError(error.message);
+            } finally {
+                submitUpload.disabled = false;
             }
+        });
+
+        document.getElementById("excelFiles").addEventListener("change", () => {
+            readyToUpload = false;
+            mappingPanel.hidden = true;
+            mappingRows.innerHTML = "";
+            submitUpload.textContent = "Analizza file e associa nominativi";
+            statusBox.innerHTML = "";
         });
 
         back.addEventListener("click", () => {
