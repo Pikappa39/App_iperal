@@ -194,7 +194,8 @@ async function mostraGiorni(anno, mese) {
         settimaneCaricate[settimana] = await getWeekData(settimana);
     }));
 
-    const user = getCurrentUser();
+    const userCf = getCurrentUserKey();
+    const userName = getCurrentUser();
     const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < visibleDays.length; i += 7) {
@@ -211,7 +212,7 @@ async function mostraGiorni(anno, mese) {
         for (let j = i; j < i + 7 && j < visibleDays.length; j++) {
             const giorno = visibleDays[j];
             const dataSettimana = settimaneCaricate[giorno.settimana] || [];
-            const orario = getOrarioDaSettimana(dataSettimana, user, giorno.giorno_parola);
+            const orario = getOrarioDaSettimana(dataSettimana, userCf, userName, giorno.giorno_parola);
             const dayNotes = getDayNoteList(noteMese, giorno.dataKey);
             const currentUserNote = getCurrentUserNoteFromDayNotes(dayNotes);
 
