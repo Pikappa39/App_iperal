@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 
@@ -7,6 +8,9 @@ if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
     header("Location: index.php");
     exit;
 }
+
+$repartoCode = (string) ($_SESSION['user']['reparto'] ?? '');
+$repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -19,6 +23,7 @@ if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
 <body class="p-4">
     <div class="container">
         <h1 class="mb-4">Carica file turni</h1>
+        <p class="text-muted">I file caricati verranno salvati solo per il reparto: <strong><?php echo htmlspecialchars($repartoLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
 
         <form id="uploadForm" class="d-grid gap-3" enctype="multipart/form-data">
             <input type="file" id="excelFiles" name="excelFiles[]" class="form-control" accept=".xlsx" multiple required>

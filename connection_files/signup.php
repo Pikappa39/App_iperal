@@ -30,11 +30,19 @@ $cf = strtoupper(trim((string) ($_POST["cf"] ?? "")));
 $email = strtolower(trim((string) ($_POST["email"] ?? "")));
 $password = (string) ($_POST["password"] ?? "");
 $badge = trim((string) ($_POST["badge"] ?? ""));
+$reparto = trim((string) ($_POST["reparto"] ?? ""));
 
-if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $badge === "") {
+if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $badge === "" || $reparto === "") {
     jsonResponse([
         "ok" => false,
         "error" => "Compila tutti i campi obbligatori",
+    ], 400);
+}
+
+if (!appIsValidDepartment($reparto)) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Reparto non valido",
     ], 400);
 }
 
@@ -71,8 +79,8 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        "INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo, reparto)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
     $stmt->execute([
@@ -84,6 +92,7 @@ try {
         $email,
         "default",
         0,
+        $reparto,
     ]);
 
     jsonResponse([

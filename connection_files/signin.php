@@ -128,6 +128,7 @@ try {
             "avatar" => $user["avatar"] ?? "default",
             "capo" => $user["capo"] ?? 0,
             "reparto"=> $user["reparto"],
+            "session_version" => (int) ($user["session_version"] ?? 0),
         ];
         echo json_encode([
             "logged" => true,

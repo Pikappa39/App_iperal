@@ -1,30 +1,150 @@
 <?php
 
-const APP_VERSION = '0.2.13';
-const PUSH_VAPID_SUBJECT = 'https://myorari.it';
-const PUSH_STORAGE_DIR = __DIR__ . DIRECTORY_SEPARATOR . 'storage';
+if (!defined('APP_VERSION')) {
+    define('APP_VERSION', '0.2.17');
+}
 
-function appEnv(string $key): string
-{
-    $value = getenv($key);
-    if ($value === false) {
-        return '';
+if (!defined('PUSH_VAPID_SUBJECT')) {
+    define('PUSH_VAPID_SUBJECT', 'https://myorari.it');
+}
+
+if (!defined('PUSH_STORAGE_DIR')) {
+    define('PUSH_STORAGE_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'storage');
+}
+
+if (!function_exists('appLocalEnv')) {
+    function appLocalEnv(): array
+    {
+        static $env = null;
+
+        if (is_array($env)) {
+            return $env;
+        }
+
+        $path = __DIR__ . '/app_local_env.php';
+        if (is_file($path)) {
+            $loaded = require $path;
+            $env = is_array($loaded) ? $loaded : [];
+        } else {
+            $env = [];
+        }
+
+        return $env;
     }
-
-    return trim((string) $value);
 }
 
-function appTurnstileSiteKey(): string
-{
-    return appEnv('APP_TURNSTILE_SITE_KEY');
+if (!function_exists('appEnv')) {
+    function appEnv(string $key): string
+    {
+        $value = getenv($key);
+        if ($value !== false) {
+            return trim((string) $value);
+        }
+
+        $localEnv = appLocalEnv();
+        if (!array_key_exists($key, $localEnv)) {
+            return '';
+        }
+
+        return trim((string) $localEnv[$key]);
+    }
 }
 
-function appTurnstileSecretKey(): string
-{
-    return appEnv('APP_TURNSTILE_SECRET_KEY');
+if (!function_exists('appHasEnv')) {
+    function appHasEnv(string $key): bool
+    {
+        if (getenv($key) !== false) {
+            return true;
+        }
+
+        $localEnv = appLocalEnv();
+        return array_key_exists($key, $localEnv);
+    }
 }
 
-function appTurnstileEnabled(): bool
-{
-    return appTurnstileSiteKey() !== '' && appTurnstileSecretKey() !== '';
+if (!function_exists('appTurnstileSiteKey')) {
+    function appTurnstileSiteKey(): string
+    {
+        return appEnv('APP_TURNSTILE_SITE_KEY');
+    }
+}
+
+if (!function_exists('appTurnstileSecretKey')) {
+    function appTurnstileSecretKey(): string
+    {
+        return appEnv('APP_TURNSTILE_SECRET_KEY');
+    }
+}
+
+if (!function_exists('appTurnstileEnabled')) {
+    function appTurnstileEnabled(): bool
+    {
+        return appTurnstileSiteKey() !== '' && appTurnstileSecretKey() !== '';
+    }
+}
+
+if (!function_exists('appDepartments')) {
+    function appDepartments(): array
+    {
+        return [
+            'gro' => 'Grocery',
+            'ls' => 'Freschi libero servizio',
+            'orto' => 'Ortofrutta',
+            'cs' => 'Casse',
+            'box' => 'Box',
+            'drv' => 'Drive',
+            'gas' => 'Gastronomia/Panetteria',
+            'mac' => 'Macelleria',
+        ];
+    }
+}
+
+if (!function_exists('appIsValidDepartment')) {
+    function appIsValidDepartment(string $department): bool
+    {
+        return array_key_exists($department, appDepartments());
+    }
+}
+
+if (!function_exists('appPublicUrl')) {
+    function appPublicUrl(): string
+    {
+        return rtrim(appEnv('APP_PUBLIC_URL') ?: 'https://myorari.it', '/');
+    }
+}
+
+if (!function_exists('appSmtpHost')) {
+    function appSmtpHost(): string
+    {
+        return appEnv('APP_SMTP_HOST') ?: 'smtps.aruba.it';
+    }
+}
+
+if (!function_exists('appSmtpPort')) {
+    function appSmtpPort(): int
+    {
+        $port = (int) (appEnv('APP_SMTP_PORT') ?: '465');
+        return $port > 0 && $port <= 65535 ? $port : 465;
+    }
+}
+
+if (!function_exists('appSmtpUsername')) {
+    function appSmtpUsername(): string
+    {
+        return appEnv('APP_SMTP_USERNAME') ?: 'supporto@myorari.it';
+    }
+}
+
+if (!function_exists('appSmtpPassword')) {
+    function appSmtpPassword(): string
+    {
+        return appEnv('APP_SMTP_PASSWORD');
+    }
+}
+
+if (!function_exists('appSmtpFromName')) {
+    function appSmtpFromName(): string
+    {
+        return appEnv('APP_SMTP_FROM_NAME') ?: 'MyOrari';
+    }
 }

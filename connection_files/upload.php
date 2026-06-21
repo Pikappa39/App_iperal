@@ -22,6 +22,15 @@ require __DIR__ . '/connection.php';
 require __DIR__ . '/push_lib.php';
 
 $outputDir = __DIR__ . '/../turni_json';
+$reparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+if (!appIsValidDepartment($reparto)) {
+    http_response_code(422);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'Al tuo profilo non è associato un reparto valido. Contatta un amministratore.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
     http_response_code(500);
@@ -47,6 +56,7 @@ $tmpNames = is_array($files["tmp_name"]) ? $files["tmp_name"] : [$files["tmp_nam
 $errors = is_array($files["error"]) ? $files["error"] : [$files["error"]];
 
 $results = [];
+$uploadedWeeks = [];
 
 foreach ($tmpNames as $index => $tmpName) {
     $originalName = $names[$index] ?? '';
@@ -73,7 +83,12 @@ foreach ($tmpNames as $index => $tmpName) {
         $worksheet = $spreadsheet->getActiveSheet();
         $converted = convertWorkbookToScheduleData($worksheet, $originalName);
 
-        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted["settimana"] . ".json";
+        if (isset($uploadedWeeks[$converted['settimana']])) {
+            throw new RuntimeException('Hai selezionato più file per la settimana ' . $converted['settimana'] . '. Caricane uno solo per reparto.');
+        }
+        $uploadedWeeks[$converted['settimana']] = true;
+
+        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted['settimana'] . '-' . $reparto . '.json';
         $previousData = appPushDecodeJsonFile($outputFile);
         scriviJson($outputFile, $converted["data"]);
 
@@ -163,6 +178,7 @@ foreach ($tmpNames as $index => $tmpName) {
         $results[] = [
             "file" => $originalName,
             "settimana" => $converted["settimana"],
+            "reparto" => $reparto,
             "output" => basename($outputFile),
             "righe" => count($converted["data"]),
             "history" => $historySummary,

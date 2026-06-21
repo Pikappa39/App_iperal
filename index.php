@@ -23,6 +23,7 @@ $clientBootstrap = [
     'capo' => $_SESSION['user']['capo'] ?? '0',
     'avatar' => $_SESSION['user']['avatar'] ?? 'default',
     'reparto' => $_SESSION['user']['reparto'] ?? 'Jolly',
+    'departments' => appDepartments(),
     'pushPublicKey' => $pushPublicKey,
 ];
 ?>
@@ -57,6 +58,7 @@ $clientBootstrap = [
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
             <li><button type="button" class="dropdown-item" id="scheduleChangesItem">Aggiornamenti orari</button></li>
+            <li><button type="button" class="dropdown-item" id="communicationsItem">Comunicazioni</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
             <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
@@ -116,6 +118,7 @@ window.pushPublicKey = window.appBootstrap.pushPublicKey;
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_calendar.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_notes.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
+<script src="app_communications.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="userhome.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_init.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="setting.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>

@@ -29,6 +29,14 @@ try {
         ], 500);
     }
 
+    if (!is_writable($storageDir)) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "Cartella note non scrivibile",
+            "details" => "Verifica i permessi di " . $storageDir,
+        ], 500);
+    }
+
     $method = $_SERVER["REQUEST_METHOD"] ?? "GET";
 
     $sessionUser = $_SESSION["user"] ?? null;
@@ -41,6 +49,56 @@ try {
     if ($userKey === "") {
         $userKey = $userName !== "" ? $userName : session_id();
     }
+
+    if (!$hasSessionUser) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "Accesso richiesto",
+        ], 401);
+    }
+
+    require __DIR__ . '/connection.php';
+    if (!$connessione || !($pdo instanceof PDO)) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "Servizio note temporaneamente non disponibile",
+        ], 503);
+    }
+
+    $capo = (int) ($sessionUser['capo'] ?? 0);
+    $viewerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
+    $userDepartments = [];
+    $departmentQuery = $pdo->query('SELECT cod_fiscale, reparto FROM utenti');
+    foreach ($departmentQuery->fetchAll(PDO::FETCH_ASSOC) as $userDepartment) {
+        $userDepartments[(string) $userDepartment['cod_fiscale']] = (string) ($userDepartment['reparto'] ?? '');
+    }
+
+    $canViewEntry = static function (array $entry) use ($userKey, $capo, $viewerDepartment, $userDepartments): bool {
+        $entryUserKey = (string) ($entry['userKey'] ?? '');
+        if ($entryUserKey === $userKey || $capo === 3) {
+            return true;
+        }
+
+        return $capo === 1
+            && $viewerDepartment !== ''
+            && ($userDepartments[$entryUserKey] ?? '') === $viewerDepartment;
+    };
+
+    $filterNotesForViewer = static function (array $notes) use ($canViewEntry): array {
+        foreach ($notes as $dateKey => $entries) {
+            if (!is_array($entries)) {
+                $notes[$dateKey] = [];
+                continue;
+            }
+
+            $notes[$dateKey] = array_values(array_filter($entries, $canViewEntry));
+            if ($notes[$dateKey] === []) {
+                unset($notes[$dateKey]);
+            }
+        }
+
+        return $notes;
+    };
 
     $normalizeDateKey = static function ($dateValue) {
         $dateValue = trim((string) $dateValue);
@@ -124,16 +182,28 @@ try {
     $saveMonthNotes = static function ($filePath, array $payload) {
         $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         if ($json === false) {
-            return false;
+            return [
+                "ok" => false,
+                "details" => "JSON non valido",
+            ];
         }
 
-        return file_put_contents($filePath, $json . PHP_EOL, LOCK_EX) !== false;
+        $written = file_put_contents($filePath, $json . PHP_EOL, LOCK_EX);
+        if ($written === false) {
+            return [
+                "ok" => false,
+                "details" => "Scrittura fallita su " . $filePath,
+            ];
+        }
+
+        return [
+            "ok" => true,
+        ];
     };
 
     if ($method === "GET") {
         if (isset($_GET["all"]) && $_GET["all"] === "1") {
-            $capo = (int) ($sessionUser["capo"] ?? 0);
-            if (!$hasSessionUser || !in_array($capo, [1, 3], true)) {
+            if (!in_array($capo, [1, 3], true)) {
                 jsonResponse([
                     "ok" => false,
                     "error" => "Accesso negato",
@@ -148,6 +218,7 @@ try {
                 $monthKey = basename($monthFile, '.json');
                 $payload = $loadMonthNotes($monthFile, $monthKey);
                 $payload["notes"] = $normalizeNotesStructure($payload["notes"]);
+                $payload["notes"] = $filterNotesForViewer($payload["notes"]);
 
                 $entries = [];
                 foreach ($payload["notes"] as $entryDate => $dayEntries) {
@@ -200,6 +271,7 @@ try {
         $filePath = $monthFilePath($storageDir, $monthKey);
         $payload = $loadMonthNotes($filePath, $monthKey);
         $payload["notes"] = $normalizeNotesStructure($payload["notes"]);
+        $payload["notes"] = $filterNotesForViewer($payload["notes"]);
 
         $response = [
             "ok" => true,
@@ -228,13 +300,6 @@ try {
             "ok" => false,
             "error" => "Metodo non consentito",
         ], 405);
-    }
-
-    if (!$hasSessionUser) {
-        jsonResponse([
-            "ok" => false,
-            "error" => "Accesso richiesto",
-        ], 401);
     }
 
     $dateKey = $normalizeDateKey($_POST["date"] ?? "");
@@ -291,10 +356,12 @@ try {
         unset($payload["notes"][$dateKey]);
     }
 
-    if (!$saveMonthNotes($filePath, $payload)) {
+    $saveResult = $saveMonthNotes($filePath, $payload);
+    if (empty($saveResult["ok"])) {
         jsonResponse([
             "ok" => false,
             "error" => "Impossibile salvare le note",
+            "details" => $saveResult["details"] ?? "Scrittura non riuscita",
         ], 500);
     }
 
@@ -302,7 +369,9 @@ try {
         "ok" => true,
         "month" => $monthKey,
         "date" => $dateKey,
-        "notes" => array_values($payload["notes"][$dateKey] ?? []),
+        "notes" => array_values($filterNotesForViewer([
+            $dateKey => $payload["notes"][$dateKey] ?? [],
+        ])[$dateKey] ?? []),
     ]);
 } catch (Throwable $e) {
     jsonResponse([

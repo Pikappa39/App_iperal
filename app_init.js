@@ -32,6 +32,9 @@ back.onclick = function () {
     if (appState.view === "scheduleChanges") {
         showHomeScreen();
     }
+    if (appState.view === "communications") {
+        showHomeScreen();
+    }
     if (appState.view === "setting") {
         if (appState.settingsPanel && appState.settingsPanel !== "main") {
             mostrasetting();
@@ -63,6 +66,11 @@ if (scheduleChangesItem) {
         mostraModificheOrari();
     });
 }
+if (communicationsItem) {
+    communicationsItem.addEventListener("click", () => {
+        mostraComunicazioni();
+    });
+}
 if(profileItem){
     profileItem.addEventListener("click", () => {
         mostraProfilo();
@@ -78,4 +86,8 @@ if(setting){
 showHomeScreen();
 if (window.openScheduleChangesFromUrl) {
     window.openScheduleChangesFromUrl();
+}
+if (new URLSearchParams(window.location.search).get("communications") === "1") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    mostraComunicazioni();
 }

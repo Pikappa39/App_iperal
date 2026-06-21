@@ -58,6 +58,21 @@ body {
     --bs-btn-hover-border-color: #f5f5f5;
 }
 
+.communication-card {
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--text);
+}
+
+.communication-card__meta {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .communication-card {
+    background: #000;
+    box-shadow: none;
+}
+
 [hidden] {
     display: none !important;
 }

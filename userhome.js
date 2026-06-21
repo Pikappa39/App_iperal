@@ -15,16 +15,7 @@ function mostraProfilo() {
     const user = getCurrentUser();
 
     // --- MAPPATURA REPARTI ---
-    const reparti = {
-        gro: "Grocery",
-        ls: "Freschi libero servizio",
-        orto: "Ortofrutta",
-        cs: "Casse",
-        box: "Box",
-        drv: "Drive",
-        gas: "Gastronomia/Panetteria",
-        mac: "Macelleria"
-    };
+    const reparti = window.appBootstrap?.departments || {};
 
     const reparto = reparti[userSession.reparto] || userSession.reparto;
     let ruolo;

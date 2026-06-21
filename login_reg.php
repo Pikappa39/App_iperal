@@ -5,6 +5,7 @@ app_session_start();
 
 $turnstileEnabled = appTurnstileEnabled();
 $turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
+$departments = appDepartments();
 
 if (isset($_SESSION['user'])) {
     header('Location: index.php', true, 302);
@@ -46,6 +47,7 @@ if (isset($_SESSION['user'])) {
               <?php endif; ?>
               <p id="login-error-message" class="text-danger mt-2" style="display: none;"></p>
               <button type="submit" class="btn btn-primary">Submit</button>
+              <a class="btn btn-link" href="forgot_password.php">Password dimenticata?</a>
             </form>
             </div>
 
@@ -69,6 +71,13 @@ if (isset($_SESSION['user'])) {
                 <label for="inputNomeCognome" class="mt-3">Nome e Cognome</label>
                 <input type="text" class="form-control" name="nome" id="inputNome" placeholder="Nome">
                 <input type="text" class="form-control mt-2" name="cognome" id="inputCognome" placeholder="Cognome">
+                <label for="inputReparto" class="mt-3">Reparto</label>
+                <select class="form-select" id="inputReparto" name="reparto" required>
+                  <option value="" selected disabled>Seleziona il tuo reparto</option>
+                  <?php foreach ($departments as $code => $label): ?>
+                    <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                  <?php endforeach; ?>
+                </select>
                 <button type="submit" class="btn btn-primary mt-3">Submit</button>
               </form>
             </div>

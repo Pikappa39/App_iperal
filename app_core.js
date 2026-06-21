@@ -8,6 +8,7 @@ const appToolbar = document.querySelector(".app-toolbar");
 const openOrari = document.getElementById("openOrari");
 const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
+const communicationsItem = document.getElementById("communicationsItem");
 const setting=document.getElementById("setting");
 const appState = {
     view: "home",
@@ -22,7 +23,7 @@ const appState = {
 
 const YEAR_CHOICES = [2024, 2025, 2026];
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
-const WEEK_DATA_DIRS = ["turni_json", "connection_files"];
+const WEEK_DATA_DIR = "turni_json";
 const NOTES_ENDPOINT = "connection_files/note.php";
 const today = new Date();
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
@@ -102,21 +103,24 @@ function getWeekNumber(date) {
 }
 
 async function getWeekData(settimana) {
-    const key = String(settimana);
+    const reparto = String(window.userSession?.reparto || "").trim();
+    if (!reparto) {
+        return [];
+    }
+
+    const key = String(settimana) + ":" + reparto;
 
     if (!appState.weekCache[key]) {
         appState.weekCache[key] = (async () => {
-            for (const dir of WEEK_DATA_DIRS) {
-                try {
-                    const response = await fetch(dir + "/" + key + ".json", {
-                        cache: "no-store"
-                    });
-                    if (response.ok) {
-                        return await response.json();
-                    }
-                } catch (error) {
-                    console.error("Errore nel caricamento della settimana", key, dir, error);
+            try {
+                const response = await fetch(WEEK_DATA_DIR + "/" + encodeURIComponent(settimana) + "-" + encodeURIComponent(reparto) + ".json", {
+                    cache: "no-store"
+                });
+                if (response.ok) {
+                    return await response.json();
                 }
+            } catch (error) {
+                console.error("Errore nel caricamento della settimana", settimana, reparto, error);
             }
 
             return [];
