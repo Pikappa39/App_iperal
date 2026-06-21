@@ -1,5 +1,25 @@
 const COMMUNICATIONS_ENDPOINT = "connection_files/communications.php";
 
+function formatCommunicationDate(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+
+    // MySQL restituisce DATETIME in UTC senza il suffisso del fuso orario.
+    // Lo esplicitiamo qui prima di convertirlo nell'ora italiana.
+    const isoValue = raw.replace(" ", "T") + "Z";
+    const date = new Date(isoValue);
+    if (Number.isNaN(date.getTime())) return raw;
+
+    return new Intl.DateTimeFormat("it-IT", {
+        timeZone: "Europe/Rome",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+    }).format(date);
+}
+
 async function communicationFetch(view) {
     const response = await fetch(COMMUNICATIONS_ENDPOINT + "?view=" + encodeURIComponent(view), { cache: "no-store" });
     const data = await response.json();
@@ -16,7 +36,7 @@ function communicationCard(item, statusText = "") {
     title.textContent = item.title;
     const meta = document.createElement("div");
     meta.className = "small communication-card__meta mb-2";
-    meta.textContent = (item.author_name ? "Da " + item.author_name + " · " : "") + item.created_at;
+    meta.textContent = (item.author_name ? "Da " + item.author_name + " · " : "") + formatCommunicationDate(item.created_at);
     const text = document.createElement("p");
     text.className = "mb-2";
     text.textContent = item.message;
