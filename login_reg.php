@@ -1,6 +1,15 @@
 <?php
+require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
+
+$turnstileEnabled = appTurnstileEnabled();
+$turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
+
+if (isset($_SESSION['user'])) {
+    header('Location: index.php', true, 302);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -30,6 +39,12 @@ app_session_start();
                 <input type="checkbox" class="form-check-input" id="exampleCheck1">
                 <label class="form-check-label" for="exampleCheck1">Check me out</label>
               </div>
+              <?php if ($turnstileEnabled): ?>
+              <div class="mt-3 mb-3">
+                <div class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars($turnstileSiteKey, ENT_QUOTES, 'UTF-8'); ?>"></div>
+              </div>
+              <?php endif; ?>
+              <p id="login-error-message" class="text-danger mt-2" style="display: none;"></p>
               <button type="submit" class="btn btn-primary">Submit</button>
             </form>
             </div>
@@ -66,11 +81,15 @@ app_session_start();
   </div>
 </body>
 
+<?php if ($turnstileEnabled): ?>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<?php endif; ?>
 <script>
 const formlogin = document.getElementById("login");
 const formsignup = document.getElementById("signup");
 const btnLogin = document.getElementById("showLogin");
 const btnSignup = document.getElementById("showSignup");
+const loginErrorMessage = document.getElementById("login-error-message");
 
 document.addEventListener("DOMContentLoaded", function () {
   btnLogin.addEventListener("click", function () {
@@ -89,7 +108,21 @@ const form = document.querySelector("#loginForm");
 form.addEventListener("submit", function (e) {
   e.preventDefault();
 
+  if (loginErrorMessage) {
+    loginErrorMessage.style.display = "none";
+    loginErrorMessage.textContent = "";
+  }
+
   const formData = new FormData(this);
+  const turnstileToken = formData.get("cf-turnstile-response");
+
+  if (<?php echo $turnstileEnabled ? 'true' : 'false'; ?> && !turnstileToken) {
+    if (loginErrorMessage) {
+      loginErrorMessage.textContent = "Completa il controllo di sicurezza prima di accedere.";
+      loginErrorMessage.style.display = "block";
+    }
+    return;
+  }
 
   fetch("connection_files/signin.php", {
     method: "POST",
@@ -112,9 +145,14 @@ form.addEventListener("submit", function (e) {
           console.error("[" + data.error_code + "] " + data.error);
       }
       if (data.logged) {
-          window.location.href = "index.php";
+          window.location.replace("index.php");
       } else {
-          alert("Email o password errati");
+          if (loginErrorMessage && data.error) {
+            loginErrorMessage.textContent = data.error;
+            loginErrorMessage.style.display = "block";
+          } else {
+            alert("Email o password errati");
+          }
       }
   });
 });

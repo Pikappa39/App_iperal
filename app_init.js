@@ -32,6 +32,13 @@ back.onclick = function () {
     if (appState.view === "scheduleChanges") {
         showHomeScreen();
     }
+    if (appState.view === "setting") {
+        if (appState.settingsPanel && appState.settingsPanel !== "main") {
+            mostrasetting();
+            return;
+        }
+        showHomeScreen();
+    }
 };
 
 if (openOrari) {

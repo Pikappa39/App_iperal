@@ -109,7 +109,7 @@ async function getWeekData(settimana) {
             for (const dir of WEEK_DATA_DIRS) {
                 try {
                     const response = await fetch(dir + "/" + key + ".json", {
-                        cache: "force-cache"
+                        cache: "no-store"
                     });
                     if (response.ok) {
                         return await response.json();
