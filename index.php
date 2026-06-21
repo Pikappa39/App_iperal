@@ -61,7 +61,7 @@ $clientBootstrap = [
             <li><button type="button" class="dropdown-item" id="communicationsItem">Comunicazioni</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
-            <li><a class="dropdown-item" href="connection_files/logout.php">Logout</a></li>
+            <li><a class="dropdown-item" id="logoutLink" href="connection_files/logout.php">Logout</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item d-none" id="uploadItem" href="testjs.php">Upload</a></li>
           </ul>
@@ -174,6 +174,43 @@ function base64UrlToUint8Array(base64String) {
     return outputArray;
 }
 
+async function isPushSubscriptionActiveForCurrentUser(subscription) {
+    if (!subscription) {
+        return false;
+    }
+
+    try {
+        const response = await fetch("connection_files/push_subscription_status.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(subscription.toJSON()),
+            cache: "no-store"
+        });
+        const data = await response.json();
+        return !!(response.ok && data.ok && data.enabled);
+    } catch (error) {
+        console.error("Errore nel controllo ownership push", error);
+        return false;
+    }
+}
+
+async function deactivatePushSubscriptionForCurrentDevice(subscription) {
+    if (!subscription) {
+        return;
+    }
+
+    const response = await fetch("connection_files/push_unsubscribe.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subscription.toJSON()),
+        cache: "no-store",
+        keepalive: true
+    });
+    if (!response.ok) {
+        throw new Error("Impossibile disattivare le notifiche");
+    }
+}
+
 async function refreshPushState(registration) {
     if (!registration || !registration.pushManager || pushStateLoaded) {
         return;
@@ -184,7 +221,7 @@ async function refreshPushState(registration) {
     try {
         const subscription = await registration.pushManager.getSubscription();
         window.dispatchEvent(new CustomEvent("app:push-state", {
-            detail: { enabled: !!subscription }
+            detail: { enabled: await isPushSubscriptionActiveForCurrentUser(subscription) }
         }));
     } catch (error) {
         console.error("Errore nel controllo push", error);
@@ -257,10 +294,33 @@ window.appNotifications = {
 
         const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
-        return !!subscription;
+        return isPushSubscriptionActiveForCurrentUser(subscription);
     },
     enable: enablePushNotifications
 };
+
+const logoutLink = document.getElementById("logoutLink");
+if (logoutLink) {
+    logoutLink.addEventListener("click", function (event) {
+        event.preventDefault();
+        const logoutUrl = logoutLink.href;
+
+        (async function () {
+            try {
+                const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                await Promise.race([
+                    deactivatePushSubscriptionForCurrentDevice(subscription),
+                    new Promise((resolve) => window.setTimeout(resolve, 1200))
+                ]);
+            } catch (error) {
+                console.error("Disattivazione notifiche al logout non riuscita", error);
+            } finally {
+                window.location.assign(logoutUrl);
+            }
+        })();
+    });
+}
 
 if ('serviceWorker' in navigator) {
     if (sessionStorage.getItem('appUpdated') === '1') {

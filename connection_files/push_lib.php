@@ -466,6 +466,45 @@ function appPushStoreSubscription(PDO $pdo, string $userCf, array $subscription,
     ]);
 }
 
+function appPushSubscriptionEndpoint(array $subscription): string
+{
+    return trim((string) ($subscription['endpoint'] ?? ''));
+}
+
+function appPushDeactivateSubscription(PDO $pdo, string $endpoint): void
+{
+    if ($endpoint === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare('UPDATE push_subscriptions SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE endpoint = ?');
+    $statement->execute([$endpoint]);
+}
+
+function appPushSubscriptionIsActiveForUser(PDO $pdo, string $userCf, string $endpoint): bool
+{
+    if ($userCf === '' || $endpoint === '') {
+        return false;
+    }
+
+    $statement = $pdo->prepare('SELECT user_cf FROM push_subscriptions WHERE endpoint = ? AND active = 1 LIMIT 1');
+    $statement->execute([$endpoint]);
+    $ownerCf = $statement->fetchColumn();
+
+    if ($ownerCf === false) {
+        return false;
+    }
+
+    if (hash_equals((string) $ownerCf, $userCf)) {
+        return true;
+    }
+
+    // Lo stesso browser è stato aperto con un altro account: non lasciare
+    // che l'account precedente continui a ricevere notifiche su questo device.
+    appPushDeactivateSubscription($pdo, $endpoint);
+    return false;
+}
+
 function appPushSendPayload(PDO $pdo, array $payload, ?string $userCf = null): array
 {
     $query = 'SELECT * FROM push_subscriptions WHERE active = 1';
