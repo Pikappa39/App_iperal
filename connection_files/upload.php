@@ -289,6 +289,7 @@ foreach ($convertedFiles as $fileData) {
                     'title' => $title,
                     'body' => $body,
                     'url' => $changeUrl,
+                    'recipient_cf' => $userCf,
                 ], $userCf);
             } catch (Throwable $pushError) {
                 $pushSummary['targets'][$userCf] = [

@@ -66,17 +66,42 @@ self.addEventListener("push", (event) => {
     };
   }
 
-  const title = payload.title || "App Iperal";
-  const options = {
-    body: payload.body || "Hai una nuova notifica",
-    icon: "./img/icon-192.png",
-    badge: "./img/icon-192.png",
-    data: {
-      url: payload.url || "./index.php",
-    },
-  };
+  event.waitUntil((async () => {
+    // Una subscription può restare nel browser dopo un logout. Prima di
+    // mostrare qualunque push, il server verifica sessione e proprietario.
+    const subscription = await self.registration.pushManager.getSubscription();
+    if (!subscription) return;
 
-  event.waitUntil(self.registration.showNotification(title, options));
+    try {
+      const response = await fetch("./connection_files/push_delivery_allowed.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          recipient_cf: payload.recipient_cf || "",
+        }),
+      });
+      const verification = await response.json();
+      if (!response.ok || !verification.ok || !verification.allowed) return;
+    } catch (error) {
+      // Senza una verifica positiva non mostriamo dati di altri account.
+      return;
+    }
+
+    const title = payload.title || "App Iperal";
+    const options = {
+      body: payload.body || "Hai una nuova notifica",
+      icon: "./img/icon-192.png",
+      badge: "./img/icon-192.png",
+      data: {
+        url: payload.url || "./index.php",
+      },
+    };
+
+    await self.registration.showNotification(title, options);
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {

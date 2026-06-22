@@ -176,6 +176,7 @@ try {
                 'title' => $priority === 'important' ? 'Comunicazione importante' : 'Nuova comunicazione',
                 'body' => $title,
                 'url' => './index.php?communications=1',
+                'recipient_cf' => $recipientCf,
             ], $recipientCf);
         } catch (Throwable $pushError) {
             error_log('Push comunicazione non inviata: ' . $pushError->getMessage());
