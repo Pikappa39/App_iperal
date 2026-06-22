@@ -81,6 +81,19 @@ function app_session_start(): void
     }
     app_session_refresh_cookie();
     app_session_validate_user();
+
+    // Se una sessione autenticata non è più valida (ad esempio un account è
+    // stato rimosso), app_session_validate_user la chiude. Nella stessa
+    // richiesta serve però una nuova sessione anonima, altrimenti i moduli
+    // pubblici con CSRF, come l'attivazione di un invito, mostrano un token
+    // che non può essere verificato al POST successivo.
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        app_session_configure_storage();
+        if (!session_start()) {
+            throw new RuntimeException('Impossibile riavviare la sessione');
+        }
+        app_session_refresh_cookie();
+    }
 }
 
 function app_session_destroy_current(): void
@@ -93,6 +106,7 @@ function app_session_destroy_current(): void
     }
 
     session_destroy();
+    session_id('');
 }
 
 function app_csrf_token(): string
