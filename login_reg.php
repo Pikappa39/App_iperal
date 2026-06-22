@@ -64,8 +64,6 @@ if (isset($_SESSION['user'])) {
                   <input type="password" class="form-control mt-2" id="confpass" name="confirm_password" autocomplete="new-password" minlength="12" placeholder="Conferma password" required>
                   <p id="error-message-password" class="text-danger" style="display: none;">PASSWORD NON CORRISPONDENTI</p>
                 </div>
-                <label for="inputCF" class="mt-3">Codice fiscale</label>
-                <input type="text" class="form-control" id="inputCF" name="cf" autocomplete="off" required>
                 <label for="inputNomeCognome" class="mt-3">Nome e Cognome</label>
                 <input type="text" class="form-control" name="nome" id="inputNome" autocomplete="given-name" placeholder="Nome" required>
                 <input type="text" class="form-control mt-2" name="cognome" id="inputCognome" autocomplete="family-name" placeholder="Cognome" required>

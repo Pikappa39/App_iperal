@@ -72,3 +72,16 @@ function appGenerateUniqueInvitePlaceholderCf(PDO $pdo): string
         }
     );
 }
+
+function appGenerateUniqueUserPlaceholderCf(PDO $pdo): string
+{
+    $statement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? LIMIT 1');
+
+    return appGenerateUniqueValue(
+        static fn (): string => appGenerateInvitePlaceholderCf(),
+        static function (string $value) use ($statement): bool {
+            $statement->execute([$value]);
+            return (bool) $statement->fetchColumn();
+        }
+    );
+}

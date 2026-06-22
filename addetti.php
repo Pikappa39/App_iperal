@@ -234,7 +234,7 @@ $availableUsers = array_values(array_filter(
                         <input class="form-control" type="email" id="inviteEmail" name="email" maxlength="255" autocomplete="email" required>
                     </div>
                     <div class="col-md-4">
-                        <p class="form-text mt-4 mb-0">Il dipendente completerà codice fiscale e password aprendo il link.</p>
+                        <p class="form-text mt-4 mb-0">Il dipendente dovrà solo scegliere la password aprendo il link.</p>
                     </div>
                     <?php if ($capo === 3): ?>
                         <div class="col-md-6">
@@ -325,7 +325,6 @@ $availableUsers = array_values(array_filter(
                         <thead>
                         <tr>
                             <th>Utente</th>
-                            <th>Codice fiscale</th>
                             <?php if ($canViewLastSeen): ?>
                                 <th>Ultima attività</th>
                             <?php endif; ?>
@@ -337,7 +336,6 @@ $availableUsers = array_values(array_filter(
                             <?php $userCf = (string) $user['cod_fiscale']; $scheduleUserNames = $namesByUser[$userCf] ?? []; ?>
                             <tr>
                                 <td><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></td>
-                                <td><code><?php echo appAddettiEscape($userCf); ?></code></td>
                                 <?php if ($canViewLastSeen): ?>
                                     <td><?php echo appAddettiEscape(appAddettiLastSeenLabel($user['last_seen'] ?? null)); ?></td>
                                 <?php endif; ?>
@@ -345,7 +343,7 @@ $availableUsers = array_values(array_filter(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="<?php echo $canViewLastSeen ? '4' : '3'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo $canViewLastSeen ? '3' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>

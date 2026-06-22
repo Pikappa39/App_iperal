@@ -40,12 +40,11 @@ if (!$connessione || !isset($pdo)) {
 
 $nome = trim((string) ($_POST["nome"] ?? ""));
 $cognome = trim((string) ($_POST["cognome"] ?? ""));
-$cf = strtoupper(trim((string) ($_POST["cf"] ?? "")));
 $email = strtolower(trim((string) ($_POST["email"] ?? "")));
 $password = (string) ($_POST["password"] ?? "");
 $reparto = trim((string) ($_POST["reparto"] ?? ""));
 
-if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $reparto === "") {
+if ($nome === "" || $cognome === "" || $email === "" || $password === "" || $reparto === "") {
     jsonResponse([
         "ok" => false,
         "error" => "Compila tutti i campi obbligatori",
@@ -66,13 +65,6 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     ], 400);
 }
 
-if (strlen($cf) < 11 || strlen($cf) > 16) {
-    jsonResponse([
-        "ok" => false,
-        "error" => "Codice fiscale non valido",
-    ], 400);
-}
-
 if (strlen($password) < 12) {
     jsonResponse([
         'ok' => false,
@@ -81,10 +73,7 @@ if (strlen($password) < 12) {
 }
 
 try {
-    $checks = [
-        ["email", $email, "Email già registrata"],
-        ["cod_fiscale", $cf, "Codice fiscale già registrato"],
-    ];
+    $checks = [["email", $email, "Email già registrata"]];
 
     foreach ($checks as [$field, $value, $message]) {
         $stmt = $pdo->prepare("SELECT 1 FROM utenti WHERE {$field} = ? LIMIT 1");
@@ -103,9 +92,10 @@ try {
     );
 
     $generatedBadge = appGenerateUniqueUserBadge($pdo);
+    $technicalId = appGenerateUniqueUserPlaceholderCf($pdo);
 
     $stmt->execute([
-        $cf,
+        $technicalId,
         $nome,
         $cognome,
         $generatedBadge,

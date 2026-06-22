@@ -51,27 +51,21 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!app_csrf_request_is_valid()) {
         $errorMessage = 'Richiesta non valida. Ricarica la pagina e riprova.';
     } else {
-        $cf = appInviteNormalizeCf((string) ($_POST['cf'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
 
-        if (!preg_match('/^[A-Z0-9]{16}$/', $cf)) {
-            $errorMessage = 'Inserisci un codice fiscale valido di 16 caratteri.';
-        } elseif (strlen($password) < 12) {
+        if (strlen($password) < 12) {
             $errorMessage = 'La password deve contenere almeno 12 caratteri.';
         } elseif (!hash_equals($password, $confirmPassword)) {
             $errorMessage = 'Le password non corrispondono.';
         } else {
             try {
                 $alreadyExists = $pdo->prepare(
-                    'SELECT 1 FROM utenti WHERE email = ? OR cod_fiscale = ? LIMIT 1'
+                    'SELECT 1 FROM utenti WHERE email = ? LIMIT 1'
                 );
-                $alreadyExists->execute([
-                    (string) $invite['invited_email'],
-                    $cf,
-                ]);
+                $alreadyExists->execute([(string) $invite['invited_email']]);
                 if ($alreadyExists->fetchColumn()) {
-                    throw new RuntimeException('Esiste già un account con questa email o questo codice fiscale. Contatta il responsabile.');
+                    throw new RuntimeException('Esiste già un account con questa email. Contatta il responsabile.');
                 }
 
                 $passwordHash = password_hash($password, PASSWORD_DEFAULT);
@@ -83,12 +77,14 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     throw new RuntimeException('L’invito non è più disponibile.');
                 }
 
+                $technicalId = (string) $freshInvite['invited_cf'];
+
                 $insert = $pdo->prepare(
                     'INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo, reparto)
                      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)'
                 );
                 $insert->execute([
-                    $cf,
+                    $technicalId,
                     (string) $freshInvite['invited_nome'],
                     (string) $freshInvite['invited_cognome'],
                     $generatedBadge,
@@ -102,13 +98,13 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'UPDATE user_invites
                      SET accepted_at = NOW(), accepted_user_cf = ?
                      WHERE id = ?'
-                )->execute([$cf, (int) $freshInvite['id']]);
+                )->execute([$technicalId, (int) $freshInvite['id']]);
 
                 $pdo->commit();
 
                 session_regenerate_id(true);
                 $_SESSION['user'] = [
-                    'cf' => $cf,
+                    'cf' => $technicalId,
                     'nome' => (string) $freshInvite['invited_nome'],
                     'cognome' => (string) $freshInvite['invited_cognome'],
                     'avatar' => 'default',
@@ -117,7 +113,7 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'session_version' => 0,
                 ];
                 if ($pdo instanceof PDO) {
-                    app_session_touch_user($pdo, (string) $freshInvite['invited_cf'], true);
+                    app_session_touch_user($pdo, $technicalId, true);
                 }
 
                 header('Location: index.php', true, 302);
@@ -166,10 +162,6 @@ $inviteDepartment = $invite ? ($departments[(string) ($invite['reparto'] ?? '')]
             <form method="post" class="d-grid gap-3">
                 <input type="hidden" name="csrf_token" value="<?php echo appAcceptInviteEscape(app_csrf_token()); ?>">
                 <input type="hidden" name="token" value="<?php echo appAcceptInviteEscape($token); ?>">
-                <div>
-                    <label class="form-label" for="cf">Codice fiscale</label>
-                    <input class="form-control" type="text" id="cf" name="cf" maxlength="16" autocomplete="off" required>
-                </div>
                 <div>
                     <label class="form-label" for="password">Password</label>
                     <input class="form-control" type="password" id="password" name="password" minlength="12" autocomplete="new-password" required>
