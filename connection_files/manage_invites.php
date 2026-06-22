@@ -4,6 +4,7 @@ require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/invite_lib.php';
+require_once __DIR__ . '/password_reset_mail.php';
 
 function appInviteRedirect(): void
 {
@@ -79,7 +80,21 @@ try {
              SET token_hash = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 7 DAY), revoked_at = NULL
              WHERE id = ?'
         )->execute([$tokenHash, $inviteId]);
-        appInviteSetFlash('success', 'Nuovo link generato.', appInviteBuildUrl($token));
+        $link = appInviteBuildUrl($token);
+        $departmentLabel = appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto'];
+        try {
+            sendInvitationEmail(
+                (string) $invite['invited_email'],
+                trim((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome']),
+                $departmentLabel,
+                $link,
+                date('Y-m-d H:i:s', strtotime('+7 days'))
+            );
+            appInviteSetFlash('success', 'Nuovo invito inviato via email a ' . (string) $invite['invited_email'] . '.');
+        } catch (Throwable $mailError) {
+            error_log('Invio email invito non riuscito: ' . $mailError->getMessage());
+            appInviteSetFlash('warning', 'Nuovo invito creato, ma l’email non è stata inviata. Copia e condividi il link manualmente.', $link);
+        }
         appInviteRedirect();
     }
 
@@ -133,7 +148,15 @@ try {
     );
     $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $reparto, $tokenHash]);
 
-    appInviteSetFlash('success', 'Invito creato. Copia e condividi il link con il dipendente.', appInviteBuildUrl($token));
+    $link = appInviteBuildUrl($token);
+    $departmentLabel = appDepartments()[$reparto] ?? $reparto;
+    try {
+        sendInvitationEmail($email, trim($nome . ' ' . $cognome), $departmentLabel, $link, date('Y-m-d H:i:s', strtotime('+7 days')));
+        appInviteSetFlash('success', 'Invito inviato via email a ' . $email . '.');
+    } catch (Throwable $mailError) {
+        error_log('Invio email invito non riuscito: ' . $mailError->getMessage());
+        appInviteSetFlash('warning', 'Invito creato, ma l’email non è stata inviata. Copia e condividi il link manualmente.', $link);
+    }
 } catch (Throwable $e) {
     error_log('Gestione inviti non riuscita: ' . $e->getMessage());
     appInviteSetFlash('danger', $e->getMessage());

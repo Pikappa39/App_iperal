@@ -215,7 +215,7 @@ $availableUsers = array_values(array_filter(
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
                     <div>
                         <h2 class="h5 mb-1">Invita un dipendente</h2>
-                        <p class="text-muted mb-0">Crea un link da condividere manualmente. Il dipendente completerà da solo la password.</p>
+                        <p class="text-muted mb-0">Invia un link personale via email. Il dipendente completerà da solo la password.</p>
                     </div>
                 </div>
                 <form action="connection_files/manage_invites.php" method="post" class="row g-3">
@@ -254,7 +254,7 @@ $availableUsers = array_values(array_filter(
                         </div>
                     <?php endif; ?>
                     <div class="col-12">
-                        <button type="submit" class="btn btn-primary">Genera link invito</button>
+                        <button type="submit" class="btn btn-primary">Invia invito</button>
                     </div>
                 </form>
 
@@ -292,7 +292,7 @@ $availableUsers = array_values(array_filter(
                                                 <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
                                                 <input type="hidden" name="action" value="regenerate">
                                                 <input type="hidden" name="invite_id" value="<?php echo (int) $invite['id']; ?>">
-                                                <button type="submit" class="btn btn-outline-dark btn-sm">Nuovo link</button>
+                                                <button type="submit" class="btn btn-outline-dark btn-sm">Reinvia invito</button>
                                             </form>
                                             <form action="connection_files/manage_invites.php" method="post">
                                                 <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">

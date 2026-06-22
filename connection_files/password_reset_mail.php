@@ -35,11 +35,11 @@ function smtpExpect($socket, ?string $command, array $acceptedCodes): void
     }
 }
 
-function sendPasswordResetEmail(string $recipient, string $resetUrl): void
+function smtpSendPlainTextEmail(string $recipient, string $subject, string $body): void
 {
     $username = appSmtpUsername();
     $password = appSmtpPassword();
-    if ($username === '' || $password === '') {
+    if ($username === '' || $password === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Configurazione SMTP incompleta');
     }
 
@@ -73,20 +73,40 @@ function sendPasswordResetEmail(string $recipient, string $resetUrl): void
         smtpExpect($socket, 'RCPT TO:<' . $recipient . '>', [250, 251]);
         smtpExpect($socket, 'DATA', [354]);
 
-        $subject = 'Reimposta la password di MyOrari';
-        $body = "Hai richiesto di reimpostare la password del tuo account MyOrari.\r\n\r\n"
-            . "Apri questo link entro 60 minuti:\r\n" . $resetUrl . "\r\n\r\n"
-            . "Se non hai richiesto tu questa operazione, puoi ignorare questa email.";
-        $message = "From: " . appSmtpFromName() . " <{$username}>\r\n"
+        $fromName = str_replace(["\r", "\n"], '', appSmtpFromName());
+        $safeSubject = str_replace(["\r", "\n"], '', $subject);
+        $safeBody = preg_replace('/(?m)^\./', '..', str_replace("\r\n", "\n", $body));
+        $safeBody = str_replace("\n", "\r\n", (string) $safeBody);
+        $message = "From: {$fromName} <{$username}>\r\n"
             . "To: <{$recipient}>\r\n"
-            . 'Subject: =?UTF-8?B?' . base64_encode($subject) . "?=\r\n"
+            . 'Subject: =?UTF-8?B?' . base64_encode($safeSubject) . "?=\r\n"
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=UTF-8\r\n"
             . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-            . $body . "\r\n.";
+            . $safeBody . "\r\n.";
         smtpExpect($socket, $message, [250]);
         smtpExpect($socket, 'QUIT', [221]);
     } finally {
         fclose($socket);
     }
+}
+
+function sendPasswordResetEmail(string $recipient, string $resetUrl): void
+{
+    $body = "Hai richiesto di reimpostare la password del tuo account MyOrari.\r\n\r\n"
+        . "Apri questo link entro 60 minuti:\r\n" . $resetUrl . "\r\n\r\n"
+        . "Se non hai richiesto tu questa operazione, puoi ignorare questa email.";
+    smtpSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
+}
+
+function sendInvitationEmail(string $recipient, string $name, string $department, string $inviteUrl, string $expiresAt): void
+{
+    $expiry = strtotime($expiresAt);
+    $expiryLabel = $expiry === false ? 'entro 7 giorni' : date('d/m/Y alle H:i', $expiry);
+    $body = "Ciao {$name},\r\n\r\n"
+        . "sei stato invitato ad attivare il tuo account MyOrari"
+        . ($department !== '' ? " per il reparto {$department}" : '') . ".\r\n\r\n"
+        . "Apri questo link entro {$expiryLabel}:\r\n{$inviteUrl}\r\n\r\n"
+        . "Dovrai solo scegliere una password. Se non ti aspettavi questo invito, puoi ignorare questa email.";
+    smtpSendPlainTextEmail($recipient, 'Invito a MyOrari', $body);
 }
