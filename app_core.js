@@ -20,6 +20,8 @@ const appState = {
     monthNotesCache: Object.create(null),
     monthNotesPromises: Object.create(null)
 };
+let appNavigationReady = false;
+let appNavigationRestoring = false;
 
 const YEAR_CHOICES = [2024, 2025, 2026];
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
@@ -32,6 +34,7 @@ function setVista(classes, titoloTesto) {
     titolo.innerText = titoloTesto;
     container.className = classes;
     container.innerHTML = "";
+    appNavigationDeferRecord();
 }
 
 function showHomeScreen() {
@@ -47,7 +50,108 @@ function showHomeScreen() {
     appToolbar.classList.add("app-hidden");
     container.classList.add("app-hidden");
     container.innerHTML = "";
+    appNavigationRecordCurrentView();
 }
+
+function appNavigationBuildState() {
+    const state = {
+        app: "myorari",
+        view: appState.view,
+        year: appState.currentYear,
+        month: appState.currentMonth,
+        settingsPanel: appState.settingsPanel || "main"
+    };
+
+    if (appState.view === "giorno" && appState.selectedDay) {
+        state.day = appState.selectedDay;
+    }
+
+    return state;
+}
+
+function appNavigationRecordCurrentView() {
+    if (!appNavigationReady || appNavigationRestoring) {
+        return;
+    }
+
+    const nextState = appNavigationBuildState();
+    const currentState = window.history.state;
+    if (currentState && currentState.app === "myorari" && JSON.stringify(currentState) === JSON.stringify(nextState)) {
+        return;
+    }
+
+    window.history.pushState(nextState, document.title, window.location.pathname);
+}
+
+function appNavigationDeferRecord() {
+    const defer = window.queueMicrotask || ((callback) => Promise.resolve().then(callback));
+    defer(appNavigationRecordCurrentView);
+}
+
+function appNavigationInitialize() {
+    window.history.replaceState(appNavigationBuildState(), document.title, window.location.pathname);
+    appNavigationReady = true;
+}
+
+async function appNavigationRestore(state) {
+    if (!state || state.app !== "myorari") {
+        return;
+    }
+
+    appNavigationRestoring = true;
+    try {
+        switch (state.view) {
+            case "home":
+                showHomeScreen();
+                break;
+            case "anni":
+                mostraAnni();
+                break;
+            case "mesi":
+                mostraMesi(state.year);
+                break;
+            case "giorni":
+                await mostraGiorni(state.year, state.month);
+                break;
+            case "giorno":
+                if (state.day) {
+                    await mostragiorno(state.day);
+                } else {
+                    await mostraGiorni(state.year, state.month);
+                }
+                break;
+            case "noteAdmin":
+                await mostraNoteAdmin();
+                break;
+            case "scheduleChanges":
+                await mostraModificheOrari();
+                break;
+            case "communications":
+                await mostraComunicazioni();
+                break;
+            case "profilo":
+                mostraProfilo();
+                break;
+            case "setting":
+                if (state.settingsPanel === "screen") {
+                    mostraImpostazioniSchermo();
+                } else if (state.settingsPanel === "notifications") {
+                    mostraImpostazioniNotifiche();
+                } else {
+                    mostrasetting();
+                }
+                break;
+            default:
+                showHomeScreen();
+        }
+    } finally {
+        appNavigationRestoring = false;
+    }
+}
+
+window.addEventListener("popstate", function (event) {
+    appNavigationRestore(event.state);
+});
 
 function showCalendarShell() {
     homeScreen.hidden = true;

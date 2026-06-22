@@ -139,6 +139,7 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
 async function mostragiorno(giornoInfo) {
     appState.view = "giorno";
     appState.selectedDay = giornoInfo;
+    appNavigationRecordCurrentView();
     container.classList.remove("griglia-giorni", "griglia-mesi", "griglia-anni");
     container.classList.add("vista-giorno");
     container.innerHTML = "";

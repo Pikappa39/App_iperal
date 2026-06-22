@@ -91,3 +91,5 @@ if (new URLSearchParams(window.location.search).get("communications") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
     mostraComunicazioni();
 }
+
+appNavigationInitialize();
