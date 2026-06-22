@@ -407,6 +407,13 @@ body {
     padding: 24px 0 40px;
 }
 
+.home-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 24px;
+}
+
 .home-orari {
     width: min(62vw, 240px);
     min-height: min(62vw, 240px);
@@ -417,6 +424,14 @@ body {
     line-height: 1;
     letter-spacing: 0;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-addetti {
+    display: grid;
+    place-items: center;
+    width: min(42vw, 200px);
+    min-height: min(42vw, 200px);
+    text-decoration: none;
 }
 
 .home-orari:hover {
@@ -811,6 +826,15 @@ textarea {
         width: min(72vw, 190px);
         min-height: min(72vw, 190px);
         font-size: 1.7rem;
+    }
+
+    .home-actions {
+        gap: 18px;
+    }
+
+    .home-addetti {
+        width: min(42vw, 160px);
+        min-height: min(42vw, 160px);
     }
 
     #contenitore.calendario.griglia-mesi,

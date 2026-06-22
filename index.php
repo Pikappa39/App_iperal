@@ -80,7 +80,12 @@ $clientBootstrap = [
   <div id="appToast" class="app-toast app-hidden" hidden role="status" aria-live="polite"></div>
 
   <section id="homeScreen" class="home-screen">
-    <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
+    <div class="home-actions">
+      <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
+      <?php if (isset($_SESSION['user']) && in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 3], true)): ?>
+        <a href="addetti.php" class="home-orari sfera home-addetti">Addetti</a>
+      <?php endif; ?>
+    </div>
 
   </section>
 <!-- barra di navigazione, appare solo quando si è in una pagina secondaria e non nella home -->

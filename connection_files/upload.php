@@ -144,21 +144,30 @@ foreach ($convertedFiles as $fileData) {
 }
 
 $existingMappings = appUploadExistingMappings($pdo, $reparto, array_keys($scheduleNames));
+$departmentUsers = appUploadDepartmentUsers($pdo, $reparto);
+$allowedUsers = [];
+foreach ($departmentUsers as $user) {
+    $allowedUsers[(string) $user['cod_fiscale']] = true;
+}
 
 if ($mode === 'preview') {
     $rows = [];
     foreach ($scheduleNames as $key => $displayName) {
+        $savedValue = $existingMappings[$key] ?? null;
+        if ($savedValue === APP_UPLOAD_UNREGISTERED_VALUE || isset($allowedUsers[$savedValue])) {
+            continue;
+        }
         $rows[] = [
             'key' => $key,
             'name' => $displayName,
-            'userCf' => $existingMappings[$key] ?? '',
+            'userCf' => '',
         ];
     }
 
     echo json_encode([
         'ok' => true,
         'names' => $rows,
-        'users' => appUploadDepartmentUsers($pdo, $reparto),
+        'users' => $departmentUsers,
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -168,14 +177,16 @@ if (!is_array($submittedMappings)) {
     appUploadFail(400, 'Associazioni non valide');
 }
 
-$departmentUsers = appUploadDepartmentUsers($pdo, $reparto);
-$allowedUsers = [];
-foreach ($departmentUsers as $user) {
-    $allowedUsers[(string) $user['cod_fiscale']] = true;
+$mappings = [];
+$unregisteredKeys = [];
+foreach ($existingMappings as $key => $savedValue) {
+    if ($savedValue === APP_UPLOAD_UNREGISTERED_VALUE) {
+        $unregisteredKeys[$key] = true;
+        continue;
+    }
+    $mappings[$key] = $savedValue;
 }
 
-$mappings = $existingMappings;
-$unregisteredKeys = [];
 foreach ($scheduleNames as $key => $_displayName) {
     if (array_key_exists($key, $submittedMappings)) {
         $selectedValue = trim((string) $submittedMappings[$key]);
@@ -185,6 +196,11 @@ foreach ($scheduleNames as $key => $_displayName) {
             continue;
         }
         $mappings[$key] = $selectedValue;
+        unset($unregisteredKeys[$key]);
+    }
+
+    if (!empty($unregisteredKeys[$key])) {
+        continue;
     }
 
     if (empty($mappings[$key]) || !isset($allowedUsers[$mappings[$key]])) {
@@ -198,15 +214,12 @@ try {
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
     );
-    $deleteMapping = $pdo->prepare(
-        'DELETE FROM schedule_name_mappings WHERE reparto = ? AND schedule_name = ?'
-    );
     $pdo->beginTransaction();
     foreach ($scheduleNames as $key => $_displayName) {
         if (!empty($unregisteredKeys[$key])) {
-            // Non memorizziamo questa scelta: quando l'utente si registrerà,
-            // il capo potrà associarlo al caricamento successivo.
-            $deleteMapping->execute([$reparto, $key]);
+            // Conserviamo la scelta per non richiederla nuovamente a ogni upload.
+            // Potrà essere sostituita da un'associazione utente nella gestione dedicata.
+            $saveMapping->execute([$reparto, $key, APP_UPLOAD_UNREGISTERED_VALUE, (string) ($_SESSION['user']['cf'] ?? '')]);
             continue;
         }
         $saveMapping->execute([$reparto, $key, $mappings[$key], (string) ($_SESSION['user']['cf'] ?? '')]);

@@ -33,7 +33,11 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         <div id="mappingPanel" class="card mt-4" hidden>
             <div class="card-body">
                 <h2 class="h5">Associa i nominativi</h2>
-                <p class="text-muted mb-3">Il file Excel non contiene il codice fiscale. Seleziona l'utente corretto per ogni nominativo. Se una persona non usa l'app, scegli “Utente non registrato”: il suo turno verrà salvato senza associazione permanente.</p>
+                <p class="text-muted mb-3">Questi nominativi non hanno ancora un'associazione salvata. Seleziona l'utente corretto per ciascuno. Se una persona non usa l'app, scegli “Utente non registrato”.</p>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="markAllUnregistered">
+                    <label class="form-check-label" for="markAllUnregistered">Segna tutti come “Utente non registrato”</label>
+                </div>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead><tr><th>Nominativo nel file</th><th>Utente registrato</th></tr></thead>
@@ -55,6 +59,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         const submitUpload = document.getElementById("submitUpload");
         const mappingPanel = document.getElementById("mappingPanel");
         const mappingRows = document.getElementById("mappingRows");
+        const markAllUnregistered = document.getElementById("markAllUnregistered");
         let readyToUpload = false;
 
         function showError(message) {
@@ -92,6 +97,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 
         function renderMappings(data) {
             mappingRows.innerHTML = "";
+            markAllUnregistered.checked = false;
             const users = Array.isArray(data.users) ? data.users : [];
 
             (data.names || []).forEach((entry) => {
@@ -133,6 +139,20 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
             submitUpload.textContent = "Salva associazioni e carica turni";
         }
 
+        function showUploadResult(data) {
+            const items = (data.results || []).map((item) => {
+                if (item.error) {
+                    return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
+                }
+                const historyCount = item.history && Number.isFinite(Number(item.history.stored))
+                    ? ' - storico: ' + Number(item.history.stored) + ' modifiche'
+                    : '';
+                return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)' + historyCount + '</li>';
+            }).join('');
+
+            statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';
+        }
+
         function getMappings() {
             const mappings = {};
             const selects = mappingRows.querySelectorAll(".schedule-mapping");
@@ -155,6 +175,12 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
                 if (!readyToUpload) {
                     statusBox.textContent = "Analisi del file in corso...";
                     const data = await sendForm("preview");
+                    if (!(data.names || []).length) {
+                        statusBox.textContent = "Tutti i nominativi sono già associati. Caricamento in corso...";
+                        const uploadData = await sendForm("upload", {});
+                        showUploadResult(uploadData);
+                        return;
+                    }
                     renderMappings(data);
                     statusBox.textContent = "Controlla le associazioni e conferma il caricamento.";
                     return;
@@ -162,17 +188,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 
                 statusBox.textContent = "Caricamento in corso...";
                 const data = await sendForm("upload", getMappings());
-                const items = (data.results || []).map((item) => {
-                    if (item.error) {
-                        return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
-                    }
-                    const historyCount = item.history && Number.isFinite(Number(item.history.stored))
-                        ? ' - storico: ' + Number(item.history.stored) + ' modifiche'
-                        : '';
-                    return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)' + historyCount + '</li>';
-                }).join('');
-
-                statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';
+                showUploadResult(data);
             } catch (error) {
                 showError(error.message);
             } finally {
@@ -184,8 +200,18 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
             readyToUpload = false;
             mappingPanel.hidden = true;
             mappingRows.innerHTML = "";
+            markAllUnregistered.checked = false;
             submitUpload.textContent = "Analizza file e associa nominativi";
             statusBox.innerHTML = "";
+        });
+
+        markAllUnregistered.addEventListener("change", () => {
+            if (!markAllUnregistered.checked) {
+                return;
+            }
+            mappingRows.querySelectorAll(".schedule-mapping").forEach((select) => {
+                select.value = "__UNREGISTERED__";
+            });
         });
 
         back.addEventListener("click", () => {

@@ -9,6 +9,7 @@ const openOrari = document.getElementById("openOrari");
 const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
 const communicationsItem = document.getElementById("communicationsItem");
+const profileItem = document.getElementById("profileItem");
 const setting=document.getElementById("setting");
 const appState = {
     view: "home",

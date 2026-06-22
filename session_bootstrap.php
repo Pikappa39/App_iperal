@@ -96,6 +96,8 @@ function app_session_destroy_current(): void
 
 function app_session_validate_user(): void
 {
+    global $connessione, $pdo;
+
     $sessionUser = $_SESSION['user'] ?? null;
     $cf = is_array($sessionUser) ? (string) ($sessionUser['cf'] ?? '') : '';
     if ($cf === '') {
