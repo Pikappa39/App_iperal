@@ -133,17 +133,29 @@ function convertWorkbookToScheduleData($worksheet, string $fallbackName = ''): a
     ];
 }
 
-function associaUtentiAlleRigheOrario(array $rows, array $mappings): array
+function associaUtentiAlleRigheOrario(array $rows, array $mappings, array $unregisteredKeys = []): array
 {
     foreach ($rows as &$row) {
         $key = normalizzaChiaveAddetto((string) ($row['ADDETTO'] ?? ''));
         $userCf = trim((string) ($mappings[$key] ?? ''));
 
-        if ($key === '' || $userCf === '') {
+        if ($key === '') {
             throw new RuntimeException('Manca l\'associazione per il nominativo "' . ($row['ADDETTO'] ?? '') . '".');
         }
 
-        $row['COD_FISCALE'] = $userCf;
+        if ($userCf !== '') {
+            $row['COD_FISCALE'] = $userCf;
+            unset($row['UTENTE_NON_REGISTRATO']);
+            continue;
+        }
+
+        if (!empty($unregisteredKeys[$key])) {
+            unset($row['COD_FISCALE']);
+            $row['UTENTE_NON_REGISTRATO'] = true;
+            continue;
+        }
+
+        throw new RuntimeException('Manca l\'associazione per il nominativo "' . ($row['ADDETTO'] ?? '') . '".');
     }
     unset($row);
 

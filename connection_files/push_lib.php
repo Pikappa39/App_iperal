@@ -308,10 +308,13 @@ function appPushIndexRows(array $rows): array
             continue;
         }
 
+        $isUnregistered = !empty($row['UTENTE_NON_REGISTRATO']);
         $userCf = appPushNormalizeText((string) ($row['COD_FISCALE'] ?? ''));
         $name = appPushNormalizeLabel((string) ($row['ADDETTO'] ?? ''));
-        $key = $userCf !== '' ? 'CF:' . $userCf : 'NAME:' . $name;
-        if ($key === 'NAME:') {
+        $key = $isUnregistered
+            ? 'UNREGISTERED:' . $name
+            : ($userCf !== '' ? 'CF:' . $userCf : 'NAME:' . $name);
+        if ($key === 'NAME:' || $key === 'UNREGISTERED:') {
             continue;
         }
 
@@ -335,9 +338,12 @@ function appPushBuildChangeSet(array $previousRows, array $currentRows, PDO $pdo
         $previousRow = $previousIndex[$scheduleKey] ?? null;
         $scheduleName = (string) ($currentRow['ADDETTO'] ?? '');
         $scheduleCf = trim((string) ($currentRow['COD_FISCALE'] ?? ''));
-        $scheduleUser = $scheduleCf !== ''
+        $isUnregistered = !empty($currentRow['UTENTE_NON_REGISTRATO']);
+        $scheduleUser = $isUnregistered
+            ? null
+            : ($scheduleCf !== ''
             ? ['cod_fiscale' => $scheduleCf]
-            : appPushMatchUser($userIndex, $scheduleName);
+            : appPushMatchUser($userIndex, $scheduleName));
 
         if (!is_array($previousRow)) {
             $generalChanged = true;

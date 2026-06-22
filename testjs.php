@@ -33,7 +33,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         <div id="mappingPanel" class="card mt-4" hidden>
             <div class="card-body">
                 <h2 class="h5">Associa i nominativi</h2>
-                <p class="text-muted mb-3">Il file Excel non contiene il codice fiscale. Seleziona l'utente corretto per ogni nominativo: la scelta verrà ricordata per i prossimi caricamenti del tuo reparto.</p>
+                <p class="text-muted mb-3">Il file Excel non contiene il codice fiscale. Seleziona l'utente corretto per ogni nominativo. Se una persona non usa l'app, scegli “Utente non registrato”: il suo turno verrà salvato senza associazione permanente.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead><tr><th>Nominativo nel file</th><th>Utente registrato</th></tr></thead>
@@ -109,6 +109,11 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
                 placeholder.value = "";
                 placeholder.textContent = "Seleziona utente…";
                 select.appendChild(placeholder);
+
+                const unregistered = document.createElement("option");
+                unregistered.value = "__UNREGISTERED__";
+                unregistered.textContent = "Utente non registrato";
+                select.appendChild(unregistered);
 
                 users.forEach((user) => {
                     const option = document.createElement("option");

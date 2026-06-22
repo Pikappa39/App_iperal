@@ -21,6 +21,8 @@ require __DIR__ . '/../gestore_ods/orario_converter_lib.php';
 require __DIR__ . '/connection.php';
 require __DIR__ . '/push_lib.php';
 
+const APP_UPLOAD_UNREGISTERED_VALUE = '__UNREGISTERED__';
+
 function appUploadFail(int $status, string $message): void
 {
     http_response_code($status);
@@ -173,13 +175,20 @@ foreach ($departmentUsers as $user) {
 }
 
 $mappings = $existingMappings;
+$unregisteredKeys = [];
 foreach ($scheduleNames as $key => $_displayName) {
     if (array_key_exists($key, $submittedMappings)) {
-        $mappings[$key] = trim((string) $submittedMappings[$key]);
+        $selectedValue = trim((string) $submittedMappings[$key]);
+        if ($selectedValue === APP_UPLOAD_UNREGISTERED_VALUE) {
+            unset($mappings[$key]);
+            $unregisteredKeys[$key] = true;
+            continue;
+        }
+        $mappings[$key] = $selectedValue;
     }
 
     if (empty($mappings[$key]) || !isset($allowedUsers[$mappings[$key]])) {
-        appUploadFail(422, 'Scegli un utente del tuo reparto per ogni nominativo del file.');
+        appUploadFail(422, 'Scegli un utente del tuo reparto oppure “Utente non registrato” per ogni nominativo del file.');
     }
 }
 
@@ -189,8 +198,17 @@ try {
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
     );
+    $deleteMapping = $pdo->prepare(
+        'DELETE FROM schedule_name_mappings WHERE reparto = ? AND schedule_name = ?'
+    );
     $pdo->beginTransaction();
     foreach ($scheduleNames as $key => $_displayName) {
+        if (!empty($unregisteredKeys[$key])) {
+            // Non memorizziamo questa scelta: quando l'utente si registrerà,
+            // il capo potrà associarlo al caricamento successivo.
+            $deleteMapping->execute([$reparto, $key]);
+            continue;
+        }
         $saveMapping->execute([$reparto, $key, $mappings[$key], (string) ($_SESSION['user']['cf'] ?? '')]);
     }
     $pdo->commit();
@@ -208,7 +226,7 @@ foreach ($convertedFiles as $fileData) {
     $originalName = $fileData['file'];
     try {
         $converted = $fileData['converted'];
-        $converted['data'] = associaUtentiAlleRigheOrario($converted['data'], $mappings);
+        $converted['data'] = associaUtentiAlleRigheOrario($converted['data'], $mappings, $unregisteredKeys);
 
         $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted['settimana'] . '-' . $reparto . '.json';
         $previousData = appPushDecodeJsonFile($outputFile);
