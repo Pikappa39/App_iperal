@@ -124,6 +124,138 @@ function createDaySphere(giornoInfo, target = container) {
     target.appendChild(sfera);
 }
 
+const FULL_MONTH_LABELS = [
+    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+];
+
+function getAdjacentMonth(anno, mese, direction) {
+    const date = new Date(anno, mese - 1 + direction, 1);
+    return { anno: date.getFullYear(), mese: date.getMonth() + 1 };
+}
+
+function closeCalendarPicker() {
+    const picker = document.querySelector(".calendar-picker-backdrop");
+    if (picker) picker.remove();
+}
+
+function createCalendarPicker(titleText) {
+    closeCalendarPicker();
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "calendar-picker-backdrop";
+    backdrop.addEventListener("click", function (event) {
+        if (event.target === backdrop) closeCalendarPicker();
+    });
+
+    const panel = document.createElement("section");
+    panel.className = "calendar-picker";
+    const header = document.createElement("div");
+    header.className = "calendar-picker__header";
+    const title = document.createElement("h4");
+    title.textContent = titleText;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "calendar-picker__close";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Chiudi selettore calendario");
+    close.addEventListener("click", closeCalendarPicker);
+    header.append(title, close);
+    panel.appendChild(header);
+    backdrop.appendChild(panel);
+    document.body.appendChild(backdrop);
+
+    return panel;
+}
+
+function openMonthPicker(anno) {
+    const panel = createCalendarPicker("Mesi " + anno);
+    const yearButton = document.createElement("button");
+    yearButton.type = "button";
+    yearButton.className = "calendar-picker__year";
+    yearButton.textContent = "Cambia anno";
+    yearButton.addEventListener("click", function () {
+        openYearPicker(anno);
+    });
+
+    const grid = document.createElement("div");
+    grid.className = "calendar-picker__grid";
+    FULL_MONTH_LABELS.forEach(function (label, index) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", function () {
+            closeCalendarPicker();
+            mostraGiorni(anno, index + 1, { replaceHistory: true });
+        });
+        grid.appendChild(button);
+    });
+
+    panel.append(yearButton, grid);
+}
+
+function openYearPicker(selectedYear) {
+    const panel = createCalendarPicker("Scegli l'anno");
+    const grid = document.createElement("div");
+    grid.className = "calendar-picker__grid calendar-picker__grid--years";
+    YEAR_CHOICES.forEach(function (anno) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = anno;
+        button.classList.toggle("is-selected", anno === selectedYear);
+        button.addEventListener("click", function () {
+            openMonthPicker(anno);
+        });
+        grid.appendChild(button);
+    });
+    panel.appendChild(grid);
+}
+
+function createCalendarNavigation(anno, mese) {
+    const navigation = document.createElement("nav");
+    navigation.className = "calendar-navigation";
+    navigation.setAttribute("aria-label", "Navigazione calendario");
+
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.className = "calendar-navigation__arrow";
+    previous.textContent = "‹";
+    previous.setAttribute("aria-label", "Mese precedente");
+    previous.addEventListener("click", function () {
+        const target = getAdjacentMonth(anno, mese, -1);
+        mostraGiorni(target.anno, target.mese, { replaceHistory: true });
+    });
+
+    const label = document.createElement("div");
+    label.className = "calendar-navigation__label";
+    const monthButton = document.createElement("button");
+    monthButton.type = "button";
+    monthButton.textContent = FULL_MONTH_LABELS[mese - 1];
+    monthButton.addEventListener("click", function () {
+        openMonthPicker(anno);
+    });
+    const yearButton = document.createElement("button");
+    yearButton.type = "button";
+    yearButton.textContent = anno;
+    yearButton.addEventListener("click", function () {
+        openYearPicker(anno);
+    });
+    label.append(monthButton, yearButton);
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "calendar-navigation__arrow";
+    next.textContent = "›";
+    next.setAttribute("aria-label", "Mese successivo");
+    next.addEventListener("click", function () {
+        const target = getAdjacentMonth(anno, mese, 1);
+        mostraGiorni(target.anno, target.mese, { replaceHistory: true });
+    });
+
+    navigation.append(previous, label, next);
+    return navigation;
+}
+
 function mostraAnni() {
     appState.view = "anni";
     appState.currentMonth = null;
@@ -179,20 +311,29 @@ function mostraMesi(anno) {
     container.appendChild(fragment);
 }
 
-async function mostraGiorni(anno, mese) {
+async function mostraGiorni(anno, mese, options = {}) {
     showCalendarShell();
     appState.view = "giorni";
     appState.currentYear = anno;
     appState.currentMonth = mese;
-    setVista("calendario griglia-giorni mt-4", "Giorni " + mese + "/" + anno);
+    setVista("calendario griglia-giorni mt-4", "Orari", { record: !options.replaceHistory });
+    if (options.replaceHistory) {
+        appNavigationReplaceCurrentView();
+    }
+    const viewToken = appState.calendarViewToken;
 
     const { visibleDays, weeksToLoad } = buildVisibleDaysForMonth(anno, mese);
+    container.appendChild(createCalendarNavigation(anno, mese));
 
     const noteMese = await getMonthNotes(anno, mese);
     const settimaneCaricate = {};
     await Promise.all([...weeksToLoad].map(async (settimana) => {
         settimaneCaricate[settimana] = await getWeekData(settimana);
     }));
+
+    if (viewToken !== appState.calendarViewToken || appState.view !== "giorni") {
+        return;
+    }
 
     const userCf = getCurrentUserKey();
     const userName = getCurrentUser();

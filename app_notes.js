@@ -137,6 +137,7 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
 }
 
 async function mostragiorno(giornoInfo) {
+    appState.calendarViewToken += 1;
     appState.view = "giorno";
     appState.selectedDay = giornoInfo;
     appNavigationRecordCurrentView();

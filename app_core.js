@@ -16,6 +16,7 @@ const appState = {
     currentMonth: null,
     selectedDay: null,
     noteViewToken: 0,
+    calendarViewToken: 0,
     weekCache: Object.create(null),
     monthNotesCache: Object.create(null),
     monthNotesPromises: Object.create(null)
@@ -31,14 +32,21 @@ const NOTES_ENDPOINT = "connection_files/note.php";
 const today = new Date();
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
 //questa funzione imposta la vista corrente, il titolo e svuota il contenitore
-function setVista(classes, titoloTesto) {
+function setVista(classes, titoloTesto, options = {}) {
+    appState.calendarViewToken += 1;
     titolo.innerText = titoloTesto;
     container.className = classes;
     container.innerHTML = "";
-    appNavigationDeferRecord();
+    if (options.record !== false) {
+        appNavigationDeferRecord();
+    }
 }
 
 function showHomeScreen() {
+    appState.calendarViewToken += 1;
+    if (typeof closeCalendarPicker === "function") {
+        closeCalendarPicker();
+    }
     appState.view = "home";
     appState.currentYear = null;
     appState.currentMonth = null;
@@ -100,6 +108,14 @@ function appNavigationInitialize() {
     appNavigationPosition = 0;
     window.history.replaceState(appNavigationBuildState(), document.title, window.location.pathname);
     appNavigationReady = true;
+}
+
+function appNavigationReplaceCurrentView() {
+    if (!appNavigationReady || appNavigationRestoring) {
+        return;
+    }
+
+    window.history.replaceState(appNavigationBuildState(), document.title, window.location.pathname);
 }
 
 function appNavigationGoBack() {
