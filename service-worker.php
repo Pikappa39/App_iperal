@@ -3,6 +3,7 @@ require __DIR__ . '/app_config.php';
 
 header('Content-Type: application/javascript; charset=utf-8');
 header('Service-Worker-Allowed: ./');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 $assetVersion = rawurlencode(APP_VERSION);
 $cacheName = 'app-iperal-v' . APP_VERSION;
@@ -10,7 +11,10 @@ $staticAssets = [
     './app_core.js?v=' . $assetVersion,
     './app_calendar.js?v=' . $assetVersion,
     './app_notes.js?v=' . $assetVersion,
+    './app_communications.js?v=' . $assetVersion,
+    './userhome.js?v=' . $assetVersion,
     './app_init.js?v=' . $assetVersion,
+    './setting.js?v=' . $assetVersion,
     './sfera.css?v=' . $assetVersion,
     './i_o_data.js',
     './manifest.php?v=' . $assetVersion,

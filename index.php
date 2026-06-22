@@ -73,8 +73,8 @@ $clientBootstrap = [
   </header>
 <!-- Update Banner -->
   <div id="updateBanner" class="update-banner app-hidden" hidden role="status" aria-live="polite">
-    <span>Nuova versione disponibile</span>
-    <button type="button" id="updateNowBtn" class="btn btn-light btn-sm">Aggiorna</button>
+    <span>Completa aggiornamento disponibile</span>
+    <button type="button" id="updateNowBtn" class="btn btn-light btn-sm">Completa</button>
   </div>
 
   <div id="appToast" class="app-toast app-hidden" hidden role="status" aria-live="polite"></div>
@@ -137,6 +137,22 @@ let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
 let pushStateLoaded = false;
+let isAppStartupPhase = true;
+
+// Se l'app viene riaperta dopo un aggiornamento, la pagina può essere già
+// nuova mentre il service worker precedente è ancora attivo. Completiamo
+// automaticamente il passaggio finché l'utente non ha iniziato a usare l'app.
+function finishStartupPhase() {
+    isAppStartupPhase = false;
+}
+
+window.setTimeout(finishStartupPhase, 8000);
+["pointerdown", "keydown", "touchstart", "input"].forEach(function (eventName) {
+    window.addEventListener(eventName, finishStartupPhase, {
+        once: true,
+        capture: true,
+    });
+});
 
 function showUpdateBanner() {
     if (!updateBanner) {
@@ -145,6 +161,31 @@ function showUpdateBanner() {
 
     updateBanner.hidden = false;
     updateBanner.classList.remove("app-hidden");
+}
+
+function activateWaitingWorker(worker) {
+    if (!worker) {
+        return;
+    }
+
+    waitingWorker = worker;
+    updateBanner.hidden = true;
+    updateBanner.classList.add("app-hidden");
+    worker.postMessage({ type: "SKIP_WAITING" });
+}
+
+function handleWaitingWorker(worker) {
+    if (!worker) {
+        return;
+    }
+
+    waitingWorker = worker;
+    if (isAppStartupPhase) {
+        activateWaitingWorker(worker);
+        return;
+    }
+
+    showUpdateBanner();
 }
 
 function showAppToast(message) {
@@ -352,8 +393,7 @@ if ('serviceWorker' in navigator) {
 
             const checkWaiting = function () {
                 if (registration.waiting) {
-                    waitingWorker = registration.waiting;
-                    showUpdateBanner();
+                    handleWaitingWorker(registration.waiting);
                 }
             };
 
@@ -365,8 +405,7 @@ if ('serviceWorker' in navigator) {
 
                 newWorker.addEventListener('statechange', function () {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        waitingWorker = newWorker;
-                        showUpdateBanner();
+                        handleWaitingWorker(newWorker);
                     }
                 });
             });
@@ -391,8 +430,7 @@ function checkForUpdatesManually() {
 
     serviceWorkerRegistration.update().then(function () {
         if (serviceWorkerRegistration.waiting) {
-            waitingWorker = serviceWorkerRegistration.waiting;
-            showUpdateBanner();
+            handleWaitingWorker(serviceWorkerRegistration.waiting);
             return;
         }
 
@@ -410,9 +448,7 @@ function checkForUpdatesManually() {
 if (updateNowBtn) {
     updateNowBtn.addEventListener('click', function () {
         if (waitingWorker) {
-            updateBanner.hidden = true;
-            updateBanner.classList.add("app-hidden");
-            waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+            activateWaitingWorker(waitingWorker);
         }
     });
 }
