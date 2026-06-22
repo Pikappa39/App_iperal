@@ -85,3 +85,24 @@ CREATE TABLE IF NOT EXISTS schedule_change_log (
     INDEX idx_schedule_change_user_read (user_cf, read_at, id),
     INDEX idx_schedule_change_batch (batch_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS user_invites (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    invited_by_cf VARCHAR(16) NOT NULL,
+    invited_email VARCHAR(255) NOT NULL,
+    invited_badge VARCHAR(20) NOT NULL,
+    invited_cf VARCHAR(16) NOT NULL,
+    invited_nome VARCHAR(100) NOT NULL,
+    invited_cognome VARCHAR(100) NOT NULL,
+    reparto VARCHAR(20) NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    accepted_at DATETIME NULL DEFAULT NULL,
+    revoked_at DATETIME NULL DEFAULT NULL,
+    accepted_user_cf VARCHAR(16) NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_invites_status (reparto, expires_at, accepted_at, revoked_at),
+    INDEX idx_user_invites_email (invited_email),
+    INDEX idx_user_invites_cf (invited_cf),
+    INDEX idx_user_invites_badge (invited_badge)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -3,6 +3,7 @@ require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 require_once __DIR__ . '/connection_files/connection.php';
+require_once __DIR__ . '/connection_files/invite_lib.php';
 require __DIR__ . '/gestore_ods/orario_converter_lib.php';
 
 $capo = (int) ($_SESSION['user']['capo'] ?? 0);
@@ -50,12 +51,16 @@ if (empty($_SESSION['schedule_mapping_csrf'])) {
     $_SESSION['schedule_mapping_csrf'] = bin2hex(random_bytes(32));
 }
 $csrfToken = (string) $_SESSION['schedule_mapping_csrf'];
+$appCsrfToken = app_csrf_token();
 
 $reparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
 $repartoLabel = appDepartments()[$reparto] ?? 'non assegnato';
 $users = [];
 $mappings = [];
+$invites = [];
 $databaseError = !$connessione || !($pdo instanceof PDO);
+$inviteFlash = $_SESSION['invite_flash'] ?? null;
+unset($_SESSION['invite_flash']);
 
 if (!$databaseError) {
     $userStatement = $pdo->prepare(
@@ -75,6 +80,27 @@ if (!$databaseError) {
     );
     $mappingStatement->execute([$reparto]);
     $mappings = $mappingStatement->fetchAll(PDO::FETCH_ASSOC);
+
+    $inviteQuery = null;
+    if ($capo === 3) {
+        $inviteQuery = $pdo->query(
+            'SELECT *
+             FROM user_invites
+             ORDER BY created_at DESC
+             LIMIT 30'
+        );
+    } else {
+        $inviteQuery = $pdo->prepare(
+            'SELECT *
+             FROM user_invites
+             WHERE reparto = ?
+               AND invited_by_cf = ?
+             ORDER BY created_at DESC
+             LIMIT 30'
+        );
+        $inviteQuery->execute([$reparto, (string) ($_SESSION['user']['cf'] ?? '')]);
+    }
+    $invites = $inviteQuery ? $inviteQuery->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
 $usersByCf = [];
@@ -169,6 +195,132 @@ $availableUsers = array_values(array_filter(
     <?php if ($databaseError): ?>
         <div class="alert alert-danger">Impossibile caricare gli addetti. Riprova più tardi.</div>
     <?php else: ?>
+        <?php if (is_array($inviteFlash) && isset($inviteFlash['message'], $inviteFlash['type'])): ?>
+            <div class="alert alert-<?php echo appAddettiEscape((string) $inviteFlash['type']); ?>">
+                <div><?php echo appAddettiEscape((string) $inviteFlash['message']); ?></div>
+                <?php if (!empty($inviteFlash['link'])): ?>
+                    <div class="mt-2 d-flex flex-column gap-2">
+                        <label for="inviteLinkField" class="form-label mb-0">Link di invito</label>
+                        <div class="input-group">
+                            <input id="inviteLinkField" class="form-control" type="text" readonly value="<?php echo appAddettiEscape((string) $inviteFlash['link']); ?>">
+                            <button type="button" class="btn btn-outline-dark" data-copy-target="#inviteLinkField">Copia</button>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Invita un dipendente</h2>
+                        <p class="text-muted mb-0">Crea un link da condividere manualmente. Il dipendente completerà da solo la password.</p>
+                    </div>
+                </div>
+                <form action="connection_files/manage_invites.php" method="post" class="row g-3">
+                    <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                    <input type="hidden" name="action" value="create">
+                    <div class="col-md-6">
+                        <label class="form-label" for="inviteNome">Nome</label>
+                        <input class="form-control" type="text" id="inviteNome" name="nome" maxlength="100" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="inviteCognome">Cognome</label>
+                        <input class="form-control" type="text" id="inviteCognome" name="cognome" maxlength="100" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="inviteEmail">Email</label>
+                        <input class="form-control" type="email" id="inviteEmail" name="email" maxlength="255" autocomplete="email" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="inviteBadge">Badge</label>
+                        <input class="form-control" type="text" id="inviteBadge" name="badge" maxlength="20" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="inviteCf">Codice fiscale</label>
+                        <input class="form-control" type="text" id="inviteCf" name="cf" maxlength="16" required>
+                    </div>
+                    <?php if ($capo === 3): ?>
+                        <div class="col-md-6">
+                            <label class="form-label" for="inviteReparto">Reparto</label>
+                            <select class="form-select" id="inviteReparto" name="reparto" required>
+                                <option value="" selected disabled>Seleziona reparto</option>
+                                <?php foreach (appDepartments() as $code => $label): ?>
+                                    <option value="<?php echo appAddettiEscape($code); ?>"><?php echo appAddettiEscape($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php else: ?>
+                        <div class="col-md-6">
+                            <label class="form-label" for="inviteRepartoLabel">Reparto</label>
+                            <input class="form-control" type="text" id="inviteRepartoLabel" value="<?php echo appAddettiEscape($repartoLabel); ?>" readonly>
+                            <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                        </div>
+                    <?php endif; ?>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Genera link invito</button>
+                    </div>
+                </form>
+
+                <hr class="my-4">
+
+                <h3 class="h6">Inviti recenti</h3>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Dipendente</th>
+                            <th>Reparto</th>
+                            <th>Creato</th>
+                            <th>Scadenza</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($invites as $invite): ?>
+                            <?php $status = appInviteStatus($invite); ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo appAddettiEscape(trim((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome'])); ?></strong><br>
+                                    <span class="text-muted"><?php echo appAddettiEscape((string) $invite['invited_email']); ?></span>
+                                </td>
+                                <td><?php echo appAddettiEscape(appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto']); ?></td>
+                                <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['created_at']))); ?></td>
+                                <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['expires_at']))); ?></td>
+                                <td><?php echo appAddettiEscape(appInviteStatusLabel($invite)); ?></td>
+                                <td>
+                                    <?php if ($status === 'pending'): ?>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <form action="connection_files/manage_invites.php" method="post">
+                                                <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                <input type="hidden" name="action" value="regenerate">
+                                                <input type="hidden" name="invite_id" value="<?php echo (int) $invite['id']; ?>">
+                                                <button type="submit" class="btn btn-outline-dark btn-sm">Nuovo link</button>
+                                            </form>
+                                            <form action="connection_files/manage_invites.php" method="post">
+                                                <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                <input type="hidden" name="action" value="revoke">
+                                                <input type="hidden" name="invite_id" value="<?php echo (int) $invite['id']; ?>">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">Revoca</button>
+                                            </form>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted">Nessuna azione</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if ($invites === []): ?>
+                            <tr><td colspan="6" class="text-muted">Non ci sono ancora inviti creati.</td></tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <section class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h5">Utenti registrati</h2>
@@ -248,5 +400,26 @@ $availableUsers = array_values(array_filter(
         </section>
     <?php endif; ?>
 </main>
+<script>
+document.querySelectorAll("[data-copy-target]").forEach(function (button) {
+    button.addEventListener("click", async function () {
+        const field = document.querySelector(button.getAttribute("data-copy-target"));
+        if (!field) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(field.value);
+            button.textContent = "Copiato";
+            window.setTimeout(function () {
+                button.textContent = "Copia";
+            }, 1500);
+        } catch (error) {
+            field.focus();
+            field.select();
+        }
+    });
+});
+</script>
 </body>
 </html>

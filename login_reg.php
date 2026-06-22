@@ -88,7 +88,7 @@ if (isset($_SESSION['user'])) {
             <?php if ($selfRegistrationEnabled): ?><button type="button" class="btn btn-secondary" id="showSignup">Registrazione</button><?php endif; ?>
           </div>
           <?php if (!$selfRegistrationEnabled): ?>
-            <p class="text-muted mt-3 mb-0">La registrazione è gestita dal responsabile del reparto.</p>
+            <p class="text-muted mt-3 mb-0">La registrazione è gestita dal responsabile del reparto. Se hai ricevuto un link di invito, aprilo per attivare l’account.</p>
           <?php endif; ?>
 
   </div>
