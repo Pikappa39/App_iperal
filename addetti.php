@@ -234,12 +234,7 @@ $availableUsers = array_values(array_filter(
                         <input class="form-control" type="email" id="inviteEmail" name="email" maxlength="255" autocomplete="email" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label" for="inviteBadge">Badge</label>
-                        <input class="form-control" type="text" id="inviteBadge" name="badge" maxlength="20" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="inviteCf">Codice fiscale</label>
-                        <input class="form-control" type="text" id="inviteCf" name="cf" maxlength="16" required>
+                        <p class="form-text mt-4 mb-0">Il dipendente completerà codice fiscale e password aprendo il link.</p>
                     </div>
                     <?php if ($capo === 3): ?>
                         <div class="col-md-6">

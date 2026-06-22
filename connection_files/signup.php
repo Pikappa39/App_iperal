@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 require __DIR__ . '/connection.php';
+require __DIR__ . '/../account_identity.php';
 
 function jsonResponse(array $payload, int $status = 200): void
 {
@@ -42,10 +43,9 @@ $cognome = trim((string) ($_POST["cognome"] ?? ""));
 $cf = strtoupper(trim((string) ($_POST["cf"] ?? "")));
 $email = strtolower(trim((string) ($_POST["email"] ?? "")));
 $password = (string) ($_POST["password"] ?? "");
-$badge = trim((string) ($_POST["badge"] ?? ""));
 $reparto = trim((string) ($_POST["reparto"] ?? ""));
 
-if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $badge === "" || $reparto === "") {
+if ($nome === "" || $cognome === "" || $cf === "" || $email === "" || $password === "" || $reparto === "") {
     jsonResponse([
         "ok" => false,
         "error" => "Compila tutti i campi obbligatori",
@@ -83,7 +83,6 @@ if (strlen($password) < 12) {
 try {
     $checks = [
         ["email", $email, "Email già registrata"],
-        ["badge", $badge, "Badge già registrato"],
         ["cod_fiscale", $cf, "Codice fiscale già registrato"],
     ];
 
@@ -103,11 +102,13 @@ try {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
+    $generatedBadge = appGenerateUniqueUserBadge($pdo);
+
     $stmt->execute([
         $cf,
         $nome,
         $cognome,
-        $badge,
+        $generatedBadge,
         password_hash($password, PASSWORD_DEFAULT),
         $email,
         "default",

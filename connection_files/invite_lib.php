@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../app_config.php';
+require_once __DIR__ . '/../account_identity.php';
 
 function appInviteCanManage(array $sessionUser): bool
 {
@@ -10,11 +11,6 @@ function appInviteCanManage(array $sessionUser): bool
 function appInviteNormalizeEmail(string $email): string
 {
     return strtolower(trim($email));
-}
-
-function appInviteNormalizeBadge(string $badge): string
-{
-    return strtoupper(trim($badge));
 }
 
 function appInviteNormalizeCf(string $cf): string

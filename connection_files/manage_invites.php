@@ -84,20 +84,12 @@ try {
     }
 
     $email = appInviteNormalizeEmail((string) ($_POST['email'] ?? ''));
-    $badge = appInviteNormalizeBadge((string) ($_POST['badge'] ?? ''));
-    $cf = appInviteNormalizeCf((string) ($_POST['cf'] ?? ''));
     $nome = appInviteNormalizeName((string) ($_POST['nome'] ?? ''));
     $cognome = appInviteNormalizeName((string) ($_POST['cognome'] ?? ''));
     $reparto = appInviteDepartmentForManager($sessionUser, trim((string) ($_POST['reparto'] ?? '')));
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Inserisci un indirizzo email valido.');
-    }
-    if ($badge === '' || strlen($badge) > 20 || !preg_match('/^[A-Z0-9._-]+$/', $badge)) {
-        throw new RuntimeException('Inserisci un badge valido.');
-    }
-    if (!preg_match('/^[A-Z0-9]{16}$/', $cf)) {
-        throw new RuntimeException('Il codice fiscale deve contenere 16 caratteri alfanumerici.');
     }
     if ($nome === '' || mb_strlen($nome) > 100 || $cognome === '' || mb_strlen($cognome) > 100) {
         throw new RuntimeException('Nome e cognome sono obbligatori.');
@@ -107,26 +99,29 @@ try {
     }
 
     $userExists = $pdo->prepare(
-        'SELECT 1 FROM utenti WHERE email = ? OR badge = ? OR cod_fiscale = ? LIMIT 1'
+        'SELECT 1 FROM utenti WHERE email = ? LIMIT 1'
     );
-    $userExists->execute([$email, $badge, $cf]);
+    $userExists->execute([$email]);
     if ($userExists->fetchColumn()) {
-        throw new RuntimeException('Esiste già un account con email, badge o codice fiscale indicati.');
+        throw new RuntimeException('Esiste già un account con l’email indicata.');
     }
 
     $activeInvite = $pdo->prepare(
         'SELECT 1
          FROM user_invites
-         WHERE (invited_email = ? OR invited_badge = ? OR invited_cf = ?)
+         WHERE invited_email = ?
            AND accepted_at IS NULL
            AND revoked_at IS NULL
            AND expires_at >= NOW()
          LIMIT 1'
     );
-    $activeInvite->execute([$email, $badge, $cf]);
+    $activeInvite->execute([$email]);
     if ($activeInvite->fetchColumn()) {
-        throw new RuntimeException('Esiste già un invito attivo per questi dati.');
+        throw new RuntimeException('Esiste già un invito attivo per questa email.');
     }
+
+    $badge = appGenerateUniqueInviteBadge($pdo);
+    $cf = appGenerateUniqueInvitePlaceholderCf($pdo);
 
     $token = appInviteGenerateToken();
     $tokenHash = appInviteHashToken($token);

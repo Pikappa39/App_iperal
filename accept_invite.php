@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/app_config.php';
+require __DIR__ . '/account_identity.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 require_once __DIR__ . '/connection_files/connection.php';
@@ -50,28 +51,31 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!app_csrf_request_is_valid()) {
         $errorMessage = 'Richiesta non valida. Ricarica la pagina e riprova.';
     } else {
+        $cf = appInviteNormalizeCf((string) ($_POST['cf'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
 
-        if (strlen($password) < 12) {
+        if (!preg_match('/^[A-Z0-9]{16}$/', $cf)) {
+            $errorMessage = 'Inserisci un codice fiscale valido di 16 caratteri.';
+        } elseif (strlen($password) < 12) {
             $errorMessage = 'La password deve contenere almeno 12 caratteri.';
         } elseif (!hash_equals($password, $confirmPassword)) {
             $errorMessage = 'Le password non corrispondono.';
         } else {
             try {
                 $alreadyExists = $pdo->prepare(
-                    'SELECT 1 FROM utenti WHERE email = ? OR badge = ? OR cod_fiscale = ? LIMIT 1'
+                    'SELECT 1 FROM utenti WHERE email = ? OR cod_fiscale = ? LIMIT 1'
                 );
                 $alreadyExists->execute([
                     (string) $invite['invited_email'],
-                    (string) $invite['invited_badge'],
-                    (string) $invite['invited_cf'],
+                    $cf,
                 ]);
                 if ($alreadyExists->fetchColumn()) {
-                    throw new RuntimeException('Esiste già un account con questi dati. Contatta il responsabile.');
+                    throw new RuntimeException('Esiste già un account con questa email o questo codice fiscale. Contatta il responsabile.');
                 }
 
                 $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                $generatedBadge = appGenerateUniqueUserBadge($pdo);
                 $pdo->beginTransaction();
 
                 $freshInvite = appAcceptInviteLoad($pdo, $token);
@@ -84,10 +88,10 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)'
                 );
                 $insert->execute([
-                    (string) $freshInvite['invited_cf'],
+                    $cf,
                     (string) $freshInvite['invited_nome'],
                     (string) $freshInvite['invited_cognome'],
-                    (string) $freshInvite['invited_badge'],
+                    $generatedBadge,
                     $passwordHash,
                     (string) $freshInvite['invited_email'],
                     'default',
@@ -96,15 +100,15 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
                 $pdo->prepare(
                     'UPDATE user_invites
-                     SET accepted_at = NOW(), accepted_user_cf = invited_cf
+                     SET accepted_at = NOW(), accepted_user_cf = ?
                      WHERE id = ?'
-                )->execute([(int) $freshInvite['id']]);
+                )->execute([$cf, (int) $freshInvite['id']]);
 
                 $pdo->commit();
 
                 session_regenerate_id(true);
                 $_SESSION['user'] = [
-                    'cf' => (string) $freshInvite['invited_cf'],
+                    'cf' => $cf,
                     'nome' => (string) $freshInvite['invited_nome'],
                     'cognome' => (string) $freshInvite['invited_cognome'],
                     'avatar' => 'default',
@@ -155,8 +159,6 @@ $inviteDepartment = $invite ? ($departments[(string) ($invite['reparto'] ?? '')]
                 <dd class="col-sm-8"><?php echo appAcceptInviteEscape((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome']); ?></dd>
                 <dt class="col-sm-4">Email</dt>
                 <dd class="col-sm-8"><?php echo appAcceptInviteEscape((string) $invite['invited_email']); ?></dd>
-                <dt class="col-sm-4">Badge</dt>
-                <dd class="col-sm-8"><?php echo appAcceptInviteEscape((string) $invite['invited_badge']); ?></dd>
                 <dt class="col-sm-4">Reparto</dt>
                 <dd class="col-sm-8"><?php echo appAcceptInviteEscape($inviteDepartment); ?></dd>
             </dl>
@@ -164,6 +166,10 @@ $inviteDepartment = $invite ? ($departments[(string) ($invite['reparto'] ?? '')]
             <form method="post" class="d-grid gap-3">
                 <input type="hidden" name="csrf_token" value="<?php echo appAcceptInviteEscape(app_csrf_token()); ?>">
                 <input type="hidden" name="token" value="<?php echo appAcceptInviteEscape($token); ?>">
+                <div>
+                    <label class="form-label" for="cf">Codice fiscale</label>
+                    <input class="form-control" type="text" id="cf" name="cf" maxlength="16" autocomplete="off" required>
+                </div>
                 <div>
                     <label class="form-label" for="password">Password</label>
                     <input class="form-control" type="password" id="password" name="password" minlength="12" autocomplete="new-password" required>
