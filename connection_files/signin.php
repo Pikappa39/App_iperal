@@ -21,6 +21,14 @@ if (($_SERVER["REQUEST_METHOD"] ?? "GET") !== "POST") {
     ], 405);
 }
 
+if (!app_csrf_request_is_valid()) {
+    jsonResponse([
+        'logged' => false,
+        'error_code' => 'richiesta_non_valida',
+        'error' => 'Richiesta non valida. Ricarica la pagina e riprova.',
+    ], 403);
+}
+
 if (!$connessione || !($pdo instanceof PDO)) {
     jsonResponse([
         "logged" => false,

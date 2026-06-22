@@ -170,9 +170,13 @@ function scriviJson(string $outputFile, array $data): void
         throw new RuntimeException('Errore nella codifica JSON');
     }
 
-    if (@file_put_contents($outputFile, $json) === false) {
+    $temporaryFile = $outputFile . '.tmp-' . bin2hex(random_bytes(8));
+    if (@file_put_contents($temporaryFile, $json . PHP_EOL, LOCK_EX) === false || !@rename($temporaryFile, $outputFile)) {
+        @unlink($temporaryFile);
         $error = error_get_last();
         $message = $error['message'] ?? 'errore sconosciuto';
         throw new RuntimeException('Impossibile scrivere ' . basename($outputFile) . ': ' . $message);
     }
+
+    @chmod($outputFile, 0640);
 }

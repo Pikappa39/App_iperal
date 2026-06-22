@@ -83,6 +83,13 @@ if (!function_exists('appTurnstileEnabled')) {
     }
 }
 
+if (!function_exists('appSelfRegistrationEnabled')) {
+    function appSelfRegistrationEnabled(): bool
+    {
+        return appEnv('APP_ALLOW_SELF_REGISTRATION') === '1';
+    }
+}
+
 if (!function_exists('appDepartments')) {
     function appDepartments(): array
     {

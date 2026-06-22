@@ -95,6 +95,23 @@ function app_session_destroy_current(): void
     session_destroy();
 }
 
+function app_csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['csrf_token'];
+}
+
+function app_csrf_request_is_valid(): bool
+{
+    $provided = (string) ($_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
+    $expected = (string) ($_SESSION['csrf_token'] ?? '');
+
+    return $expected !== '' && $provided !== '' && hash_equals($expected, $provided);
+}
+
 function app_session_validate_user(): void
 {
     global $connessione, $pdo;

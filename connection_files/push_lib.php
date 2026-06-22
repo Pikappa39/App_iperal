@@ -30,7 +30,7 @@ function appPushConfigPath(): string
 function appPushEnsureStorageDir(): void
 {
     $dir = appPushStorageDir();
-    if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
         throw new RuntimeException('Impossibile creare la cartella storage push');
     }
 }
@@ -126,6 +126,7 @@ function appPushLoadConfig(): array
     if ($written === false) {
         throw new RuntimeException('Impossibile salvare la configurazione VAPID');
     }
+    @chmod($path, 0600);
 
     return $config;
 }
@@ -485,6 +486,18 @@ function appPushDeactivateSubscription(PDO $pdo, string $endpoint): void
 
     $statement = $pdo->prepare('UPDATE push_subscriptions SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE endpoint = ?');
     $statement->execute([$endpoint]);
+}
+
+function appPushDeactivateSubscriptionForUser(PDO $pdo, string $userCf, string $endpoint): void
+{
+    if ($userCf === '' || $endpoint === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE push_subscriptions SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE endpoint = ? AND user_cf = ?'
+    );
+    $statement->execute([$endpoint, $userCf]);
 }
 
 function appPushSubscriptionIsActiveForUser(PDO $pdo, string $userCf, string $endpoint): bool

@@ -1,6 +1,8 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
+require __DIR__ . '/../session_bootstrap.php';
+app_session_start();
 require __DIR__ . '/connection.php';
 
 function jsonResponse(array $payload, int $status = 200): void
@@ -15,6 +17,17 @@ if (($_SERVER["REQUEST_METHOD"] ?? "GET") !== "POST") {
         "ok" => false,
         "error" => "Metodo non consentito",
     ], 405);
+}
+
+if (!appSelfRegistrationEnabled()) {
+    jsonResponse([
+        'ok' => false,
+        'error' => 'La registrazione autonoma non è disponibile. Contatta il tuo responsabile.',
+    ], 403);
+}
+
+if (!app_csrf_request_is_valid()) {
+    jsonResponse(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], 403);
 }
 
 if (!$connessione || !isset($pdo)) {
@@ -57,6 +70,13 @@ if (strlen($cf) < 11 || strlen($cf) > 16) {
     jsonResponse([
         "ok" => false,
         "error" => "Codice fiscale non valido",
+    ], 400);
+}
+
+if (strlen($password) < 12) {
+    jsonResponse([
+        'ok' => false,
+        'error' => 'La password deve contenere almeno 12 caratteri',
     ], 400);
 }
 
@@ -103,6 +123,5 @@ try {
     jsonResponse([
         "ok" => false,
         "error" => "Errore durante la registrazione",
-        "details" => $e->getMessage(),
     ], 500);
 }

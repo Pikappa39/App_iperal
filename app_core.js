@@ -26,11 +26,11 @@ let appNavigationReady = false;
 let appNavigationRestoring = false;
 let appNavigationPosition = 0;
 
-const YEAR_CHOICES = [2024, 2025, 2026];
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
-const WEEK_DATA_DIR = "turni_json";
+const SCHEDULE_ENDPOINT = "connection_files/schedule.php";
 const NOTES_ENDPOINT = "connection_files/note.php";
 const today = new Date();
+const YEAR_CHOICES = Array.from({ length: 5 }, (_, index) => today.getFullYear() - 2 + index);
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
 //questa funzione imposta la vista corrente, il titolo e svuota il contenitore
 function setVista(classes, titoloTesto, options = {}) {
@@ -251,25 +251,26 @@ function getWeekNumber(date) {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-async function getWeekData(settimana) {
-    const reparto = String(window.userSession?.reparto || "").trim();
-    if (!reparto) {
+async function getWeekData(anno, settimana) {
+    if (!getCurrentUserKey()) {
         return [];
     }
 
-    const key = String(settimana) + ":" + reparto;
+    const key = String(anno) + ":" + String(settimana);
 
     if (!appState.weekCache[key]) {
         appState.weekCache[key] = (async () => {
             try {
-                const response = await fetch(WEEK_DATA_DIR + "/" + encodeURIComponent(settimana) + "-" + encodeURIComponent(reparto) + ".json", {
+                const query = new URLSearchParams({ year: String(anno), week: String(settimana) });
+                const response = await fetch(SCHEDULE_ENDPOINT + "?" + query.toString(), {
                     cache: "no-store"
                 });
                 if (response.ok) {
-                    return await response.json();
+                    const payload = await response.json();
+                    return Array.isArray(payload.rows) ? payload.rows : [];
                 }
             } catch (error) {
-                console.error("Errore nel caricamento della settimana", settimana, reparto, error);
+                console.error("Errore nel caricamento della settimana", anno, settimana, error);
             }
 
             return [];
@@ -534,13 +535,13 @@ function getOrarioDaSettimana(dataSettimana, userCf, userName, giornoParola) {
     return soloAddetto[giornoParola] || "";
 }
 
-async function mostraOrari(Nsettimana, giorno_parola) {
+async function mostraOrari(Nsettimana, giorno_parola, anno = today.getFullYear()) {
     const userCf = getCurrentUserKey();
     const userName = getCurrentUser();
     if (!userCf && !userName) {
         return "";
     }
 
-    const data = await getWeekData(Nsettimana);
+    const data = await getWeekData(anno, Nsettimana);
     return getOrarioDaSettimana(data, userCf, userName, giorno_parola);
 }

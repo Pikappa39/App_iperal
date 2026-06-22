@@ -2,14 +2,12 @@
 require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 
-$_SESSION = [];
-
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000, $params["path"], $params["domain"], $params["secure"], $params["httponly"]);
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !app_csrf_request_is_valid()) {
+    http_response_code(403);
+    exit('Richiesta non valida');
 }
 
-session_destroy();
+app_session_destroy_current();
 
 header("Location: ../index.php");
 exit;

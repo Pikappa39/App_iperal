@@ -52,6 +52,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         <button type="button" id="back" class="btn btn-secondary mt-4">Indietro</button>
     </div>
 
+    <script>window.appCsrfToken = <?php echo json_encode(app_csrf_token()); ?>;</script>
     <script>
         const form = document.getElementById("uploadForm");
         const statusBox = document.getElementById("status");
@@ -73,6 +74,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         async function sendForm(mode, mappings = null) {
             const formData = new FormData(form);
             formData.append("mode", mode);
+            formData.append("csrf_token", window.appCsrfToken || "");
             if (mappings !== null) {
                 formData.append("mappings", JSON.stringify(mappings));
             }
@@ -140,17 +142,28 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         }
 
         function showUploadResult(data) {
-            const items = (data.results || []).map((item) => {
-                if (item.error) {
-                    return '<li class="text-danger">' + item.file + ': ' + item.error + '</li>';
-                }
-                const historyCount = item.history && Number.isFinite(Number(item.history.stored))
-                    ? ' - storico: ' + Number(item.history.stored) + ' modifiche'
-                    : '';
-                return '<li>' + item.file + ' -> ' + item.output + ' (' + item.righe + ' righe)' + historyCount + '</li>';
-            }).join('');
+            statusBox.innerHTML = "";
+            const alert = document.createElement("div");
+            alert.className = "alert alert-success";
+            const list = document.createElement("ul");
+            list.className = "mb-0";
 
-            statusBox.innerHTML = '<div class="alert alert-success"><ul class="mb-0">' + items + '</ul></div>';
+            (data.results || []).forEach((item) => {
+                const row = document.createElement("li");
+                if (item.error) {
+                    row.className = "text-danger";
+                    row.textContent = `${item.file || "File"}: ${item.error}`;
+                } else {
+                    const historyCount = item.history && Number.isFinite(Number(item.history.stored))
+                        ? ` - storico: ${Number(item.history.stored)} modifiche`
+                        : "";
+                    row.textContent = `${item.file || "File"} → ${item.output || ""} (${item.righe || 0} righe)${historyCount}`;
+                }
+                list.appendChild(row);
+            });
+
+            alert.appendChild(list);
+            statusBox.appendChild(alert);
         }
 
         function getMappings() {

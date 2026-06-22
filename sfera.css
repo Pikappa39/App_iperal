@@ -426,6 +426,10 @@ body {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.auth-form {
+    width: min(100%, 460px);
+}
+
 .home-addetti {
     display: grid;
     place-items: center;
@@ -507,6 +511,16 @@ body {
     padding: 12px;
     box-shadow: 0 10px 22px rgba(39, 68, 214, 0.18);
     overflow: hidden;
+}
+
+button.sfera {
+    border: 0;
+    cursor: pointer;
+}
+
+button.sfera:focus-visible {
+    outline: 3px solid #111;
+    outline-offset: 3px;
 }
 
 .sfera__content {

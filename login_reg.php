@@ -6,6 +6,8 @@ app_session_start();
 $turnstileEnabled = appTurnstileEnabled();
 $turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
 $departments = appDepartments();
+$selfRegistrationEnabled = appSelfRegistrationEnabled();
+$csrfToken = app_csrf_token();
 
 if (isset($_SESSION['user'])) {
     header('Location: index.php', true, 302);
@@ -25,20 +27,16 @@ if (isset($_SESSION['user'])) {
   <div class="container d-flex flex-column align-items-center mt-5 " id="welcome">
                 <!-- form di login -->
                 <div class="container d-flex flex-column align-items-center mt-5 visible" id="login">
-            <h1>Login</h1>
-            <form id="loginForm" class="w-50">
+            <h1>Accedi</h1>
+            <form id="loginForm" class="auth-form">
+              <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
               <div class="form-group">
-                <label for="exampleInputEmail1">Email address</label>
-                <input type="email" name="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email">
-                <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+                <label for="exampleInputEmail1">Email</label>
+                <input type="email" name="email" class="form-control" id="exampleInputEmail1" autocomplete="email" required>
               </div>
               <div class="form-group">
                 <label for="exampleInputPassword1">Password</label>
-                <input type="password" name="password" class="form-control" id="exampleInputPassword1" placeholder="Password">
-              </div>
-              <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="exampleCheck1">
-                <label class="form-check-label" for="exampleCheck1">Check me out</label>
+                <input type="password" name="password" class="form-control" id="exampleInputPassword1" autocomplete="current-password" required>
               </div>
               <?php if ($turnstileEnabled): ?>
               <div class="mt-3 mb-3">
@@ -46,31 +44,33 @@ if (isset($_SESSION['user'])) {
               </div>
               <?php endif; ?>
               <p id="login-error-message" class="text-danger mt-2" style="display: none;"></p>
-              <button type="submit" class="btn btn-primary">Submit</button>
+              <button type="submit" class="btn btn-primary">Accedi</button>
               <a class="btn btn-link" href="forgot_password.php">Password dimenticata?</a>
             </form>
             </div>
 
             <!-- form di registrazione -->
+            <?php if ($selfRegistrationEnabled): ?>
             <div class="container d-flex flex-column align-items-center mt-5 d-none" id="signup">
-              <form id="signupForm" class="w-50">
+              <form id="signupForm" class="auth-form">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-group">
                   <label for="exampleInputEmail1">Email address</label>
-                  <input type="email" class="form-control" id="regmail" name="email" aria-describedby="emailHelp" placeholder="Enter email">
-                  <input type="email" class="form-control mt-2" id="confmail" name="confirm_email" aria-describedby="emailHelp" placeholder="Conferma email">
+                  <input type="email" class="form-control" id="regmail" name="email" autocomplete="email" required>
+                  <input type="email" class="form-control mt-2" id="confmail" name="confirm_email" autocomplete="email" placeholder="Conferma email" required>
                   <p id="error-message-email" class="text-danger" style="display: none;">EMAIL NON CORRISPONDENTI</p>
                   <label for="exampleInputPassword1" class="mt-3">Password</label>
-                  <input type="password" class="form-control" id="regpass" name="password" placeholder="Password">
-                  <input type="password" class="form-control mt-2" id="confpass" name="confirm_password" placeholder="Conferma password">
+                  <input type="password" class="form-control" id="regpass" name="password" autocomplete="new-password" minlength="12" required>
+                  <input type="password" class="form-control mt-2" id="confpass" name="confirm_password" autocomplete="new-password" minlength="12" placeholder="Conferma password" required>
                   <p id="error-message-password" class="text-danger" style="display: none;">PASSWORD NON CORRISPONDENTI</p>
                 </div>
                 <label for="inputBadge" class="mt-3">Badge</label>
-                <input type="text" class="form-control" id="inputBadge" name="badge" placeholder="Badge">
+                <input type="text" class="form-control" id="inputBadge" name="badge" required>
                 <label for="inputCF" class="mt-3">Codice fiscale</label>
-                <input type="text" class="form-control" id="inputCF" name="cf" placeholder="Codice fiscale">
+                <input type="text" class="form-control" id="inputCF" name="cf" autocomplete="off" required>
                 <label for="inputNomeCognome" class="mt-3">Nome e Cognome</label>
-                <input type="text" class="form-control" name="nome" id="inputNome" placeholder="Nome">
-                <input type="text" class="form-control mt-2" name="cognome" id="inputCognome" placeholder="Cognome">
+                <input type="text" class="form-control" name="nome" id="inputNome" autocomplete="given-name" placeholder="Nome" required>
+                <input type="text" class="form-control mt-2" name="cognome" id="inputCognome" autocomplete="family-name" placeholder="Cognome" required>
                 <label for="inputReparto" class="mt-3">Reparto</label>
                 <select class="form-select" id="inputReparto" name="reparto" required>
                   <option value="" selected disabled>Seleziona il tuo reparto</option>
@@ -78,14 +78,18 @@ if (isset($_SESSION['user'])) {
                     <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></option>
                   <?php endforeach; ?>
                 </select>
-                <button type="submit" class="btn btn-primary mt-3">Submit</button>
+                <button type="submit" class="btn btn-primary mt-3">Registrati</button>
               </form>
             </div>
+            <?php endif; ?>
             
           <div class="btn-group mt-3" role="group" aria-label="Basic example">
             <button type="button" class="btn btn-secondary" id="showLogin">Login</button>
-            <button type="button" class="btn btn-secondary" id="showSignup">Registrazione</button>
-          </div>            
+            <?php if ($selfRegistrationEnabled): ?><button type="button" class="btn btn-secondary" id="showSignup">Registrazione</button><?php endif; ?>
+          </div>
+          <?php if (!$selfRegistrationEnabled): ?>
+            <p class="text-muted mt-3 mb-0">La registrazione è gestita dal responsabile del reparto.</p>
+          <?php endif; ?>
 
   </div>
 </body>
@@ -106,10 +110,12 @@ document.addEventListener("DOMContentLoaded", function () {
     formsignup.classList.add("d-none");
   });
 
-  btnSignup.addEventListener("click", function () {
-    formlogin.classList.add("d-none");
-    formsignup.classList.remove("d-none");
-  });
+  if (btnSignup && formsignup) {
+    btnSignup.addEventListener("click", function () {
+      formlogin.classList.add("d-none");
+      formsignup.classList.remove("d-none");
+    });
+  }
 });
 
 const form = document.querySelector("#loginForm");
@@ -174,7 +180,7 @@ const confpass = document.getElementById("confpass");
 const errorMessageEmail = document.getElementById("error-message-email");
 const errorMessagePassword = document.getElementById("error-message-password");
 
-signupForm.addEventListener("submit", function (e) {
+if (signupForm) signupForm.addEventListener("submit", function (e) {
   e.preventDefault();
 
   const emailOk = regmail.value === confmail.value;
@@ -188,15 +194,27 @@ signupForm.addEventListener("submit", function (e) {
   }
 
   const formData = new FormData(this);
-  console.log("Invio dati al server...");
-
   fetch("connection_files/signup.php", {
     method: "POST",
     body: formData,
     cache: "no-cache"
   }).then(async (res) => {
     const testo = await res.text();
-    console.log("Risposta dal server: " + testo);
+    let data = {};
+    try {
+      data = JSON.parse(testo);
+    } catch {
+      throw new Error("Risposta non valida dal server");
+    }
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "Registrazione non riuscita");
+    }
+    alert("Registrazione completata. Ora puoi accedere.");
+    formsignup.classList.add("d-none");
+    formlogin.classList.remove("d-none");
+    form.reset();
+  }).catch((error) => {
+    alert(error.message || "Registrazione non riuscita");
   });
 });
 </script>

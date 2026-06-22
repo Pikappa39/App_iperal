@@ -27,6 +27,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     ], 405);
 }
 
+if (!app_csrf_request_is_valid()) {
+    jsonResponse(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], 403);
+}
+
 $rawBody = file_get_contents('php://input');
 $payload = json_decode($rawBody ?: '', true);
 
@@ -52,6 +56,5 @@ try {
     jsonResponse([
         'ok' => false,
         'error' => 'Impossibile salvare la subscription',
-        'details' => $e->getMessage(),
     ], 500);
 }

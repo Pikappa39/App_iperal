@@ -15,6 +15,11 @@ if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
+if (!app_csrf_request_is_valid()) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../gestore_ods/orario_converter_lib.php';
@@ -70,8 +75,13 @@ function appUploadReadFiles(array $files): array
     $names = is_array($files['name']) ? $files['name'] : [$files['name']];
     $tmpNames = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
     $errors = is_array($files['error']) ? $files['error'] : [$files['error']];
+    $sizes = is_array($files['size'] ?? null) ? $files['size'] : [$files['size'] ?? 0];
     $convertedFiles = [];
     $uploadedWeeks = [];
+
+    if (count($tmpNames) === 0 || count($tmpNames) > 5) {
+        throw new RuntimeException('Puoi caricare da uno a cinque file alla volta.');
+    }
 
     foreach ($tmpNames as $index => $tmpName) {
         $originalName = (string) ($names[$index] ?? '');
@@ -80,8 +90,23 @@ function appUploadReadFiles(array $files): array
         if ($uploadError !== UPLOAD_ERR_OK) {
             throw new RuntimeException('Errore upload per ' . $originalName . ': ' . $uploadError);
         }
+        if (!is_uploaded_file($tmpName)) {
+            throw new RuntimeException('File caricato non valido.');
+        }
+        if ((int) ($sizes[$index] ?? 0) < 1 || (int) ($sizes[$index] ?? 0) > 5 * 1024 * 1024) {
+            throw new RuntimeException($originalName . ': la dimensione massima è 5 MB.');
+        }
         if (strtolower(pathinfo($originalName, PATHINFO_EXTENSION)) !== 'xlsx') {
             throw new RuntimeException($originalName . ': formato non supportato, serve un file .xlsx');
+        }
+
+        $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($tmpName);
+        if (!in_array($mimeType, [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/zip',
+            'application/x-zip-compressed',
+        ], true)) {
+            throw new RuntimeException($originalName . ': il file non è un Excel .xlsx valido.');
         }
 
         $spreadsheet = IOFactory::load($tmpName);
@@ -108,7 +133,7 @@ if (!appIsValidDepartment($reparto)) {
     exit;
 }
 
-if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
+if (!is_dir($outputDir) && !mkdir($outputDir, 0750, true) && !is_dir($outputDir)) {
     http_response_code(500);
     echo json_encode([
         "ok" => false,
@@ -241,11 +266,14 @@ foreach ($convertedFiles as $fileData) {
         $converted = $fileData['converted'];
         $converted['data'] = associaUtentiAlleRigheOrario($converted['data'], $mappings, $unregisteredKeys);
 
-        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $converted['settimana'] . '-' . $reparto . '.json';
+        $scheduleMeta = appPushExtractIsoWeekYear($originalName);
+        if ($scheduleMeta['week'] !== (int) $converted['settimana']) {
+            throw new RuntimeException('La settimana indicata nel nome file non coincide con quella contenuta nell\'Excel.');
+        }
+        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $scheduleMeta['year'] . '-' . $converted['settimana'] . '-' . $reparto . '.json';
         $previousData = appPushDecodeJsonFile($outputFile);
         scriviJson($outputFile, $converted["data"]);
 
-        $scheduleMeta = appPushExtractIsoWeekYear($originalName);
         $changeSet = appPushBuildChangeSet(
             $previousData,
             $converted["data"],

@@ -89,6 +89,7 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
         const formData = new FormData();
         formData.append("date", giornoInfo.dataKey);
         formData.append("note", noteText);
+        formData.append("csrf_token", window.appCsrfToken || "");
 
         try {
             const response = await fetch(NOTES_ENDPOINT, {

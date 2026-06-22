@@ -3,6 +3,12 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 header("Content-Type: application/json; charset=utf-8");
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Endpoint non disponibile via web']);
+    exit;
+}
+
 require __DIR__ . '/../php_runtime.php';
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/orario_converter_lib.php';
@@ -10,7 +16,7 @@ require __DIR__ . '/orario_converter_lib.php';
 $inputDir = __DIR__ . '/../xlms';
 $outputDir = __DIR__ . '/../turni_json';
 
-if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
+if (!is_dir($outputDir) && !mkdir($outputDir, 0750, true) && !is_dir($outputDir)) {
     http_response_code(500);
     echo json_encode(["error" => "Impossibile creare la cartella JSON"]);
     exit;

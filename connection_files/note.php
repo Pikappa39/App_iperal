@@ -22,7 +22,7 @@ set_error_handler(static function ($severity, $message, $file, $line) {
 try {
     $storageDir = __DIR__ . '/../note_json';
 
-    if (!is_dir($storageDir) && !mkdir($storageDir, 0777, true) && !is_dir($storageDir)) {
+    if (!is_dir($storageDir) && !mkdir($storageDir, 0750, true) && !is_dir($storageDir)) {
         jsonResponse([
             "ok" => false,
             "error" => "Impossibile creare la cartella delle note",
@@ -33,7 +33,6 @@ try {
         jsonResponse([
             "ok" => false,
             "error" => "Cartella note non scrivibile",
-            "details" => "Verifica i permessi di " . $storageDir,
         ], 500);
     }
 
@@ -55,6 +54,10 @@ try {
             "ok" => false,
             "error" => "Accesso richiesto",
         ], 401);
+    }
+
+    if ($method === 'POST' && !app_csrf_request_is_valid()) {
+        jsonResponse(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], 403);
     }
 
     require __DIR__ . '/connection.php';
@@ -361,7 +364,6 @@ try {
         jsonResponse([
             "ok" => false,
             "error" => "Impossibile salvare le note",
-            "details" => $saveResult["details"] ?? "Scrittura non riuscita",
         ], 500);
     }
 
@@ -377,7 +379,6 @@ try {
     jsonResponse([
         "ok" => false,
         "error" => "Errore interno nel salvataggio note",
-        "details" => $e->getMessage(),
     ], 500);
 } finally {
     restore_error_handler();

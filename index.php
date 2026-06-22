@@ -25,6 +25,7 @@ $clientBootstrap = [
     'reparto' => $_SESSION['user']['reparto'] ?? 'Jolly',
     'departments' => appDepartments(),
     'pushPublicKey' => $pushPublicKey,
+    'csrfToken' => app_csrf_token(),
 ];
 ?>
 <!DOCTYPE html>
@@ -61,7 +62,12 @@ $clientBootstrap = [
             <li><button type="button" class="dropdown-item" id="communicationsItem">Comunicazioni</button></li>
             <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
-            <li><a class="dropdown-item" id="logoutLink" href="connection_files/logout.php">Logout</a></li>
+            <li>
+              <form id="logoutForm" action="connection_files/logout.php" method="post">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(app_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+                <button class="dropdown-item" id="logoutLink" type="submit">Logout</button>
+              </form>
+            </li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item d-none" id="uploadItem" href="testjs.php">Upload</a></li>
           </ul>
@@ -118,6 +124,7 @@ window.capo = window.appBootstrap.capo;
 window.avatar = window.appBootstrap.avatar;
 window.reparto = window.appBootstrap.reparto;
 window.pushPublicKey = window.appBootstrap.pushPublicKey;
+window.appCsrfToken = window.appBootstrap.csrfToken;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
@@ -247,7 +254,7 @@ async function deactivatePushSubscriptionForCurrentDevice(subscription) {
 
     const response = await fetch("connection_files/push_unsubscribe.php", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": window.appCsrfToken },
         body: JSON.stringify(subscription.toJSON()),
         cache: "no-store",
         keepalive: true
@@ -310,8 +317,9 @@ async function enablePushNotifications() {
 
         const response = await fetch("connection_files/push_subscribe.php", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
+        headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": window.appCsrfToken
             },
             body: JSON.stringify(subscription.toJSON()),
             cache: "no-store"
@@ -332,6 +340,24 @@ async function enablePushNotifications() {
     }
 }
 
+async function disablePushNotifications() {
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+        window.dispatchEvent(new CustomEvent("app:push-state", { detail: { enabled: false } }));
+        return;
+    }
+
+    await deactivatePushSubscriptionForCurrentDevice(subscription);
+    await subscription.unsubscribe();
+    window.dispatchEvent(new CustomEvent("app:push-state", { detail: { enabled: false } }));
+    showAppToast("Notifiche disattivate");
+}
+
 window.appNotifications = {
     async isEnabled() {
         if (!("serviceWorker" in navigator)) {
@@ -342,14 +368,15 @@ window.appNotifications = {
         const subscription = await registration.pushManager.getSubscription();
         return isPushSubscriptionActiveForCurrentUser(subscription);
     },
-    enable: enablePushNotifications
+    enable: enablePushNotifications,
+    disable: disablePushNotifications
 };
 
 const logoutLink = document.getElementById("logoutLink");
 if (logoutLink) {
     logoutLink.addEventListener("click", function (event) {
         event.preventDefault();
-        const logoutUrl = logoutLink.href;
+        const logoutForm = document.getElementById("logoutForm");
 
         (async function () {
             try {
@@ -362,7 +389,7 @@ if (logoutLink) {
             } catch (error) {
                 console.error("Disattivazione notifiche al logout non riuscita", error);
             } finally {
-                window.location.assign(logoutUrl);
+                logoutForm.submit();
             }
         })();
     });

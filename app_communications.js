@@ -85,6 +85,7 @@ async function mostraComunicazioni() {
                     const form = new FormData();
                     form.append("action", "acknowledge");
                     form.append("communication_id", item.id);
+                    form.append("csrf_token", window.appCsrfToken || "");
                     const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: form });
                     const result = await response.json();
                     if (response.ok && result.ok) mostraComunicazioni();
@@ -123,6 +124,7 @@ async function mostraComunicazioni() {
         status.textContent = "Invio in corso...";
         const values = new FormData(compose);
         values.append("action", "send");
+        values.append("csrf_token", window.appCsrfToken || "");
         const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: values });
         const result = await response.json().catch(() => ({}));
         status.textContent = response.ok && result.ok ? "Inviata a " + result.recipients + " destinatari." : (result.error || "Impossibile inviare.");

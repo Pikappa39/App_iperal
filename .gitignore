@@ -1,6 +1,8 @@
 /vendor/
 /storage/push_vapid.json
 /storage/sessions/
+/storage/*
+!/storage/.htaccess
 /app_local_env.php
 # Dati generati o locali: non pubblicare con Git
 /note_json/*.json
@@ -8,7 +10,8 @@
 !/note_json/.htaccess
 
 /turni_json/*.json
-/xlms/
+/xlms/*
+!/xlms/.htaccess
 
 .DS_Store
 *.log

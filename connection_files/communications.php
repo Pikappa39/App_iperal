@@ -18,6 +18,9 @@ function communicationResponse(array $payload, int $status = 200): void
 if (!isset($_SESSION['user']['cf']) || !$connessione || !($pdo instanceof PDO)) {
     communicationResponse(['ok' => false, 'error' => 'Accesso richiesto'], 401);
 }
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !app_csrf_request_is_valid()) {
+    communicationResponse(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], 403);
+}
 
 $viewer = $_SESSION['user'];
 $viewerCf = (string) $viewer['cf'];

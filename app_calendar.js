@@ -80,7 +80,8 @@ function getNoteSummaryForDay(currentUserNote, dayNotes) {
 }
 
 function createDaySphere(giornoInfo, target = container) {
-    const sfera = document.createElement("div");
+    const sfera = document.createElement("button");
+    sfera.type = "button";
     sfera.classList.add("sfera");
     if (giornoInfo.opaco) {
         sfera.classList.add("opaco");
@@ -117,6 +118,7 @@ function createDaySphere(giornoInfo, target = container) {
     sfera.setAttribute("data-giorno", giornoInfo.numero);
     sfera.setAttribute("data-giorno-parola", giornoInfo.giorno_parola);
     sfera.setAttribute("data-data-key", giornoInfo.dataKey);
+    sfera.setAttribute("aria-label", `Apri ${giornoInfo.giorno_parola} ${giornoInfo.numero}: ${giornoInfo.orario || "riposo"}`);
 
     sfera.onclick = function () {
         mostragiorno(giornoInfo);
@@ -328,7 +330,7 @@ async function mostraGiorni(anno, mese, options = {}) {
     const noteMese = await getMonthNotes(anno, mese);
     const settimaneCaricate = {};
     await Promise.all([...weeksToLoad].map(async (settimana) => {
-        settimaneCaricate[settimana] = await getWeekData(settimana);
+        settimaneCaricate[settimana] = await getWeekData(anno, settimana);
     }));
 
     if (viewToken !== appState.calendarViewToken || appState.view !== "giorni") {

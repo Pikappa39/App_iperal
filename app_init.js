@@ -4,6 +4,10 @@ back.onclick = function () {
 
 if (openOrari) {
     openOrari.addEventListener("click", () => {
+        if (!getCurrentUserKey()) {
+            window.location.assign("login_reg.php");
+            return;
+        }
         appState.currentYear = today.getFullYear();
         appState.currentMonth = today.getMonth() + 1;
         mostraGiorni(appState.currentYear, appState.currentMonth);

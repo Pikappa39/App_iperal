@@ -35,8 +35,7 @@ function mostrasetting() {
     wrapper.className = "settings-menu";
     wrapper.append(
         createSettingsButton("Schermo", mostraImpostazioniSchermo),
-        createSettingsButton("Notifiche", mostraImpostazioniNotifiche),
-        createSettingsButton("Lingua", function () {})
+        createSettingsButton("Notifiche", mostraImpostazioniNotifiche)
     );
 
     setupSettingsScreen("Impostazioni", wrapper);
@@ -111,14 +110,19 @@ function mostraImpostazioniNotifiche() {
     };
 
     toggle.addEventListener("change", async function () {
-        if (!toggle.checked) {
-            toggle.checked = true;
-            return;
-        }
-
         toggle.disabled = true;
-        await window.appNotifications.enable();
-        await refresh();
+        try {
+            if (toggle.checked) {
+                await window.appNotifications.enable();
+            } else {
+                await window.appNotifications.disable();
+            }
+        } catch (error) {
+            console.error("Errore aggiornamento notifiche", error);
+            showAppToast("Non riesco ad aggiornare le notifiche");
+        } finally {
+            await refresh();
+        }
     });
 
     window.addEventListener("app:push-state", function updateState(event) {
@@ -128,4 +132,3 @@ function mostraImpostazioniNotifiche() {
 }
 
 applyTheme(getTheme());
-

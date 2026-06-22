@@ -7,6 +7,11 @@ return [
     'APP_DB_NAME' => '',
     'APP_DB_USER' => '',
     'APP_DB_PASSWORD' => '',
+    // Per sicurezza resta disattivata finché non esiste un processo aziendale
+    // di invito o approvazione degli account.
+    'APP_ALLOW_SELF_REGISTRATION' => '0',
+    'APP_TURNSTILE_SITE_KEY' => '',
+    'APP_TURNSTILE_SECRET_KEY' => '',
     'APP_PUBLIC_URL' => 'https://myorari.it',
     'APP_SMTP_HOST' => 'smtps.aruba.it',
     'APP_SMTP_PORT' => '465',
