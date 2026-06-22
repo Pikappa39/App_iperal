@@ -1,47 +1,5 @@
 back.onclick = function () {
-    if (appState.view === "home") {
-        return;
-    }
-
-    if (appState.view === "anni") {
-        alert("non puoi andare piu indietro di cosi");
-        return;
-    }
-
-    if (appState.view === "mesi") {
-        mostraAnni();
-        return;
-    }
-
-    if (appState.view === "giorni") {
-        mostraMesi(appState.currentYear);
-        return;
-    }
-
-    if (appState.view === "giorno") {
-        mostraGiorni(appState.currentYear, appState.currentMonth);
-        return;
-    }
-
-    if (appState.view === "noteAdmin") {
-        showHomeScreen();
-    }
-    if (appState.view === "profilo") {
-        showHomeScreen();
-    }
-    if (appState.view === "scheduleChanges") {
-        showHomeScreen();
-    }
-    if (appState.view === "communications") {
-        showHomeScreen();
-    }
-    if (appState.view === "setting") {
-        if (appState.settingsPanel && appState.settingsPanel !== "main") {
-            mostrasetting();
-            return;
-        }
-        showHomeScreen();
-    }
+    appNavigationGoBack();
 };
 
 if (openOrari) {

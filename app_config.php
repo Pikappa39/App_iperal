@@ -1,7 +1,7 @@
 <?php
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.2.23');
+    define('APP_VERSION', '0.2.24');
 }
 
 if (!defined('PUSH_VAPID_SUBJECT')) {

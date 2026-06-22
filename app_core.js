@@ -22,6 +22,7 @@ const appState = {
 };
 let appNavigationReady = false;
 let appNavigationRestoring = false;
+let appNavigationPosition = 0;
 
 const YEAR_CHOICES = [2024, 2025, 2026];
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
@@ -59,7 +60,8 @@ function appNavigationBuildState() {
         view: appState.view,
         year: appState.currentYear,
         month: appState.currentMonth,
-        settingsPanel: appState.settingsPanel || "main"
+        settingsPanel: appState.settingsPanel || "main",
+        position: appNavigationPosition
     };
 
     if (appState.view === "giorno" && appState.selectedDay) {
@@ -74,12 +76,18 @@ function appNavigationRecordCurrentView() {
         return;
     }
 
-    const nextState = appNavigationBuildState();
     const currentState = window.history.state;
-    if (currentState && currentState.app === "myorari" && JSON.stringify(currentState) === JSON.stringify(nextState)) {
+    const currentPosition = currentState && currentState.app === "myorari"
+        ? Number(currentState.position || 0)
+        : appNavigationPosition;
+    appNavigationPosition = currentPosition;
+    const currentViewState = appNavigationBuildState();
+    if (currentState && currentState.app === "myorari" && JSON.stringify(currentState) === JSON.stringify(currentViewState)) {
         return;
     }
 
+    appNavigationPosition = currentPosition + 1;
+    const nextState = appNavigationBuildState();
     window.history.pushState(nextState, document.title, window.location.pathname);
 }
 
@@ -89,8 +97,27 @@ function appNavigationDeferRecord() {
 }
 
 function appNavigationInitialize() {
+    appNavigationPosition = 0;
     window.history.replaceState(appNavigationBuildState(), document.title, window.location.pathname);
     appNavigationReady = true;
+}
+
+function appNavigationGoBack() {
+    if (appState.view === "home") {
+        return;
+    }
+
+    if (appNavigationPosition > 0) {
+        window.history.back();
+        return;
+    }
+
+    // Una schermata può essere stata aperta direttamente da una notifica:
+    // in quel caso non esiste una vista interna precedente e torniamo alla Home.
+    appNavigationRestoring = true;
+    showHomeScreen();
+    appNavigationRestoring = false;
+    window.history.replaceState(appNavigationBuildState(), document.title, window.location.pathname);
 }
 
 async function appNavigationRestore(state) {
@@ -98,6 +125,7 @@ async function appNavigationRestore(state) {
         return;
     }
 
+    appNavigationPosition = Number(state.position || 0);
     appNavigationRestoring = true;
     try {
         switch (state.view) {
