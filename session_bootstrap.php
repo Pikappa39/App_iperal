@@ -2,13 +2,48 @@
 
 require_once __DIR__ . '/php_runtime.php';
 
-const APP_SESSION_LIFETIME = 60 * 60 * 24 * 30;
+const APP_SESSION_LIFETIME = 60 * 60 * 24 * 7;
+
+function app_session_storage_path(): string
+{
+    return __DIR__ . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+}
+
+function app_session_configure_storage(): void
+{
+    $path = app_session_storage_path();
+    if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) {
+        throw new RuntimeException('Impossibile creare la cartella delle sessioni');
+    }
+
+    ini_set('session.gc_maxlifetime', (string) APP_SESSION_LIFETIME);
+    session_save_path($path);
+}
+
+function app_session_refresh_cookie(): void
+{
+    if (!ini_get('session.use_cookies')) {
+        return;
+    }
+
+    $params = session_get_cookie_params();
+    setcookie(session_name(), session_id(), [
+        'expires' => time() + APP_SESSION_LIFETIME,
+        'path' => $params['path'] ?: '/',
+        'domain' => $params['domain'] ?? '',
+        'secure' => (bool) ($params['secure'] ?? false),
+        'httponly' => (bool) ($params['httponly'] ?? true),
+        'samesite' => $params['samesite'] ?? 'Lax',
+    ]);
+}
 
 function app_session_start(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
+
+    app_session_configure_storage();
 
     session_set_cookie_params([
         'lifetime' => APP_SESSION_LIFETIME,
@@ -19,7 +54,10 @@ function app_session_start(): void
         'samesite' => 'Lax',
     ]);
 
-    session_start();
+    if (!session_start()) {
+        throw new RuntimeException('Impossibile avviare la sessione');
+    }
+    app_session_refresh_cookie();
     app_session_validate_user();
 }
 

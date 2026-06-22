@@ -1,5 +1,6 @@
 /vendor/
 /storage/push_vapid.json
+/storage/sessions/
 /app_local_env.php
 # Dati generati o locali: non pubblicare con Git
 /note_json/*.json
