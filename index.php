@@ -387,7 +387,10 @@ if ('serviceWorker' in navigator) {
     });
 
     window.addEventListener('load', function () {
-        navigator.serviceWorker.register('service-worker.php').then(function (registration) {
+        navigator.serviceWorker.register(
+            'service-worker.php?v=<?php echo rawurlencode(APP_VERSION); ?>',
+            { updateViaCache: 'none' }
+        ).then(function (registration) {
             serviceWorkerRegistration = registration;
             refreshPushState(registration);
 
