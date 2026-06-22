@@ -6,15 +6,36 @@ const APP_SESSION_LIFETIME = 60 * 60 * 24 * 7;
 
 function app_session_storage_path(): string
 {
-    return __DIR__ . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+    $preferredPath = __DIR__ . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
+    if (app_session_ensure_storage_directory($preferredPath)) {
+        return $preferredPath;
+    }
+
+    // In locale XAMPP può eseguire PHP con un utente diverso dal proprietario
+    // del progetto. In quel caso storage/ non è scrivibile: usiamo una
+    // directory privata del server, senza interrompere il login.
+    $temporaryRoot = DIRECTORY_SEPARATOR === '/' ? '/tmp' : sys_get_temp_dir();
+    $fallbackPath = rtrim($temporaryRoot, DIRECTORY_SEPARATOR)
+        . DIRECTORY_SEPARATOR . 'myorari-sessions';
+    if (app_session_ensure_storage_directory($fallbackPath)) {
+        return $fallbackPath;
+    }
+
+    throw new RuntimeException('Impossibile creare la cartella delle sessioni');
+}
+
+function app_session_ensure_storage_directory(string $path): bool
+{
+    if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
+        return false;
+    }
+
+    return is_writable($path);
 }
 
 function app_session_configure_storage(): void
 {
     $path = app_session_storage_path();
-    if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) {
-        throw new RuntimeException('Impossibile creare la cartella delle sessioni');
-    }
 
     ini_set('session.gc_maxlifetime', (string) APP_SESSION_LIFETIME);
     session_save_path($path);
