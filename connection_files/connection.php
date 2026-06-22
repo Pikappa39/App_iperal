@@ -57,6 +57,9 @@ try {
     if (!in_array("reparto", $columns, true)) {
         $pdo->exec("ALTER TABLE utenti ADD COLUMN reparto VARCHAR(20) NULL DEFAULT NULL");
     }
+    if (!in_array("last_seen", $columns, true)) {
+        $pdo->exec("ALTER TABLE utenti ADD COLUMN last_seen DATETIME NULL DEFAULT NULL");
+    }
 
     // Il file Excel contiene solo il nominativo. Questa tabella conserva la
     // scelta fatta dal capo tra quel nominativo e l'utente reale del reparto.

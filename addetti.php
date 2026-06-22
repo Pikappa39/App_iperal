@@ -10,10 +10,40 @@ if (!isset($_SESSION['user']) || !in_array($capo, [1, 3], true)) {
     header('Location: index.php');
     exit;
 }
+$canViewLastSeen = $capo === 3;
 
 function appAddettiEscape(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+function appAddettiLastSeenLabel($value): string
+{
+    if (!is_string($value) || trim($value) === '') {
+        return 'Mai rilevato';
+    }
+
+    $timestamp = strtotime($value);
+    if ($timestamp === false) {
+        return 'Dato non valido';
+    }
+
+    $diff = time() - $timestamp;
+    if ($diff < 0) {
+        $diff = 0;
+    }
+
+    if ($diff < 120) {
+        return 'Attivo adesso';
+    }
+    if ($diff < 3600) {
+        return floor($diff / 60) . ' min fa';
+    }
+    if ($diff < 86400) {
+        return floor($diff / 3600) . ' h fa';
+    }
+
+    return date('d/m/Y H:i', $timestamp);
 }
 
 if (empty($_SESSION['schedule_mapping_csrf'])) {
@@ -29,7 +59,7 @@ $databaseError = !$connessione || !($pdo instanceof PDO);
 
 if (!$databaseError) {
     $userStatement = $pdo->prepare(
-        'SELECT cod_fiscale, nome, cognome
+        'SELECT cod_fiscale, nome, cognome, last_seen
          FROM utenti
          WHERE reparto = ?
          ORDER BY cognome, nome, cod_fiscale'
@@ -145,18 +175,30 @@ $availableUsers = array_values(array_filter(
                 <p class="text-muted">Sono inclusi tutti gli utenti del reparto, anche se non hanno ancora un nominativo negli orari.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
-                        <thead><tr><th>Utente</th><th>Codice fiscale</th><th>Nominativi negli orari</th></tr></thead>
+                        <thead>
+                        <tr>
+                            <th>Utente</th>
+                            <th>Codice fiscale</th>
+                            <?php if ($canViewLastSeen): ?>
+                                <th>Ultima attività</th>
+                            <?php endif; ?>
+                            <th>Nominativi negli orari</th>
+                        </tr>
+                        </thead>
                         <tbody>
                         <?php foreach ($users as $user): ?>
                             <?php $userCf = (string) $user['cod_fiscale']; $scheduleUserNames = $namesByUser[$userCf] ?? []; ?>
                             <tr>
                                 <td><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></td>
                                 <td><code><?php echo appAddettiEscape($userCf); ?></code></td>
+                                <?php if ($canViewLastSeen): ?>
+                                    <td><?php echo appAddettiEscape(appAddettiLastSeenLabel($user['last_seen'] ?? null)); ?></td>
+                                <?php endif; ?>
                                 <td><?php echo $scheduleUserNames === [] ? '<span class="text-muted">Nessuno</span>' : appAddettiEscape(implode(', ', $scheduleUserNames)); ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="3" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo $canViewLastSeen ? '4' : '3'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>

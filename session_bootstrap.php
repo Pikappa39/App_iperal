@@ -3,6 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 const APP_SESSION_LIFETIME = 60 * 60 * 24 * 7;
+const APP_LAST_SEEN_UPDATE_INTERVAL = 300;
 
 function app_session_storage_path(): string
 {
@@ -119,9 +120,29 @@ function app_session_validate_user(): void
 
         if ($currentVersion === false || (int) $currentVersion !== $sessionVersion) {
             app_session_destroy_current();
+            return;
         }
+
+        app_session_touch_user($pdo, $cf);
     } catch (Throwable $e) {
         error_log('Verifica sessione non riuscita: ' . $e->getMessage());
         app_session_destroy_current();
     }
+}
+
+function app_session_touch_user(PDO $pdo, string $cf, bool $force = false): void
+{
+    if ($cf === '') {
+        return;
+    }
+
+    $lastTouch = (int) ($_SESSION['last_seen_touch'] ?? 0);
+    $now = time();
+    if (!$force && $lastTouch > 0 && ($now - $lastTouch) < APP_LAST_SEEN_UPDATE_INTERVAL) {
+        return;
+    }
+
+    $statement = $pdo->prepare('UPDATE utenti SET last_seen = NOW() WHERE cod_fiscale = ?');
+    $statement->execute([$cf]);
+    $_SESSION['last_seen_touch'] = $now;
 }

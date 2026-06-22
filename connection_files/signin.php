@@ -139,6 +139,7 @@ try {
             "capo" => $_SESSION["user"]["capo"],
             "reparto"=> $_SESSION["user"]["reparto"]
         ]);
+        app_session_touch_user($pdo, (string) $user["cod_fiscale"], true);
     } else {
         echo json_encode([
             "logged" => false,
