@@ -5,6 +5,9 @@
 !/storage/.htaccess
 /app_local_env.php
 # Dati generati o locali: non pubblicare con Git
+/backup-myorari-files.tar.gz
+/backup-myorari.sql
+/backups/
 /note_json/*.json
 !/note_json/.gitkeep
 !/note_json/.htaccess
