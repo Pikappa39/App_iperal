@@ -30,7 +30,7 @@ function appScheduleMappingWriteJson(string $path, string $contents): void
 }
 
 $capo = (int) ($_SESSION['user']['capo'] ?? 0);
-if (!isset($_SESSION['user']) || !in_array($capo, [1, 3], true) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (!isset($_SESSION['user']) || !in_array($capo, [1, 2, 3], true) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
     appScheduleMappingRedirect('?error=1');
 }
 

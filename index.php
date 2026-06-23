@@ -91,7 +91,7 @@ $clientBootstrap = [
   <section id="homeScreen" class="home-screen">
     <div class="home-actions">
       <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
-      <?php if (isset($_SESSION['user']) && in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 3], true)): ?>
+      <?php if (isset($_SESSION['user']) && in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 2, 3], true)): ?>
         <a href="addetti.php" class="home-orari sfera home-addetti">Addetti</a>
       <?php endif; ?>
     </div>
@@ -575,10 +575,10 @@ if (profileImg) {
 
 const capo = String(window.capo ?? "0");
 const uploadItem = document.querySelector("#uploadItem");
-if (uploadItem && (capo === "1" || capo==="3")) {
+if (uploadItem && (capo === "1" || capo === "2" || capo === "3")) {
     uploadItem.classList.remove("d-none");
 }
-if (noteAdminItem && (capo === "1" || capo==="3")) {
+if (noteAdminItem && (capo === "1" || capo === "2" || capo === "3")) {
     noteAdminItem.classList.remove("d-none");
 }
 })();

@@ -82,7 +82,7 @@ try {
             return true;
         }
 
-        return $capo === 1
+        return in_array($capo, [1, 2], true)
             && $viewerDepartment !== ''
             && ($userDepartments[$entryUserKey] ?? '') === $viewerDepartment;
     };
@@ -226,7 +226,7 @@ try {
 
     if ($method === "GET") {
         if (isset($_GET["all"]) && $_GET["all"] === "1") {
-            if (!in_array($capo, [1, 3], true)) {
+            if (!in_array($capo, [1, 2, 3], true)) {
                 jsonResponse([
                     "ok" => false,
                     "error" => "Accesso negato",

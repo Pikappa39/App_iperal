@@ -4,7 +4,7 @@ require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 
 $capo = (int) ($_SESSION["user"]["capo"] ?? 0);
-if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
+if (!isset($_SESSION["user"]) || !in_array($capo, [1, 2, 3], true)) {
     header("Location: index.php");
     exit;
 }

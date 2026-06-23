@@ -8,6 +8,29 @@ function appInviteCanManage(array $sessionUser): bool
     return in_array((int) ($sessionUser['capo'] ?? 0), [1, 3], true);
 }
 
+function appInviteAllowedRoles(array $sessionUser): array
+{
+    return match ((int) ($sessionUser['capo'] ?? 0)) {
+        3 => [0, 2, 1],
+        1 => [0, 2],
+        default => [],
+    };
+}
+
+function appInviteRoleForManager(array $sessionUser, int $requestedRole): ?int
+{
+    return in_array($requestedRole, appInviteAllowedRoles($sessionUser), true) ? $requestedRole : null;
+}
+
+function appInviteRoleLabel(int $role): string
+{
+    return match ($role) {
+        1 => 'Capo reparto',
+        2 => 'Vice capo',
+        default => 'Addetto',
+    };
+}
+
 function appInviteNormalizeEmail(string $email): string
 {
     return strtolower(trim($email));

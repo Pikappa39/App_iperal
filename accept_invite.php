@@ -78,10 +78,14 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
 
                 $technicalId = (string) $freshInvite['invited_cf'];
+                $invitedRole = (int) ($freshInvite['invited_capo'] ?? 0);
+                if (!in_array($invitedRole, [0, 1, 2], true)) {
+                    throw new RuntimeException('Il ruolo dell’invito non è valido. Contatta l’amministratore.');
+                }
 
                 $insert = $pdo->prepare(
                     'INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo, reparto)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)'
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 $insert->execute([
                     $technicalId,
@@ -91,6 +95,7 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $passwordHash,
                     (string) $freshInvite['invited_email'],
                     'default',
+                    $invitedRole,
                     (string) $freshInvite['reparto'],
                 ]);
 
@@ -108,7 +113,7 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'nome' => (string) $freshInvite['invited_nome'],
                     'cognome' => (string) $freshInvite['invited_cognome'],
                     'avatar' => 'default',
-                    'capo' => 0,
+                    'capo' => $invitedRole,
                     'reparto' => (string) $freshInvite['reparto'],
                     'session_version' => 0,
                 ];

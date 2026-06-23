@@ -26,14 +26,14 @@ $viewer = $_SESSION['user'];
 $viewerCf = (string) $viewer['cf'];
 $viewerRole = (int) ($viewer['capo'] ?? 0);
 $viewerDepartment = (string) ($viewer['reparto'] ?? '');
-$isManager = in_array($viewerRole, [1, 3], true);
+$isManager = in_array($viewerRole, [1, 2, 3], true);
 
 function communicationCanManageUser(PDO $pdo, string $userCf, int $viewerRole, string $viewerDepartment): bool
 {
     if ($viewerRole === 3) {
         return true;
     }
-    if ($viewerRole !== 1 || $viewerDepartment === '') {
+    if (!in_array($viewerRole, [1, 2], true) || $viewerDepartment === '') {
         return false;
     }
 
@@ -72,7 +72,7 @@ try {
         if ($view === 'users') {
             $query = 'SELECT cod_fiscale, nome, cognome, reparto FROM utenti';
             $params = [];
-            if ($viewerRole === 1) {
+            if (in_array($viewerRole, [1, 2], true)) {
                 $query .= ' WHERE reparto = ?';
                 $params[] = $viewerDepartment;
             }
@@ -91,7 +91,7 @@ try {
                  FROM communications c
                  JOIN communication_recipients r ON r.communication_id = c.id";
             $params = [];
-            if ($viewerRole === 1) {
+            if (in_array($viewerRole, [1, 2], true)) {
                 $query .= ' WHERE c.author_cf = ?';
                 $params[] = $viewerCf;
             }
@@ -146,7 +146,7 @@ try {
         }
         $recipients = [$targetUserCf];
     } elseif ($targetType === 'department') {
-        if ($viewerRole === 1) {
+        if (in_array($viewerRole, [1, 2], true)) {
             $targetDepartment = $viewerDepartment;
         }
         if (!appIsValidDepartment($targetDepartment)) {

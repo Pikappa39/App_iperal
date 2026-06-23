@@ -102,6 +102,7 @@ try {
     $nome = appInviteNormalizeName((string) ($_POST['nome'] ?? ''));
     $cognome = appInviteNormalizeName((string) ($_POST['cognome'] ?? ''));
     $reparto = appInviteDepartmentForManager($sessionUser, trim((string) ($_POST['reparto'] ?? '')));
+    $invitedRole = appInviteRoleForManager($sessionUser, (int) ($_POST['capo'] ?? -1));
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Inserisci un indirizzo email valido.');
@@ -111,6 +112,9 @@ try {
     }
     if ($reparto === '') {
         throw new RuntimeException('Reparto non valido.');
+    }
+    if ($invitedRole === null) {
+        throw new RuntimeException('Non puoi creare un invito con questo ruolo.');
     }
 
     $userExists = $pdo->prepare(
@@ -143,10 +147,10 @@ try {
     $insert = $pdo->prepare(
         'INSERT INTO user_invites (
             invited_by_cf, invited_email, invited_badge, invited_cf,
-            invited_nome, invited_cognome, reparto, token_hash, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))'
+            invited_nome, invited_cognome, invited_capo, reparto, token_hash, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))'
     );
-    $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $reparto, $tokenHash]);
+    $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $invitedRole, $reparto, $tokenHash]);
 
     $link = appInviteBuildUrl($token);
     $departmentLabel = appDepartments()[$reparto] ?? $reparto;

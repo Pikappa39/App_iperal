@@ -7,12 +7,13 @@ require_once __DIR__ . '/connection_files/invite_lib.php';
 require __DIR__ . '/gestore_ods/orario_converter_lib.php';
 
 $capo = (int) ($_SESSION['user']['capo'] ?? 0);
-if (!isset($_SESSION['user']) || !in_array($capo, [1, 3], true)) {
+if (!isset($_SESSION['user']) || !in_array($capo, [1, 2, 3], true)) {
     header('Location: index.php');
     exit;
 }
 $canViewLastSeen = $capo === 3;
 $isGlobalAdmin = $capo === 3;
+$canInvite = appInviteCanManage($_SESSION['user']);
 
 function appAddettiEscape(string $value): string
 {
@@ -87,23 +88,25 @@ if (!$databaseError) {
     $mappings = $mappingStatement->fetchAll(PDO::FETCH_ASSOC);
 
     $inviteQuery = null;
-    if ($capo === 3) {
-        $inviteQuery = $pdo->query(
-            'SELECT *
-             FROM user_invites
-             ORDER BY created_at DESC
-             LIMIT 30'
-        );
-    } else {
-        $inviteQuery = $pdo->prepare(
-            'SELECT *
-             FROM user_invites
-             WHERE reparto = ?
-               AND invited_by_cf = ?
-             ORDER BY created_at DESC
-             LIMIT 30'
-        );
-        $inviteQuery->execute([$reparto, (string) ($_SESSION['user']['cf'] ?? '')]);
+    if ($canInvite) {
+        if ($capo === 3) {
+            $inviteQuery = $pdo->query(
+                'SELECT *
+                 FROM user_invites
+                 ORDER BY created_at DESC
+                 LIMIT 30'
+            );
+        } else {
+            $inviteQuery = $pdo->prepare(
+                'SELECT *
+                 FROM user_invites
+                 WHERE reparto = ?
+                   AND invited_by_cf = ?
+                 ORDER BY created_at DESC
+                 LIMIT 30'
+            );
+            $inviteQuery->execute([$reparto, (string) ($_SESSION['user']['cf'] ?? '')]);
+        }
     }
     $invites = $inviteQuery ? $inviteQuery->fetchAll(PDO::FETCH_ASSOC) : [];
 }
@@ -239,6 +242,7 @@ $availableUsers = array_values(array_filter(
             </div>
         <?php endif; ?>
 
+        <?php if ($canInvite): ?>
         <section class="card shadow-sm mb-4">
             <div class="card-body">
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
@@ -264,6 +268,14 @@ $availableUsers = array_values(array_filter(
                     </div>
                     <div class="col-md-4">
                         <p class="form-text mt-4 mb-0">Il dipendente dovrà solo scegliere la password aprendo il link.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="inviteCapo">Ruolo</label>
+                        <select class="form-select" id="inviteCapo" name="capo" required>
+                            <?php foreach (appInviteAllowedRoles($_SESSION['user']) as $role): ?>
+                                <option value="<?php echo (int) $role; ?>"><?php echo appAddettiEscape(appInviteRoleLabel((int) $role)); ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <?php if ($capo === 3): ?>
                         <div class="col-md-6">
@@ -296,6 +308,7 @@ $availableUsers = array_values(array_filter(
                         <tr>
                             <th>Dipendente</th>
                             <th>Reparto</th>
+                            <th>Ruolo</th>
                             <th>Creato</th>
                             <th>Scadenza</th>
                             <th>Stato</th>
@@ -311,6 +324,7 @@ $availableUsers = array_values(array_filter(
                                     <span class="text-muted"><?php echo appAddettiEscape((string) $invite['invited_email']); ?></span>
                                 </td>
                                 <td><?php echo appAddettiEscape(appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto']); ?></td>
+                                <td><?php echo appAddettiEscape(appInviteRoleLabel((int) ($invite['invited_capo'] ?? 0))); ?></td>
                                 <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['created_at']))); ?></td>
                                 <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['expires_at']))); ?></td>
                                 <td><?php echo appAddettiEscape(appInviteStatusLabel($invite)); ?></td>
@@ -337,13 +351,14 @@ $availableUsers = array_values(array_filter(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($invites === []): ?>
-                            <tr><td colspan="6" class="text-muted">Non ci sono ancora inviti creati.</td></tr>
+                            <tr><td colspan="7" class="text-muted">Non ci sono ancora inviti creati.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
+        <?php endif; ?>
 
         <section class="card shadow-sm mb-4">
             <div class="card-body">

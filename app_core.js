@@ -221,7 +221,7 @@ function getCurrentUserKey() {
 
 function isCapoUser() {
     const capo = String(window.userSession?.capo ?? "");
-    return ["1", "3"].includes(capo);
+    return ["1", "2", "3"].includes(capo);
 }
 
 function getDayLabel(date) {

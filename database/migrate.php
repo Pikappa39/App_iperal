@@ -79,4 +79,18 @@ if (!in_array($badgeType, ['char', 'varchar'], true) || $badgeLength < 20) {
     $pdo->exec('ALTER TABLE utenti MODIFY badge VARCHAR(20) NOT NULL');
     echo "Colonna utenti.badge aggiornata.\n";
 }
+
+$inviteRoleColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'user_invites'
+       AND COLUMN_NAME = 'invited_capo'
+     LIMIT 1"
+)->fetchColumn();
+if (!$inviteRoleColumn) {
+    $pdo->exec('ALTER TABLE user_invites ADD invited_capo TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER invited_cognome');
+    echo "Colonna user_invites.invited_capo aggiunta.\n";
+}
+
 echo "Migrazione database completata.\n";

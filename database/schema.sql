@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS user_invites (
     invited_cf VARCHAR(16) NOT NULL,
     invited_nome VARCHAR(100) NOT NULL,
     invited_cognome VARCHAR(100) NOT NULL,
+    invited_capo TINYINT UNSIGNED NOT NULL DEFAULT 0,
     reparto VARCHAR(20) NOT NULL,
     token_hash CHAR(64) NOT NULL UNIQUE,
     expires_at DATETIME NOT NULL,
