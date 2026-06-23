@@ -63,17 +63,6 @@ try {
     $mappingStatement->execute([$reparto, $scheduleName]);
     $mappingExists = (bool) $mappingStatement->fetchColumn();
 
-    $assignedUserStatement = $pdo->prepare(
-        'SELECT 1
-         FROM schedule_name_mappings
-         WHERE reparto = ? AND user_cf = ? AND schedule_name <> ?
-         LIMIT 1'
-    );
-    $assignedUserStatement->execute([$reparto, $userCf, $scheduleName]);
-    if ($assignedUserStatement->fetchColumn()) {
-        throw new RuntimeException('L’utente selezionato è già associato a un altro nominativo.');
-    }
-
     $historicalRows = 0;
     $historicalNameFound = false;
     $jsonFiles = glob(__DIR__ . '/../turni_json/*-' . $reparto . '.json') ?: [];

@@ -138,6 +138,7 @@ foreach ($jsonFiles as $jsonFile) {
 }
 
 $namesByUser = [];
+$mappedScheduleRows = [];
 $scheduleOnlyRows = [];
 $mappedKeys = [];
 foreach ($mappings as $mapping) {
@@ -148,6 +149,11 @@ foreach ($mappings as $mapping) {
 
     if (isset($usersByCf[$userCf])) {
         $namesByUser[$userCf][] = $scheduleName;
+        $mappedScheduleRows[] = [
+            'key' => $key,
+            'name' => $scheduleName,
+            'user_cf' => $userCf,
+        ];
         continue;
     }
 
@@ -170,10 +176,7 @@ foreach ($scheduleNames as $key => $scheduleName) {
 }
 
 usort($scheduleOnlyRows, static fn (array $a, array $b): int => strnatcasecmp($a['name'], $b['name']));
-$availableUsers = array_values(array_filter(
-    $users,
-    static fn (array $user): bool => empty($namesByUser[(string) $user['cod_fiscale']])
-));
+usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp($a['name'], $b['name']));
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -401,6 +404,44 @@ $availableUsers = array_values(array_filter(
             </div>
         </section>
 
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="h5">Associazioni esistenti</h2>
+                <p class="text-muted">Puoi correggere l'utente associato a un nominativo. Uno stesso addetto può avere più varianti del nome negli orari.</p>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Nominativo nell'orario</th><th>Associato a</th><th>Modifica associazione</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($mappedScheduleRows as $row): ?>
+                            <?php $mappedUser = $usersByCf[$row['user_cf']]; ?>
+                            <tr>
+                                <td><?php echo appAddettiEscape($row['name']); ?></td>
+                                <td><?php echo appAddettiEscape(trim((string) $mappedUser['nome'] . ' ' . (string) $mappedUser['cognome'])); ?></td>
+                                <td>
+                                    <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
+                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                        <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
+                                        <select class="form-select form-select-sm" name="user_cf" required aria-label="Nuovo utente per <?php echo appAddettiEscape($row['name']); ?>">
+                                            <?php foreach ($users as $user): ?>
+                                                <?php $userCf = (string) $user['cod_fiscale']; ?>
+                                                <option value="<?php echo appAddettiEscape($userCf); ?>"<?php echo $userCf === $row['user_cf'] ? ' selected' : ''; ?>><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="submit" class="btn btn-outline-dark btn-sm">Aggiorna</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php if ($mappedScheduleRows === []): ?>
+                            <tr><td colspan="3" class="text-muted">Non ci sono ancora associazioni salvate.</td></tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <section class="card shadow-sm">
             <div class="card-body">
                 <h2 class="h5">Nominativi degli orari da gestire</h2>
@@ -414,23 +455,19 @@ $availableUsers = array_values(array_filter(
                                 <td><?php echo appAddettiEscape($row['name']); ?></td>
                                 <td><?php echo appAddettiEscape($row['status']); ?></td>
                                 <td>
-                                    <?php if ($availableUsers === []): ?>
-                                        <span class="text-muted">Tutti gli utenti sono già associati</span>
-                                    <?php else: ?>
-                                        <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
-                                            <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
-                                            <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
-                                            <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
-                                            <select class="form-select form-select-sm" name="user_cf" required aria-label="Utente da associare a <?php echo appAddettiEscape($row['name']); ?>">
-                                                <option value="">Seleziona utente…</option>
-                                                <?php foreach ($availableUsers as $user): ?>
-                                                    <?php $userCf = (string) $user['cod_fiscale']; ?>
-                                                    <option value="<?php echo appAddettiEscape($userCf); ?>"><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                            <button type="submit" class="btn btn-primary btn-sm">Associa</button>
-                                        </form>
-                                    <?php endif; ?>
+                                    <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
+                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                        <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
+                                        <select class="form-select form-select-sm" name="user_cf" required aria-label="Utente da associare a <?php echo appAddettiEscape($row['name']); ?>">
+                                            <option value="">Seleziona utente…</option>
+                                            <?php foreach ($users as $user): ?>
+                                                <?php $userCf = (string) $user['cod_fiscale']; ?>
+                                                <option value="<?php echo appAddettiEscape($userCf); ?>"><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm">Associa</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
