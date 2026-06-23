@@ -280,7 +280,10 @@ foreach ($convertedFiles as $fileData) {
         $converted = $fileData['converted'];
         $converted['data'] = associaUtentiAlleRigheOrario($converted['data'], $mappings, $unregisteredKeys);
 
-        $scheduleMeta = appPushExtractIsoWeekYear($originalName);
+        $scheduleMeta = appPushExtractIsoWeekYear($originalName, [
+            'week' => (int) $converted['settimana'],
+            'year' => (int) $converted['anno'],
+        ]);
         if ($scheduleMeta['week'] !== (int) $converted['settimana']) {
             throw new RuntimeException('La settimana indicata nel nome file non coincide con quella contenuta nell\'Excel.');
         }

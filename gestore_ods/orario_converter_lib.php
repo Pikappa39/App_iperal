@@ -62,39 +62,57 @@ function orarioGiorno($worksheet, int $row, int $startCol): string
     return $orari === [] ? 'RIPOSO' : implode(' ', $orari);
 }
 
-function settimanaDaTesto(string $text): ?string
+function settimanaAnnoDaTesto(string $text): ?array
 {
     if (preg_match('/SETTIMANA\s+(\d{1,2})\/(\d{4})/i', $text, $matches)) {
-        return $matches[1];
+        return [
+            'week' => (int) $matches[1],
+            'year' => (int) $matches[2],
+        ];
     }
 
-    if (preg_match('/\((\d{1,2})-\d{4}\)\.xlsx$/i', $text, $matches)) {
-        return $matches[1];
+    if (preg_match('/\((\d{1,2})-(\d{4})\)\.xlsx$/i', $text, $matches)) {
+        return [
+            'week' => (int) $matches[1],
+            'year' => (int) $matches[2],
+        ];
     }
 
     return null;
 }
 
-function settimanaDaWorkbook($worksheet, string $fallbackName = ''): ?string
+function settimanaDaTesto(string $text): ?string
+{
+    $metadata = settimanaAnnoDaTesto($text);
+    return $metadata === null ? null : (string) $metadata['week'];
+}
+
+function settimanaAnnoDaWorkbook($worksheet, string $fallbackName = ''): ?array
 {
     for ($row = 1; $row <= 5; $row++) {
         for ($col = 1; $col <= 12; $col++) {
             $value = valoreCella($worksheet, $col, $row);
-            $week = settimanaDaTesto($value);
-            if ($week !== null) {
-                return $week;
+            $metadata = settimanaAnnoDaTesto($value);
+            if ($metadata !== null) {
+                return $metadata;
             }
         }
     }
 
-    return settimanaDaTesto($fallbackName);
+    return settimanaAnnoDaTesto($fallbackName);
+}
+
+function settimanaDaWorkbook($worksheet, string $fallbackName = ''): ?string
+{
+    $metadata = settimanaAnnoDaWorkbook($worksheet, $fallbackName);
+    return $metadata === null ? null : (string) $metadata['week'];
 }
 
 function convertWorkbookToScheduleData($worksheet, string $fallbackName = ''): array
 {
-    $settimana = settimanaDaWorkbook($worksheet, $fallbackName);
+    $metadata = settimanaAnnoDaWorkbook($worksheet, $fallbackName);
 
-    if ($settimana === null) {
+    if ($metadata === null) {
         throw new RuntimeException('Settimana non trovata nel file');
     }
 
@@ -128,7 +146,8 @@ function convertWorkbookToScheduleData($worksheet, string $fallbackName = ''): a
     }
 
     return [
-        'settimana' => (int) $settimana,
+        'settimana' => $metadata['week'],
+        'anno' => $metadata['year'],
         'data' => $data,
     ];
 }

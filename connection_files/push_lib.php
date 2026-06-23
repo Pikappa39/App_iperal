@@ -285,12 +285,25 @@ function appPushDateLabel(DateTimeImmutable $date): string
     return $day . ' ' . $month . ' ' . $year;
 }
 
-function appPushExtractIsoWeekYear(string $filename): array
+function appPushExtractIsoWeekYear(string $filename, ?array $fallbackMetadata = null): array
 {
     if (preg_match('/\((\d{1,2})-(\d{4})\)\.(xlsx|ods)$/i', $filename, $matches)) {
         return [
             'week' => (int) $matches[1],
             'year' => (int) $matches[2],
+        ];
+    }
+
+    if (
+        is_array($fallbackMetadata)
+        && isset($fallbackMetadata['week'], $fallbackMetadata['year'])
+        && (int) $fallbackMetadata['week'] >= 1
+        && (int) $fallbackMetadata['week'] <= 53
+        && (int) $fallbackMetadata['year'] >= 2000
+    ) {
+        return [
+            'week' => (int) $fallbackMetadata['week'],
+            'year' => (int) $fallbackMetadata['year'],
         ];
     }
 
