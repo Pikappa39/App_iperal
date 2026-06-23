@@ -82,6 +82,38 @@ function appUploadExistingMappings(PDO $pdo, string $reparto, array $nameKeys): 
     return $mappings;
 }
 
+function appUploadDepartmentNotificationRecipients(PDO $pdo, string $reparto): array
+{
+    $statement = $pdo->prepare(
+        'SELECT cod_fiscale
+         FROM utenti
+         WHERE reparto = ?
+           AND capo <> 3'
+    );
+    $statement->execute([$reparto]);
+
+    return array_map(
+        static fn (array $user): string => (string) $user['cod_fiscale'],
+        $statement->fetchAll(PDO::FETCH_ASSOC)
+    );
+}
+
+function appUploadAdminNotificationRecipients(PDO $pdo, string $uploaderCf): array
+{
+    $statement = $pdo->prepare(
+        'SELECT cod_fiscale
+         FROM utenti
+         WHERE capo = 3
+           AND cod_fiscale <> ?'
+    );
+    $statement->execute([$uploaderCf]);
+
+    return array_map(
+        static fn (array $user): string => (string) $user['cod_fiscale'],
+        $statement->fetchAll(PDO::FETCH_ASSOC)
+    );
+}
+
 function appUploadReadFiles(array $files): array
 {
     $names = is_array($files['name']) ? $files['name'] : [$files['name']];
@@ -325,21 +357,44 @@ foreach ($convertedFiles as $fileData) {
         }
 
         $pushSummary = [
-            'general' => null,
+            'department' => [],
+            'admins' => [],
             'targets' => [],
         ];
 
         if ($changeSet['generalChanged']) {
-            try {
-                $pushSummary['general'] = appPushSendPayload($pdo, [
-                    'title' => 'Nuovi orari caricati',
-                    'body' => 'Gli orari sono stati aggiornati dal capo',
-                    'url' => './index.php',
-                ]);
-            } catch (Throwable $pushError) {
-                $pushSummary['general'] = [
-                    'error' => $pushError->getMessage(),
-                ];
+            $uploaderCf = (string) ($_SESSION['user']['cf'] ?? '');
+            $uploaderName = trim((string) ($_SESSION['user']['nome'] ?? '') . ' ' . (string) ($_SESSION['user']['cognome'] ?? ''));
+            $departmentLabel = appDepartments()[$reparto] ?? $reparto;
+
+            foreach (appUploadDepartmentNotificationRecipients($pdo, $reparto) as $recipientCf) {
+                try {
+                    $pushSummary['department'][$recipientCf] = appPushSendPayload($pdo, [
+                        'title' => 'Nuovi orari caricati',
+                        'body' => 'Gli orari del reparto ' . $departmentLabel . ' sono stati aggiornati.',
+                        'url' => './index.php',
+                        'recipient_cf' => $recipientCf,
+                    ], $recipientCf);
+                } catch (Throwable $pushError) {
+                    $pushSummary['department'][$recipientCf] = [
+                        'error' => $pushError->getMessage(),
+                    ];
+                }
+            }
+
+            foreach (appUploadAdminNotificationRecipients($pdo, $uploaderCf) as $recipientCf) {
+                try {
+                    $pushSummary['admins'][$recipientCf] = appPushSendPayload($pdo, [
+                        'title' => 'Orari aggiornati: ' . $departmentLabel,
+                        'body' => ($uploaderName !== '' ? $uploaderName : 'Un responsabile') . ' ha caricato gli orari del reparto ' . $departmentLabel . '.',
+                        'url' => './index.php',
+                        'recipient_cf' => $recipientCf,
+                    ], $recipientCf);
+                } catch (Throwable $pushError) {
+                    $pushSummary['admins'][$recipientCf] = [
+                        'error' => $pushError->getMessage(),
+                    ];
+                }
             }
         }
 
