@@ -35,6 +35,18 @@ function appUploadFail(int $status, string $message): void
     exit;
 }
 
+function appUploadTargetDepartment(int $capo): string
+{
+    $sessionDepartment = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+    $requestedDepartment = trim((string) ($_POST['reparto'] ?? ''));
+
+    if ($capo === 3) {
+        return $requestedDepartment;
+    }
+
+    return $sessionDepartment;
+}
+
 function appUploadDepartmentUsers(PDO $pdo, string $reparto): array
 {
     $statement = $pdo->prepare(
@@ -123,12 +135,14 @@ function appUploadReadFiles(array $files): array
 }
 
 $outputDir = __DIR__ . '/../turni_json';
-$reparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+$reparto = appUploadTargetDepartment($capo);
 if (!appIsValidDepartment($reparto)) {
     http_response_code(422);
     echo json_encode([
         'ok' => false,
-        'error' => 'Al tuo profilo non è associato un reparto valido. Contatta un amministratore.',
+        'error' => $capo === 3
+            ? 'Seleziona un reparto valido prima di caricare i file.'
+            : 'Al tuo profilo non è associato un reparto valido. Contatta un amministratore.',
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -229,7 +243,7 @@ foreach ($scheduleNames as $key => $_displayName) {
     }
 
     if (empty($mappings[$key]) || !isset($allowedUsers[$mappings[$key]])) {
-        appUploadFail(422, 'Scegli un utente del tuo reparto oppure “Utente non registrato” per ogni nominativo del file.');
+        appUploadFail(422, 'Scegli un utente del reparto selezionato oppure “Utente non registrato” per ogni nominativo del file.');
     }
 }
 

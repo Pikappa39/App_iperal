@@ -11,6 +11,7 @@ if (!isset($_SESSION["user"]) || !in_array($capo, [1, 3], true)) {
 
 $repartoCode = (string) ($_SESSION['user']['reparto'] ?? '');
 $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
+$isGlobalAdmin = $capo === 3;
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -23,9 +24,28 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
 <body class="p-4">
     <div class="container">
         <h1 class="mb-4">Carica file turni</h1>
-        <p class="text-muted">I file caricati verranno salvati solo per il reparto: <strong><?php echo htmlspecialchars($repartoLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
+        <?php if ($isGlobalAdmin): ?>
+            <p class="text-muted">Seleziona il reparto di destinazione prima di analizzare e caricare i file.</p>
+        <?php else: ?>
+            <p class="text-muted">I file caricati verranno salvati solo per il reparto: <strong><?php echo htmlspecialchars($repartoLabel, ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
+        <?php endif; ?>
 
         <form id="uploadForm" class="d-grid gap-3" enctype="multipart/form-data">
+            <?php if ($isGlobalAdmin): ?>
+                <div>
+                    <label class="form-label" for="reparto">Reparto di destinazione</label>
+                    <select id="reparto" name="reparto" class="form-select" required>
+                        <option value="" selected disabled>Seleziona reparto</option>
+                        <?php foreach (appDepartments() as $code => $label): ?>
+                            <option value="<?php echo htmlspecialchars($code, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $code === $repartoCode ? ' selected' : ''; ?>>
+                                <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php else: ?>
+                <input type="hidden" name="reparto" value="<?php echo htmlspecialchars($repartoCode, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
             <input type="file" id="excelFiles" name="excelFiles[]" class="form-control" accept=".xlsx" multiple required>
             <button type="submit" id="submitUpload" class="btn btn-primary">Analizza file e associa nominativi</button>
         </form>
@@ -61,6 +81,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
         const mappingPanel = document.getElementById("mappingPanel");
         const mappingRows = document.getElementById("mappingRows");
         const markAllUnregistered = document.getElementById("markAllUnregistered");
+        const repartoField = document.getElementById("reparto");
         let readyToUpload = false;
 
         function showError(message) {
@@ -217,6 +238,17 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
             submitUpload.textContent = "Analizza file e associa nominativi";
             statusBox.innerHTML = "";
         });
+
+        if (repartoField) {
+            repartoField.addEventListener("change", () => {
+                readyToUpload = false;
+                mappingPanel.hidden = true;
+                mappingRows.innerHTML = "";
+                markAllUnregistered.checked = false;
+                submitUpload.textContent = "Analizza file e associa nominativi";
+                statusBox.innerHTML = "";
+            });
+        }
 
         markAllUnregistered.addEventListener("change", () => {
             if (!markAllUnregistered.checked) {
