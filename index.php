@@ -145,6 +145,7 @@ let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
 let pushStateLoaded = false;
 let isAppStartupPhase = true;
+let pushKeyRotationNoticeShown = false;
 
 // Se l'app viene riaperta dopo un aggiornamento, la pagina può essere già
 // nuova mentre il service worker precedente è ancora attivo. Completiamo
@@ -227,6 +228,40 @@ function base64UrlToUint8Array(base64String) {
     return outputArray;
 }
 
+function pushSubscriptionUsesCurrentPublicKey(subscription) {
+    const publicKey = (window.pushPublicKey || "").toString().trim();
+    const applicationServerKey = subscription
+        && subscription.options
+        && subscription.options.applicationServerKey;
+
+    if (!publicKey || !applicationServerKey) {
+        return false;
+    }
+
+    let expectedKey;
+    let actualKey;
+    try {
+        expectedKey = base64UrlToUint8Array(publicKey);
+        actualKey = applicationServerKey instanceof ArrayBuffer
+            ? new Uint8Array(applicationServerKey)
+            : new Uint8Array(
+                applicationServerKey.buffer,
+                applicationServerKey.byteOffset || 0,
+                applicationServerKey.byteLength
+            );
+    } catch (error) {
+        return false;
+    }
+
+    if (expectedKey.length !== actualKey.length) {
+        return false;
+    }
+
+    return expectedKey.every(function (value, index) {
+        return value === actualKey[index];
+    });
+}
+
 async function isPushSubscriptionActiveForCurrentUser(subscription) {
     if (!subscription) {
         return false;
@@ -264,6 +299,31 @@ async function deactivatePushSubscriptionForCurrentDevice(subscription) {
     }
 }
 
+async function removeOutdatedPushSubscription(subscription) {
+    if (!subscription) {
+        return;
+    }
+
+    try {
+        await deactivatePushSubscriptionForCurrentDevice(subscription);
+    } catch (error) {
+        // L'unsubscribe del browser deve comunque avvenire: il server
+        // eliminerà le eventuali righe residue durante la rotazione VAPID.
+        console.error("Disattivazione server della vecchia subscription non riuscita", error);
+    }
+
+    try {
+        await subscription.unsubscribe();
+    } catch (error) {
+        console.error("Rimozione della vecchia subscription non riuscita", error);
+    }
+
+    if (!pushKeyRotationNoticeShown) {
+        pushKeyRotationNoticeShown = true;
+        showAppToast("Per sicurezza riattiva le notifiche nelle impostazioni");
+    }
+}
+
 async function refreshPushState(registration) {
     if (!registration || !registration.pushManager || pushStateLoaded) {
         return;
@@ -273,6 +333,13 @@ async function refreshPushState(registration) {
 
     try {
         const subscription = await registration.pushManager.getSubscription();
+        if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
+            await removeOutdatedPushSubscription(subscription);
+            window.dispatchEvent(new CustomEvent("app:push-state", {
+                detail: { enabled: false }
+            }));
+            return;
+        }
         window.dispatchEvent(new CustomEvent("app:push-state", {
             detail: { enabled: await isPushSubscriptionActiveForCurrentUser(subscription) }
         }));
@@ -309,8 +376,13 @@ async function enablePushNotifications() {
             return;
         }
 
-        const existingSubscription = await serviceWorkerRegistration.pushManager.getSubscription();
-        const subscription = existingSubscription || await serviceWorkerRegistration.pushManager.subscribe({
+        let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
+        if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
+            await removeOutdatedPushSubscription(subscription);
+            subscription = null;
+        }
+
+        subscription = subscription || await serviceWorkerRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: base64UrlToUint8Array(publicKey)
         });
@@ -366,6 +438,10 @@ window.appNotifications = {
 
         const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
+        if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
+            await removeOutdatedPushSubscription(subscription);
+            return false;
+        }
         return isPushSubscriptionActiveForCurrentUser(subscription);
     },
     enable: enablePushNotifications,

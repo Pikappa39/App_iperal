@@ -98,6 +98,43 @@ function appPushGenerateConfig(): array
     ];
 }
 
+function appPushSaveConfig(array $config): void
+{
+    appPushEnsureStorageDir();
+    $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        throw new RuntimeException('Impossibile codificare la configurazione VAPID');
+    }
+
+    $path = appPushConfigPath();
+    $temporaryPath = $path . '.tmp-' . bin2hex(random_bytes(8));
+
+    try {
+        $written = file_put_contents($temporaryPath, $json . PHP_EOL, LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException('Impossibile salvare la configurazione VAPID');
+        }
+
+        @chmod($temporaryPath, 0600);
+        if (!rename($temporaryPath, $path)) {
+            throw new RuntimeException('Impossibile attivare la configurazione VAPID');
+        }
+        @chmod($path, 0600);
+    } finally {
+        if (is_file($temporaryPath)) {
+            @unlink($temporaryPath);
+        }
+    }
+}
+
+function appPushRotateConfig(): array
+{
+    $config = appPushGenerateConfig();
+    appPushSaveConfig($config);
+
+    return $config;
+}
+
 function appPushLoadConfig(): array
 {
     appPushEnsureStorageDir();
@@ -117,16 +154,7 @@ function appPushLoadConfig(): array
     }
 
     $config = appPushGenerateConfig();
-    $written = file_put_contents(
-        $path,
-        json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
-        LOCK_EX
-    );
-
-    if ($written === false) {
-        throw new RuntimeException('Impossibile salvare la configurazione VAPID');
-    }
-    @chmod($path, 0600);
+    appPushSaveConfig($config);
 
     return $config;
 }

@@ -34,6 +34,17 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     INDEX idx_password_reset_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Conserva esclusivamente l'impronta dell'indirizzo usato nei tentativi
+-- falliti. Serve a rallentare i tentativi ripetuti senza aggiungere dati
+-- personali in chiaro al database.
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email_hash CHAR(64) NOT NULL,
+    attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_attempts_email_time (email_hash, attempted_at),
+    INDEX idx_login_attempts_time (attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS communications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     author_cf VARCHAR(16) NOT NULL,

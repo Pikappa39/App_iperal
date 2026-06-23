@@ -13,6 +13,50 @@ function jsonResponse(array $payload, int $status = 200): void
     exit;
 }
 
+const APP_LOGIN_MAX_FAILURES = 5;
+const APP_LOGIN_RATE_LIMIT_MINUTES = 15;
+const APP_LOGIN_DUMMY_PASSWORD_HASH = '$2y$12$dxNSk/jDu3k988PqNPMP1eZvwCNiFIkYMILJkMz4obuLKK9InLViS';
+
+function appLoginEmailHash(string $email): string
+{
+    return hash('sha256', strtolower(trim($email)));
+}
+
+function appLoginRetryAfterSeconds(PDO $pdo, string $emailHash): int
+{
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) AS failures, MIN(attempted_at) AS first_attempt
+         FROM login_attempts
+         WHERE email_hash = ?
+           AND attempted_at >= (NOW() - INTERVAL ' . APP_LOGIN_RATE_LIMIT_MINUTES . ' MINUTE)'
+    );
+    $statement->execute([$emailHash]);
+    $result = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    if ((int) ($result['failures'] ?? 0) < APP_LOGIN_MAX_FAILURES) {
+        return 0;
+    }
+
+    $firstAttempt = strtotime((string) ($result['first_attempt'] ?? ''));
+    if ($firstAttempt === false) {
+        return APP_LOGIN_RATE_LIMIT_MINUTES * 60;
+    }
+
+    return max(1, ($firstAttempt + (APP_LOGIN_RATE_LIMIT_MINUTES * 60)) - time());
+}
+
+function appLoginRecordFailure(PDO $pdo, string $emailHash): void
+{
+    $pdo->prepare('INSERT INTO login_attempts (email_hash) VALUES (?)')->execute([$emailHash]);
+    // Mantiene la tabella piccola anche su installazioni molto usate.
+    $pdo->exec('DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)');
+}
+
+function appLoginClearFailures(PDO $pdo, string $emailHash): void
+{
+    $pdo->prepare('DELETE FROM login_attempts WHERE email_hash = ?')->execute([$emailHash]);
+}
+
 if (($_SERVER["REQUEST_METHOD"] ?? "GET") !== "POST") {
     jsonResponse([
         "logged" => false,
@@ -35,6 +79,18 @@ if (!$connessione || !($pdo instanceof PDO)) {
         "error_code" => "db_non_disponibile",
         "error" => "Connessione al database non disponibile",
     ], 500);
+}
+
+$email = trim((string) ($_POST['email'] ?? ''));
+$emailHash = appLoginEmailHash($email);
+$retryAfterSeconds = appLoginRetryAfterSeconds($pdo, $emailHash);
+if ($retryAfterSeconds > 0) {
+    $retryAfterMinutes = max(1, (int) ceil($retryAfterSeconds / 60));
+    jsonResponse([
+        'logged' => false,
+        'error_code' => 'troppi_tentativi',
+        'error' => "Per sicurezza attendi circa {$retryAfterMinutes} minuti prima di riprovare.",
+    ], 429);
 }
 
 function appTurnstileValidateToken(string $token): array
@@ -125,9 +181,17 @@ if (appTurnstileEnabled()) {
 
 try {
     $stmt = $pdo->prepare("SELECT * FROM utenti WHERE email = ?");
-    $stmt->execute([$_POST["email"] ?? ""]);
-    $user = $stmt->fetch();
-    if ($user && password_verify($_POST["password"] ?? "", $user["password"])) {
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Usiamo comunque un hash bcrypt quando l'email non esiste, così il
+    // tempo di risposta non rivela se un indirizzo è registrato.
+    $passwordMatches = password_verify(
+        (string) ($_POST['password'] ?? ''),
+        (string) ($user['password'] ?? APP_LOGIN_DUMMY_PASSWORD_HASH)
+    );
+
+    if ($user && $passwordMatches) {
+        appLoginClearFailures($pdo, $emailHash);
         session_regenerate_id(true);
         $_SESSION["user"] = [
             "cf" => $user["cod_fiscale"],
@@ -149,9 +213,12 @@ try {
         ]);
         app_session_touch_user($pdo, (string) $user["cod_fiscale"], true);
     } else {
-        echo json_encode([
-            "logged" => false,
-        ]);
+        appLoginRecordFailure($pdo, $emailHash);
+        jsonResponse([
+            'logged' => false,
+            'error_code' => 'credenziali_non_valide',
+            'error' => 'Email o password non corretti',
+        ], 401);
     }
 } catch (Throwable $e) {
     error_log('Errore login: ' . $e->getMessage());

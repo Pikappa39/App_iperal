@@ -206,6 +206,24 @@ try {
         ];
     };
 
+    $withMonthLock = static function (string $filePath, callable $callback) {
+        $lockHandle = fopen($filePath . '.lock', 'c');
+        if ($lockHandle === false) {
+            throw new RuntimeException('Impossibile bloccare il file delle note');
+        }
+
+        try {
+            if (!flock($lockHandle, LOCK_EX)) {
+                throw new RuntimeException('Impossibile ottenere il blocco delle note');
+            }
+
+            return $callback();
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
+        }
+    };
+
     if ($method === "GET") {
         if (isset($_GET["all"]) && $_GET["all"] === "1") {
             if (!in_array($capo, [1, 3], true)) {
@@ -325,55 +343,67 @@ try {
 
     $monthKey = substr($dateKey, 0, 7);
     $filePath = $monthFilePath($storageDir, $monthKey);
-    $payload = $loadMonthNotes($filePath, $monthKey);
-    $payload["notes"] = $normalizeNotesStructure($payload["notes"]);
+    $payload = $withMonthLock($filePath, static function () use (
+        $filePath,
+        $monthKey,
+        $dateKey,
+        $note,
+        $userKey,
+        $userName,
+        $loadMonthNotes,
+        $normalizeNotesStructure,
+        $saveMonthNotes
+    ) {
+        // Ricarichiamo solo dopo aver ottenuto il lock: così due salvataggi
+        // simultanei non si sovrascrivono a vicenda.
+        $payload = $loadMonthNotes($filePath, $monthKey);
+        $payload['notes'] = $normalizeNotesStructure($payload['notes']);
 
-    if (!isset($payload["notes"][$dateKey]) || !is_array($payload["notes"][$dateKey])) {
-        $payload["notes"][$dateKey] = [];
-    }
-
-    $entries = $payload["notes"][$dateKey];
-    $entryIndex = null;
-
-    foreach ($entries as $index => $entry) {
-        if (($entry["userKey"] ?? "") === $userKey) {
-            $entryIndex = $index;
-            break;
+        if (!isset($payload['notes'][$dateKey]) || !is_array($payload['notes'][$dateKey])) {
+            $payload['notes'][$dateKey] = [];
         }
-    }
 
-    if ($note === "") {
-        if ($entryIndex !== null) {
-            array_splice($entries, $entryIndex, 1);
+        $entries = $payload['notes'][$dateKey];
+        $entryIndex = null;
+        foreach ($entries as $index => $entry) {
+            if (($entry['userKey'] ?? '') === $userKey) {
+                $entryIndex = $index;
+                break;
+            }
         }
-    } else {
-        $entry = [
-            "userKey" => $userKey,
-            "userName" => $userName !== "" ? $userName : $userKey,
-            "note" => $note,
-            "updatedAt" => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
-        ];
 
-        if ($entryIndex !== null) {
-            $entries[$entryIndex] = $entry;
+        if ($note === '') {
+            if ($entryIndex !== null) {
+                array_splice($entries, $entryIndex, 1);
+            }
         } else {
-            $entries[] = $entry;
+            $entry = [
+                'userKey' => $userKey,
+                'userName' => $userName !== '' ? $userName : $userKey,
+                'note' => $note,
+                'updatedAt' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
+            ];
+
+            if ($entryIndex !== null) {
+                $entries[$entryIndex] = $entry;
+            } else {
+                $entries[] = $entry;
+            }
         }
-    }
 
-    if (count($entries) > 0) {
-        $payload["notes"][$dateKey] = array_values($entries);
-    } else {
-        unset($payload["notes"][$dateKey]);
-    }
+        if ($entries !== []) {
+            $payload['notes'][$dateKey] = array_values($entries);
+        } else {
+            unset($payload['notes'][$dateKey]);
+        }
 
-    $saveResult = $saveMonthNotes($filePath, $payload);
-    if (empty($saveResult["ok"])) {
-        jsonResponse([
-            "ok" => false,
-            "error" => "Impossibile salvare le note",
-        ], 500);
-    }
+        $saveResult = $saveMonthNotes($filePath, $payload);
+        if (empty($saveResult['ok'])) {
+            throw new RuntimeException('Impossibile salvare le note');
+        }
+
+        return $payload;
+    });
 
     jsonResponse([
         "ok" => true,

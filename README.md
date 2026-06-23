@@ -24,6 +24,17 @@ sudo apache2ctl configtest
 sudo systemctl reload apache2
 ```
 
+## Rotazione delle notifiche push
+
+Se la chiave VAPID è stata esposta o va sostituita, distribuisci prima una versione dell'app che gestisce la rotazione. Poi, su EC2, esegui:
+
+```sh
+cd /var/www/html/App_iperal-1
+php scripts/rotate_push_vapid.php
+```
+
+Il comando genera una nuova chiave privata sul server e disattiva le vecchie registrazioni. Al prossimo accesso l'app mostrerà le notifiche come disattivate: ciascun utente potrà riattivarle dalle impostazioni, senza dover reinstallare l'app.
+
 ## Inviti account
 
 Con `APP_ALLOW_SELF_REGISTRATION=0` gli account vengono creati tramite invito. I ruoli `capo=1` e `capo=3` possono aprire `addetti.php` e inviare via email un link personale di attivazione. Se l'invio SMTP non riesce, il responsabile può comunque copiare e condividere il link manualmente. Il link resta valido per 7 giorni e, dopo l'attivazione, non può essere riutilizzato.
