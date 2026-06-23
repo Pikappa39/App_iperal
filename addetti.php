@@ -12,6 +12,7 @@ if (!isset($_SESSION['user']) || !in_array($capo, [1, 3], true)) {
     exit;
 }
 $canViewLastSeen = $capo === 3;
+$isGlobalAdmin = $capo === 3;
 
 function appAddettiEscape(string $value): string
 {
@@ -53,7 +54,11 @@ if (empty($_SESSION['schedule_mapping_csrf'])) {
 $csrfToken = (string) $_SESSION['schedule_mapping_csrf'];
 $appCsrfToken = app_csrf_token();
 
-$reparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+$sessionReparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+$requestedReparto = trim((string) ($_GET['reparto'] ?? ''));
+$reparto = $isGlobalAdmin && appIsValidDepartment($requestedReparto)
+    ? $requestedReparto
+    : $sessionReparto;
 $repartoLabel = appDepartments()[$reparto] ?? 'non assegnato';
 $users = [];
 $mappings = [];
@@ -64,7 +69,7 @@ unset($_SESSION['invite_flash']);
 
 if (!$databaseError) {
     $userStatement = $pdo->prepare(
-        'SELECT cod_fiscale, nome, cognome, last_seen
+        'SELECT cod_fiscale, nome, cognome, reparto, last_seen
          FROM utenti
          WHERE reparto = ?
          ORDER BY cognome, nome, cod_fiscale'
@@ -181,7 +186,9 @@ $availableUsers = array_values(array_filter(
     <header class="d-flex align-items-center justify-content-between gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Addetti</h1>
-            <p class="text-muted mb-0">Reparto: <?php echo appAddettiEscape($repartoLabel); ?></p>
+            <p class="text-muted mb-0">
+                <?php echo $isGlobalAdmin ? 'Gestisci gli addetti di tutti i reparti.' : 'Reparto: ' . appAddettiEscape($repartoLabel); ?>
+            </p>
         </div>
         <a class="btn btn-outline-dark" href="index.php">Indietro</a>
     </header>
@@ -195,6 +202,28 @@ $availableUsers = array_values(array_filter(
     <?php if ($databaseError): ?>
         <div class="alert alert-danger">Impossibile caricare gli addetti. Riprova più tardi.</div>
     <?php else: ?>
+        <?php if ($isGlobalAdmin): ?>
+            <section class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-6 col-lg-4">
+                            <label class="form-label" for="reparto">Filtra per reparto</label>
+                            <select class="form-select" id="reparto" name="reparto" onchange="this.form.submit()">
+                                <?php foreach (appDepartments() as $code => $label): ?>
+                                    <option value="<?php echo appAddettiEscape($code); ?>"<?php echo $code === $reparto ? ' selected' : ''; ?>>
+                                        <?php echo appAddettiEscape($label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-4">
+                            <button type="submit" class="btn btn-outline-dark">Mostra reparto</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <?php if (is_array($inviteFlash) && isset($inviteFlash['message'], $inviteFlash['type'])): ?>
             <div class="alert alert-<?php echo appAddettiEscape((string) $inviteFlash['type']); ?>">
                 <div><?php echo appAddettiEscape((string) $inviteFlash['message']); ?></div>
@@ -319,12 +348,15 @@ $availableUsers = array_values(array_filter(
         <section class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h5">Utenti registrati</h2>
-                <p class="text-muted">Sono inclusi tutti gli utenti del reparto, anche se non hanno ancora un nominativo negli orari.</p>
+                <p class="text-muted">Sono inclusi tutti gli utenti del reparto selezionato, anche se non hanno ancora un nominativo negli orari.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
                         <tr>
                             <th>Utente</th>
+                            <?php if ($isGlobalAdmin): ?>
+                                <th>Reparto</th>
+                            <?php endif; ?>
                             <?php if ($canViewLastSeen): ?>
                                 <th>Ultima attività</th>
                             <?php endif; ?>
@@ -336,6 +368,9 @@ $availableUsers = array_values(array_filter(
                             <?php $userCf = (string) $user['cod_fiscale']; $scheduleUserNames = $namesByUser[$userCf] ?? []; ?>
                             <tr>
                                 <td><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></td>
+                                <?php if ($isGlobalAdmin): ?>
+                                    <td><?php echo appAddettiEscape(appDepartments()[(string) $user['reparto']] ?? (string) $user['reparto']); ?></td>
+                                <?php endif; ?>
                                 <?php if ($canViewLastSeen): ?>
                                     <td><?php echo appAddettiEscape(appAddettiLastSeenLabel($user['last_seen'] ?? null)); ?></td>
                                 <?php endif; ?>
@@ -343,7 +378,7 @@ $availableUsers = array_values(array_filter(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="<?php echo $canViewLastSeen ? '3' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo $isGlobalAdmin ? '4' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -369,6 +404,7 @@ $availableUsers = array_values(array_filter(
                                     <?php else: ?>
                                         <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
                                             <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
+                                            <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
                                             <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
                                             <select class="form-select form-select-sm" name="user_cf" required aria-label="Utente da associare a <?php echo appAddettiEscape($row['name']); ?>">
                                                 <option value="">Seleziona utente…</option>

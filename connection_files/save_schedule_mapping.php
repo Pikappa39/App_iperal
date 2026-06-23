@@ -11,6 +11,15 @@ function appScheduleMappingRedirect(string $query = ''): void
     exit;
 }
 
+function appScheduleMappingQuery(string $reparto, array $parameters = []): string
+{
+    if (appIsValidDepartment($reparto)) {
+        $parameters = ['reparto' => $reparto] + $parameters;
+    }
+
+    return '?' . http_build_query($parameters);
+}
+
 function appScheduleMappingWriteJson(string $path, string $contents): void
 {
     $temporaryPath = $path . '.tmp-' . bin2hex(random_bytes(8));
@@ -25,16 +34,19 @@ if (!isset($_SESSION['user']) || !in_array($capo, [1, 3], true) || $_SERVER['REQ
     appScheduleMappingRedirect('?error=1');
 }
 
+$sessionReparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+$requestedReparto = trim((string) ($_POST['reparto'] ?? ''));
+$reparto = $capo === 3 ? $requestedReparto : $sessionReparto;
+
 $csrfToken = (string) ($_POST['csrf_token'] ?? '');
 if (empty($_SESSION['schedule_mapping_csrf']) || !hash_equals((string) $_SESSION['schedule_mapping_csrf'], $csrfToken)) {
-    appScheduleMappingRedirect('?error=1');
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
 
-$reparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
 $scheduleName = normalizzaChiaveAddetto((string) ($_POST['schedule_name'] ?? ''));
 $userCf = trim((string) ($_POST['user_cf'] ?? ''));
 if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) || $scheduleName === '' || $userCf === '') {
-    appScheduleMappingRedirect('?error=1');
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
 
 $updatedFiles = [];
@@ -128,7 +140,7 @@ try {
         }
     }
     error_log('Impossibile salvare associazione orario: ' . $error->getMessage());
-    appScheduleMappingRedirect('?error=1');
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
 
-appScheduleMappingRedirect('?updated=' . $historicalRows);
+appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['updated' => $historicalRows]));
