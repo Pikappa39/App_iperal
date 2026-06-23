@@ -31,3 +31,21 @@ Usa `minor` per una nuova funzione e `major` per cambiamenti incompatibili. Aggi
 ```sh
 php scripts/release.php minor "Nuova funzione" --push
 ```
+
+## Backup automatici su Google Drive
+
+Su EC2 configura prima il remote cifrato `myorari-crypt:` con rclone. Lo script `scripts/backup_myorari.sh` crea un dump MySQL coerente, archivia i file dell'applicazione (escludendo sessioni e `.git`), carica il risultato sul remote cifrato e rimuove i backup più vecchi di 30 giorni.
+
+Esegui una prova manuale come utente `ubuntu`:
+
+```sh
+bash /var/www/html/App_iperal-1/scripts/backup_myorari.sh
+```
+
+Dopo una prova riuscita, pianifica l'esecuzione notturna alle 02:15 con `crontab -e`:
+
+```cron
+15 2 * * * /var/www/html/App_iperal-1/scripts/backup_myorari.sh >> /home/ubuntu/myorari-backup.log 2>&1
+```
+
+Il comando richiede che `ubuntu` possa eseguire `sudo mysqldump` senza password e che la configurazione rclone dell'utente `ubuntu` contenga il remote `myorari-crypt:`. Conserva con cura le credenziali rclone e la password del remote cifrato: servono per un eventuale ripristino.
