@@ -144,15 +144,28 @@ function app_session_validate_user(): void
     }
 
     try {
-        $statement = $pdo->prepare('SELECT session_version FROM utenti WHERE cod_fiscale = ? LIMIT 1');
+        $statement = $pdo->prepare(
+            'SELECT session_version, nome, cognome, avatar, capo, reparto
+             FROM utenti
+             WHERE cod_fiscale = ?
+             LIMIT 1'
+        );
         $statement->execute([$cf]);
-        $currentVersion = $statement->fetchColumn();
+        $currentUser = $statement->fetch(PDO::FETCH_ASSOC);
         $sessionVersion = (int) ($sessionUser['session_version'] ?? 0);
 
-        if ($currentVersion === false || (int) $currentVersion !== $sessionVersion) {
+        if (!$currentUser || (int) $currentUser['session_version'] !== $sessionVersion) {
             app_session_destroy_current();
             return;
         }
+
+        $_SESSION['user'] = array_merge($sessionUser, [
+            'nome' => (string) $currentUser['nome'],
+            'cognome' => (string) $currentUser['cognome'],
+            'avatar' => (string) ($currentUser['avatar'] ?? 'default'),
+            'capo' => (int) ($currentUser['capo'] ?? 0),
+            'reparto' => (string) ($currentUser['reparto'] ?? ''),
+        ]);
 
         app_session_touch_user($pdo, $cf);
     } catch (Throwable $e) {

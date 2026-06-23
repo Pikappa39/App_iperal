@@ -23,8 +23,8 @@ $confirmation = (string) ($_POST['confirmation'] ?? '');
 if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
     confirmResetResponse(['ok' => false, 'error' => 'Il link non è valido o è scaduto'], 400);
 }
-if (strlen($password) < 10) {
-    confirmResetResponse(['ok' => false, 'error' => 'La password deve contenere almeno 10 caratteri'], 400);
+if (strlen($password) < 12) {
+    confirmResetResponse(['ok' => false, 'error' => 'La password deve contenere almeno 12 caratteri'], 400);
 }
 if (!hash_equals($password, $confirmation)) {
     confirmResetResponse(['ok' => false, 'error' => 'Le password non coincidono'], 400);

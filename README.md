@@ -14,6 +14,16 @@ L'applicazione non modifica più lo schema database durante le richieste degli u
 
 Le cartelle `storage`, `turni_json`, `note_json` e `xlms` devono restare non pubbliche. I turni sono erogati esclusivamente da `connection_files/schedule.php` agli utenti autenticati del rispettivo reparto.
 
+Su EC2 installa anche la configurazione Apache versionata, che protegge repository Git, dati, script e librerie anche nel caso in cui `.htaccess` non venga interpretato:
+
+```sh
+sudo cp deploy/apache/myorari-security.conf /etc/apache2/conf-available/myorari-security.conf
+sudo a2enconf myorari-security
+sudo a2enmod headers rewrite
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
 ## Inviti account
 
 Con `APP_ALLOW_SELF_REGISTRATION=0` gli account vengono creati tramite invito. I ruoli `capo=1` e `capo=3` possono aprire `addetti.php` e inviare via email un link personale di attivazione. Se l'invio SMTP non riesce, il responsabile può comunque copiare e condividere il link manualmente. Il link resta valido per 7 giorni e, dopo l'attivazione, non può essere riutilizzato.

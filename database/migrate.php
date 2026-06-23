@@ -33,13 +33,13 @@ $pdo->exec($schema);
 // MySQL moderno non la accetta mentre ricostruisce la tabella durante un
 // ALTER; la convertiamo quindi nel valore semantico corretto: data assente.
 $hireDateColumn = $pdo->query(
-    "SELECT 1
+    "SELECT DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT
      FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE()
        AND TABLE_NAME = 'utenti'
        AND COLUMN_NAME = 'assunzione'
      LIMIT 1"
-)->fetchColumn();
+)->fetch(PDO::FETCH_ASSOC);
 if ($hireDateColumn) {
     $sqlMode = (string) $pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
     $pdo->exec("SET SESSION sql_mode = ''");
@@ -48,7 +48,13 @@ if ($hireDateColumn) {
     } finally {
         $pdo->exec('SET SESSION sql_mode = ' . $pdo->quote($sqlMode));
     }
-    $pdo->exec('ALTER TABLE utenti MODIFY assunzione DATE NULL DEFAULT NULL');
+    if (
+        strtolower((string) $hireDateColumn['DATA_TYPE']) !== 'date'
+        || (string) $hireDateColumn['IS_NULLABLE'] !== 'YES'
+        || $hireDateColumn['COLUMN_DEFAULT'] !== null
+    ) {
+        $pdo->exec('ALTER TABLE utenti MODIFY assunzione DATE NULL DEFAULT NULL');
+    }
 }
 
 // Le installazioni precedenti usavano un badge numerico. I nuovi account

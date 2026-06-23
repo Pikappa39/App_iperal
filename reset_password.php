@@ -21,10 +21,10 @@ $tokenIsValid = (bool) preg_match('/^[a-f0-9]{64}$/', $token);
             <form id="reset-password-form" novalidate>
                 <input type="hidden" name="token" value="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>">
                 <label class="form-label" for="password">Nuova password</label>
-                <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
-                <div class="form-text">Usa almeno 10 caratteri.</div>
+                <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" minlength="12" required>
+                <div class="form-text">Usa almeno 12 caratteri.</div>
                 <label class="form-label mt-3" for="confirmation">Conferma nuova password</label>
-                <input class="form-control" type="password" id="confirmation" name="confirmation" autocomplete="new-password" minlength="10" required>
+                <input class="form-control" type="password" id="confirmation" name="confirmation" autocomplete="new-password" minlength="12" required>
                 <p id="message" class="mt-3" aria-live="polite"></p>
                 <button class="btn btn-primary" type="submit">Aggiorna password</button>
             </form>

@@ -8,6 +8,7 @@ RCLONE_REMOTE="myorari-crypt:"
 RETENTION_DAYS=30
 WORK_ROOT="${HOME}/.local/share/myorari-backups"
 LOCK_FILE="${WORK_ROOT}/backup.lock"
+FINAL_ARCHIVE=""
 
 log() {
     printf '%s %s\n' "$(date '+%F %T')" "$*"
@@ -46,7 +47,11 @@ rclone lsd "$RCLONE_REMOTE" >/dev/null
 
 STAMP="$(date '+%Y-%m-%d_%H-%M-%S')"
 WORK_DIR="$(mktemp -d "${WORK_ROOT}/run-${STAMP}-XXXXXX")"
-trap 'rm -rf "$WORK_DIR"' EXIT
+cleanup() {
+    rm -rf "$WORK_DIR"
+    [[ -z "$FINAL_ARCHIVE" ]] || rm -f "$FINAL_ARCHIVE"
+}
+trap cleanup EXIT
 
 DB_DUMP="${WORK_DIR}/database-${STAMP}.sql.gz"
 FILES_ARCHIVE="${WORK_DIR}/files-${STAMP}.tar.gz"
@@ -83,4 +88,5 @@ rclone rmdirs "$RCLONE_REMOTE" >/dev/null 2>&1 || true
 
 SIZE="$(du -h "$FINAL_ARCHIVE" | awk '{print $1}')"
 rm -f "$FINAL_ARCHIVE"
+FINAL_ARCHIVE=""
 log "Backup completato e cifrato su Google Drive (${SIZE}); retention ${RETENTION_DAYS} giorni."

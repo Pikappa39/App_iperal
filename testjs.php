@@ -126,7 +126,7 @@ $repartoLabel = appDepartments()[$repartoCode] ?? 'non assegnato';
                 users.forEach((user) => {
                     const option = document.createElement("option");
                     option.value = user.cod_fiscale;
-                    option.textContent = `${user.nome} ${user.cognome} (${user.cod_fiscale})`;
+                    option.textContent = `${user.nome} ${user.cognome}`;
                     option.selected = user.cod_fiscale === entry.userCf;
                     select.appendChild(option);
                 });

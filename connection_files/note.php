@@ -191,8 +191,10 @@ try {
             ];
         }
 
-        $written = file_put_contents($filePath, $json . PHP_EOL, LOCK_EX);
-        if ($written === false) {
+        $temporaryPath = $filePath . '.tmp-' . bin2hex(random_bytes(8));
+        $written = file_put_contents($temporaryPath, $json . PHP_EOL, LOCK_EX);
+        if ($written === false || !rename($temporaryPath, $filePath)) {
+            @unlink($temporaryPath);
             return [
                 "ok" => false,
                 "details" => "Scrittura fallita su " . $filePath,
@@ -312,6 +314,12 @@ try {
         jsonResponse([
             "ok" => false,
             "error" => "Data non valida",
+        ], 400);
+    }
+    if (mb_strlen($note) > 2000) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "La nota può contenere al massimo 2000 caratteri",
         ], 400);
     }
 
