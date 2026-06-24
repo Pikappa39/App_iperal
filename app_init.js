@@ -33,6 +33,12 @@ if (scheduleAdjustmentsItem) {
         mostraRichiesteOre();
     });
 }
+if (departmentOverviewItem) {
+    departmentOverviewItem.addEventListener("click", () => {
+        const currentWeek = getIsoWeekInfo(today);
+        mostraPanoramicaReparto(currentWeek.year, currentWeek.week);
+    });
+}
 if (communicationsItem) {
     communicationsItem.addEventListener("click", () => {
         mostraComunicazioni();

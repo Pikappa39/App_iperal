@@ -9,6 +9,7 @@ const openOrari = document.getElementById("openOrari");
 const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
 const scheduleAdjustmentsItem = document.getElementById("scheduleAdjustmentsItem");
+const departmentOverviewItem = document.getElementById("departmentOverviewItem");
 const communicationsItem = document.getElementById("communicationsItem");
 const profileItem = document.getElementById("profileItem");
 const setting=document.getElementById("setting");
@@ -16,6 +17,8 @@ const appState = {
     view: "home",
     currentYear: null,
     currentMonth: null,
+    currentWeek: null,
+    departmentOverviewDepartment: null,
     selectedDay: null,
     noteViewToken: 0,
     calendarViewToken: 0,
@@ -53,6 +56,8 @@ function showHomeScreen() {
     appState.view = "home";
     appState.currentYear = null;
     appState.currentMonth = null;
+    appState.currentWeek = null;
+    appState.departmentOverviewDepartment = null;
     appState.selectedDay = null;
     titolo.innerText = "App Iperal";
     homeScreen.hidden = false;
@@ -71,6 +76,8 @@ function appNavigationBuildState() {
         view: appState.view,
         year: appState.currentYear,
         month: appState.currentMonth,
+        week: appState.currentWeek,
+        department: appState.departmentOverviewDepartment,
         settingsPanel: appState.settingsPanel || "main",
         position: appNavigationPosition
     };
@@ -175,6 +182,9 @@ async function appNavigationRestore(state) {
                 break;
             case "scheduleAdjustments":
                 await mostraRichiesteOre();
+                break;
+            case "departmentOverview":
+                await mostraPanoramicaReparto(state.year, state.week, state.department);
                 break;
             case "communications":
                 await mostraComunicazioni();

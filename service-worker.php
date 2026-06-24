@@ -11,6 +11,7 @@ $staticAssets = [
     './app_core.js?v=' . $assetVersion,
     './app_calendar.js?v=' . $assetVersion,
     './app_adjustments.js?v=' . $assetVersion,
+    './app_department_overview.js?v=' . $assetVersion,
     './app_notes.js?v=' . $assetVersion,
     './app_communications.js?v=' . $assetVersion,
     './userhome.js?v=' . $assetVersion,
