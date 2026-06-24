@@ -42,6 +42,44 @@ function normalizzaChiaveAddetto(string $addetto): string
     return normalizzaSpazi($addetto);
 }
 
+function suffissoDuplicatoAddetto(int $position): string
+{
+    $suffix = '';
+    while ($position > 0) {
+        $position--;
+        $suffix = chr(65 + ($position % 26)) . $suffix;
+        $position = intdiv($position, 26);
+    }
+
+    return $suffix;
+}
+
+function distingueNominativiDuplicati(array $rows): array
+{
+    $counts = [];
+    foreach ($rows as $row) {
+        $key = normalizzaChiaveAddetto((string) ($row['ADDETTO'] ?? ''));
+        if ($key !== '') {
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+    }
+
+    $positions = [];
+    foreach ($rows as &$row) {
+        $name = normalizzaSpazi((string) ($row['ADDETTO'] ?? ''));
+        $key = normalizzaChiaveAddetto($name);
+        if ($key === '' || ($counts[$key] ?? 0) < 2) {
+            continue;
+        }
+
+        $positions[$key] = ($positions[$key] ?? 0) + 1;
+        $row['ADDETTO'] = $name . ' ' . suffissoDuplicatoAddetto($positions[$key]);
+    }
+    unset($row);
+
+    return $rows;
+}
+
 function valoreCella($worksheet, int $col, int $row): string
 {
     $value = (string) $worksheet->getCell([$col, $row])->getFormattedValue();
@@ -148,7 +186,7 @@ function convertWorkbookToScheduleData($worksheet, string $fallbackName = ''): a
     return [
         'settimana' => $metadata['week'],
         'anno' => $metadata['year'],
-        'data' => $data,
+        'data' => distingueNominativiDuplicati($data),
     ];
 }
 
