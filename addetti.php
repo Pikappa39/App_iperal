@@ -150,6 +150,10 @@ $mappedKeys = [];
 foreach ($mappings as $mapping) {
     $key = (string) $mapping['schedule_name'];
     $userCf = (string) $mapping['user_cf'];
+    if ($userCf === APP_SCHEDULE_MAPPING_IGNORED_VALUE) {
+        $mappedKeys[$key] = true;
+        continue;
+    }
     $mappedKeys[$key] = true;
     $scheduleName = $scheduleNames[$key] ?? $key;
 
@@ -207,6 +211,8 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
 
     <?php if (isset($_GET['updated'])): ?>
         <div class="alert alert-success">Associazione salvata. Aggiornate <?php echo (int) $_GET['updated']; ?> righe negli orari già caricati.</div>
+    <?php elseif (isset($_GET['deleted'])): ?>
+        <div class="alert alert-success">Associazione eliminata. Ripulite <?php echo (int) $_GET['deleted']; ?> righe negli orari già caricati.</div>
     <?php elseif (isset($_GET['error'])): ?>
         <div class="alert alert-danger">Non è stato possibile salvare l'associazione. Riprova.</div>
     <?php endif; ?>
@@ -471,10 +477,10 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
         <section class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h5">Associazioni esistenti</h2>
-                <p class="text-muted">Puoi correggere l'utente associato a un nominativo. Uno stesso addetto può avere più varianti del nome negli orari.</p>
+                <p class="text-muted">Puoi correggere l'utente associato a un nominativo oppure eliminare l'associazione se è storica o buggata. Uno stesso addetto può avere più varianti del nome negli orari.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
-                        <thead><tr><th>Nominativo nell'orario</th><th>Associato a</th><th>Modifica associazione</th></tr></thead>
+                        <thead><tr><th>Nominativo nell'orario</th><th>Associato a</th><th>Modifica associazione</th><th>Elimina</th></tr></thead>
                         <tbody>
                         <?php foreach ($mappedScheduleRows as $row): ?>
                             <?php $mappedUser = $usersByCf[$row['user_cf']]; ?>
@@ -483,6 +489,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                 <td><?php echo appAddettiEscape(trim((string) $mappedUser['nome'] . ' ' . (string) $mappedUser['cognome'])); ?></td>
                                 <td>
                                     <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="action" value="save">
                                         <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
                                         <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
                                         <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
@@ -495,10 +502,19 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                         <button type="submit" class="btn btn-outline-dark btn-sm">Aggiorna</button>
                                     </form>
                                 </td>
+                                <td>
+                                    <form action="connection_files/save_schedule_mapping.php" method="post" onsubmit="return confirm('Eliminare questa associazione? Il nominativo tornerà tra quelli da gestire e verrà sganciato anche dagli orari già caricati.');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
+                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                        <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">Elimina</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($mappedScheduleRows === []): ?>
-                            <tr><td colspan="3" class="text-muted">Non ci sono ancora associazioni salvate.</td></tr>
+                            <tr><td colspan="4" class="text-muted">Non ci sono ancora associazioni salvate.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -512,7 +528,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                 <p class="text-muted">Qui compaiono i nominativi non collegati a un utente registrato, inclusi quelli segnati come non registrati.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
-                        <thead><tr><th>Nominativo nell'orario</th><th>Stato</th><th>Associa a</th></tr></thead>
+                        <thead><tr><th>Nominativo nell'orario</th><th>Stato</th><th>Associa a</th><th>Escludi</th></tr></thead>
                         <tbody>
                         <?php foreach ($scheduleOnlyRows as $row): ?>
                             <tr>
@@ -520,6 +536,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                 <td><?php echo appAddettiEscape($row['status']); ?></td>
                                 <td>
                                     <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="action" value="save">
                                         <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
                                         <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
                                         <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
@@ -533,10 +550,19 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                         <button type="submit" class="btn btn-primary btn-sm">Associa</button>
                                     </form>
                                 </td>
+                                <td>
+                                    <form action="connection_files/save_schedule_mapping.php" method="post" onsubmit="return confirm('Escludere questo nominativo dalla lista? Verrà nascosto da questa schermata finché non ricomparirà in un nuovo caricamento orario.');">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
+                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                        <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Escludi</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($scheduleOnlyRows === []): ?>
-                            <tr><td colspan="3" class="text-muted">Non ci sono nominativi in attesa di associazione.</td></tr>
+                            <tr><td colspan="4" class="text-muted">Non ci sono nominativi in attesa di associazione.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>

@@ -1,7 +1,11 @@
 <?php
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.7.2');
+    define('APP_VERSION', '0.7.3');
+}
+
+if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
+    define('APP_SCHEDULE_MAPPING_IGNORED_VALUE', '__IGNORED__');
 }
 
 if (!defined('PUSH_VAPID_SUBJECT')) {

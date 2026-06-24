@@ -258,6 +258,9 @@ foreach ($existingMappings as $key => $savedValue) {
         $unregisteredKeys[$key] = true;
         continue;
     }
+    if ($savedValue === APP_SCHEDULE_MAPPING_IGNORED_VALUE) {
+        continue;
+    }
     $mappings[$key] = $savedValue;
 }
 

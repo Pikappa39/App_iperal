@@ -57,6 +57,7 @@ if (!isset($_SESSION['user']) || !in_array($capo, [1, 2, 3], true) || $_SERVER['
 $sessionReparto = trim((string) ($_SESSION['user']['reparto'] ?? ''));
 $requestedReparto = trim((string) ($_POST['reparto'] ?? ''));
 $reparto = $capo === 3 ? $requestedReparto : $sessionReparto;
+$action = trim((string) ($_POST['action'] ?? 'save'));
 
 $csrfToken = (string) ($_POST['csrf_token'] ?? '');
 if (empty($_SESSION['schedule_mapping_csrf']) || !hash_equals((string) $_SESSION['schedule_mapping_csrf'], $csrfToken)) {
@@ -65,22 +66,30 @@ if (empty($_SESSION['schedule_mapping_csrf']) || !hash_equals((string) $_SESSION
 
 $scheduleName = normalizzaChiaveAddetto((string) ($_POST['schedule_name'] ?? ''));
 $userCf = trim((string) ($_POST['user_cf'] ?? ''));
-if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) || $scheduleName === '' || $userCf === '') {
+if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) || $scheduleName === '') {
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
+}
+if (!in_array($action, ['save', 'delete'], true)) {
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
+}
+if ($action === 'save' && $userCf === '') {
     appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
 
 try {
-    $userStatement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? AND reparto = ? AND attivo = 1 LIMIT 1');
-    $userStatement->execute([$userCf, $reparto]);
-    if (!$userStatement->fetchColumn()) {
-        throw new RuntimeException('Utente non valido per il reparto.');
-    }
-
     $mappingStatement = $pdo->prepare(
         'SELECT 1 FROM schedule_name_mappings WHERE reparto = ? AND schedule_name = ? LIMIT 1'
     );
     $mappingStatement->execute([$reparto, $scheduleName]);
     $mappingExists = (bool) $mappingStatement->fetchColumn();
+
+    if ($action === 'save') {
+        $userStatement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? AND reparto = ? AND attivo = 1 LIMIT 1');
+        $userStatement->execute([$userCf, $reparto]);
+        if (!$userStatement->fetchColumn()) {
+            throw new RuntimeException('Utente non valido per il reparto.');
+        }
+    }
 
     $pdo->beginTransaction();
     appScheduleAdjustmentLockDepartment($pdo, $reparto);
@@ -103,6 +112,15 @@ try {
             }
             $historicalNameFound = true;
             $historicalRows++;
+            if ($action === 'delete') {
+                if ((string) ($row['COD_FISCALE'] ?? '') === '' && empty($row['UTENTE_NON_REGISTRATO'])) {
+                    continue;
+                }
+                unset($row['COD_FISCALE'], $row['UTENTE_NON_REGISTRATO']);
+                $changed = true;
+                continue;
+            }
+
             if ((string) ($row['COD_FISCALE'] ?? '') === $userCf && empty($row['UTENTE_NON_REGISTRATO'])) {
                 continue;
             }
@@ -140,12 +158,26 @@ try {
         throw new RuntimeException('Nominativo non trovato.');
     }
 
-    $saveMapping = $pdo->prepare(
-        'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
-    );
-    $saveMapping->execute([$reparto, $scheduleName, $userCf, (string) ($_SESSION['user']['cf'] ?? '')]);
+    if ($action === 'delete') {
+        $hideMapping = $pdo->prepare(
+            'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
+        );
+        $hideMapping->execute([
+            $reparto,
+            $scheduleName,
+            APP_SCHEDULE_MAPPING_IGNORED_VALUE,
+            (string) ($_SESSION['user']['cf'] ?? ''),
+        ]);
+    } else {
+        $saveMapping = $pdo->prepare(
+            'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
+        );
+        $saveMapping->execute([$reparto, $scheduleName, $userCf, (string) ($_SESSION['user']['cf'] ?? '')]);
+    }
     $pdo->commit();
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
@@ -166,7 +198,9 @@ foreach (array_keys($reviewUsers) as $reviewUserCf) {
     try {
         appPushSendPayload($pdo, [
             'title' => 'Segnalazione da riesaminare',
-            'body' => 'L’associazione dell’orario è stata aggiornata. Verifica la tua segnalazione ore.',
+            'body' => $action === 'delete'
+                ? 'L’associazione dell’orario è stata rimossa. Verifica la tua segnalazione ore.'
+                : 'L’associazione dell’orario è stata aggiornata. Verifica la tua segnalazione ore.',
             'url' => './index.php',
             'recipient_cf' => $reviewUserCf,
         ], $reviewUserCf);
@@ -175,4 +209,5 @@ foreach (array_keys($reviewUsers) as $reviewUserCf) {
     }
 }
 
-appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['updated' => $historicalRows]));
+$resultKey = $action === 'delete' ? 'deleted' : 'updated';
+appScheduleMappingRedirect(appScheduleMappingQuery($reparto, [$resultKey => $historicalRows]));
