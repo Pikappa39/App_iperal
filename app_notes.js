@@ -7,6 +7,18 @@ function createDayNotePanel(giornoInfo) {
     title.className = "note-panel__title";
     title.textContent = "Nota per " + giornoInfo.giorno_parola + " " + giornoInfo.dataKey;
 
+    const scheduleSummary = document.createElement("div");
+    scheduleSummary.className = "day-schedule-summary";
+
+    const shift = document.createElement("div");
+    shift.className = "day-schedule-summary__shift";
+    shift.textContent = "Orario: " + (giornoInfo.orario || "RIPOSO");
+
+    const total = document.createElement("strong");
+    total.className = "day-schedule-summary__total";
+    total.textContent = "Ore lavorate: " + formatTotaleOreSettimanali(giornoInfo.minutiLavorati || 0);
+    scheduleSummary.append(shift, total);
+
     const subtitle = document.createElement("div");
     subtitle.className = "note-panel__subtitle";
     subtitle.textContent = getCurrentUser()
@@ -30,6 +42,7 @@ function createDayNotePanel(giornoInfo) {
     saveButton.disabled = !getCurrentUser();
 
     wrapper.appendChild(title);
+    wrapper.appendChild(scheduleSummary);
     wrapper.appendChild(subtitle);
     wrapper.appendChild(existingNotes);
     wrapper.appendChild(textarea);
@@ -151,6 +164,8 @@ async function mostragiorno(giornoInfo) {
     const mese = parseInt(meseStr, 10);
 
     const notePanel = createDayNotePanel(giornoInfo);
+    const adjustmentPanel = createDayAdjustmentPanel(giornoInfo);
+    container.appendChild(adjustmentPanel);
     container.appendChild(notePanel.wrapper);
 
     const token = ++appState.noteViewToken;

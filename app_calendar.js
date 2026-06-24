@@ -12,53 +12,56 @@ function buildVisibleDaysForMonth(anno, mese) {
     const nextYear = mese === 12 ? anno + 1 : anno;
 
     const visibleDays = [];
-    const weeksToLoad = new Set();
+    const weeksToLoad = new Map();
 
     for (let i = 0; i < firstWeekdayIndex; i++) {
         const dayNumber = daysInPreviousMonth - firstWeekdayIndex + 1 + i;
         const date = new Date(previousYear, previousMonth - 1, dayNumber);
         const dayLabel = getDayLabel(date);
-        const weekNumber = getWeekNumber(date);
+        const isoWeek = getIsoWeekInfo(date);
 
         visibleDays.push({
             numero: dayNumber,
             opaco: true,
             giorno_parola: dayLabel,
-            settimana: weekNumber,
+            settimana: isoWeek.week,
+            anno_orario: isoWeek.year,
             dataKey: formatDateKey(previousYear, previousMonth, dayNumber)
         });
-        weeksToLoad.add(weekNumber);
+        weeksToLoad.set(isoWeek.year + ":" + isoWeek.week, isoWeek);
     }
 
     for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
         const date = new Date(anno, mese - 1, dayNumber);
         const dayLabel = getDayLabel(date);
-        const weekNumber = getWeekNumber(date);
+        const isoWeek = getIsoWeekInfo(date);
 
         visibleDays.push({
             numero: dayNumber,
             opaco: false,
             giorno_parola: dayLabel,
-            settimana: weekNumber,
+            settimana: isoWeek.week,
+            anno_orario: isoWeek.year,
             dataKey: formatDateKey(anno, mese, dayNumber)
         });
-        weeksToLoad.add(weekNumber);
+        weeksToLoad.set(isoWeek.year + ":" + isoWeek.week, isoWeek);
     }
 
     const trailingCells = (7 - ((firstWeekdayIndex + daysInMonth) % 7)) % 7;
     for (let dayNumber = 1; dayNumber <= trailingCells; dayNumber++) {
         const date = new Date(nextYear, nextMonth - 1, dayNumber);
         const dayLabel = getDayLabel(date);
-        const weekNumber = getWeekNumber(date);
+        const isoWeek = getIsoWeekInfo(date);
 
         visibleDays.push({
             numero: dayNumber,
             opaco: true,
             giorno_parola: dayLabel,
-            settimana: weekNumber,
+            settimana: isoWeek.week,
+            anno_orario: isoWeek.year,
             dataKey: formatDateKey(nextYear, nextMonth, dayNumber)
         });
-        weeksToLoad.add(weekNumber);
+        weeksToLoad.set(isoWeek.year + ":" + isoWeek.week, isoWeek);
     }
 
     return {
@@ -102,9 +105,14 @@ function createDaySphere(giornoInfo, target = container) {
     time.className = "sfera__time";
     time.textContent = giornoInfo.orario || "RIPOSO";
 
+    const hours = document.createElement("div");
+    hours.className = "sfera__hours";
+    hours.textContent = "Tot. " + formatTotaleOreSettimanali(giornoInfo.minutiLavorati || 0);
+
     content.appendChild(day);
     content.appendChild(number);
     content.appendChild(time);
+    content.appendChild(hours);
 
     if (giornoInfo.noteSummary) {
         const note = document.createElement("div");
@@ -118,7 +126,7 @@ function createDaySphere(giornoInfo, target = container) {
     sfera.setAttribute("data-giorno", giornoInfo.numero);
     sfera.setAttribute("data-giorno-parola", giornoInfo.giorno_parola);
     sfera.setAttribute("data-data-key", giornoInfo.dataKey);
-    sfera.setAttribute("aria-label", `Apri ${giornoInfo.giorno_parola} ${giornoInfo.numero}: ${giornoInfo.orario || "riposo"}`);
+    sfera.setAttribute("aria-label", `Apri ${giornoInfo.giorno_parola} ${giornoInfo.numero}: ${giornoInfo.orario || "riposo"}, totale ${formatTotaleOreSettimanali(giornoInfo.minutiLavorati || 0)}`);
 
     sfera.onclick = function () {
         mostragiorno(giornoInfo);
@@ -329,8 +337,9 @@ async function mostraGiorni(anno, mese, options = {}) {
 
     const noteMese = await getMonthNotes(anno, mese);
     const settimaneCaricate = {};
-    await Promise.all([...weeksToLoad].map(async (settimana) => {
-        settimaneCaricate[settimana] = await getWeekData(anno, settimana);
+    await Promise.all([...weeksToLoad.values()].map(async (isoWeek) => {
+        const key = isoWeek.year + ":" + isoWeek.week;
+        settimaneCaricate[key] = await getWeekData(isoWeek.year, isoWeek.week);
     }));
 
     if (viewToken !== appState.calendarViewToken || appState.view !== "giorni") {
@@ -347,15 +356,25 @@ async function mostraGiorni(anno, mese, options = {}) {
 
         const label = document.createElement("div");
         label.className = "week-label";
-        label.textContent = "Settimana " + visibleDays[i].settimana;
+        const weekNumber = document.createElement("span");
+        weekNumber.className = "week-label__number";
+        weekNumber.textContent = "Settimana " + visibleDays[i].settimana;
+
+        const weekData = settimaneCaricate[visibleDays[i].anno_orario + ":" + visibleDays[i].settimana] || [];
+        const totalHours = document.createElement("strong");
+        totalHours.className = "week-label__hours";
+        totalHours.textContent = formatTotaleOreSettimanali(minutiLavoratiSettimana(weekData, userCf, userName));
+        totalHours.title = "Ore lavorate nella settimana";
+        label.append(weekNumber, totalHours);
 
         const grid = document.createElement("div");
         grid.className = "week-grid";
 
         for (let j = i; j < i + 7 && j < visibleDays.length; j++) {
             const giorno = visibleDays[j];
-            const dataSettimana = settimaneCaricate[giorno.settimana] || [];
+            const dataSettimana = settimaneCaricate[giorno.anno_orario + ":" + giorno.settimana] || [];
             const orario = getOrarioDaSettimana(dataSettimana, userCf, userName, giorno.giorno_parola);
+            const minutiLavorati = minutiLavoratiDaTurno(orario);
             const dayNotes = getDayNoteList(noteMese, giorno.dataKey);
             const currentUserNote = getCurrentUserNoteFromDayNotes(dayNotes);
 
@@ -365,6 +384,7 @@ async function mostraGiorni(anno, mese, options = {}) {
                 giorno_parola: giorno.giorno_parola,
                 settimana: giorno.settimana,
                 orario,
+                minutiLavorati,
                 dataKey: giorno.dataKey,
                 noteSummary: getNoteSummaryForDay(currentUserNote, dayNotes)
             }, grid);

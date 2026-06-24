@@ -7,6 +7,8 @@ header('X-Content-Type-Options: nosniff');
 
 require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
+require __DIR__ . '/connection.php';
+require __DIR__ . '/schedule_adjustment_lib.php';
 
 function scheduleResponse(array $payload, int $status = 200): void
 {
@@ -30,27 +32,15 @@ if (!appIsValidDepartment($department)) {
     scheduleResponse(['ok' => false, 'error' => 'Reparto non valido'], 403);
 }
 
-$directory = __DIR__ . '/../turni_json';
-$file = $directory . DIRECTORY_SEPARATOR . $year . '-' . $week . '-' . $department . '.json';
+try {
+    // Le versioni archiviate sono la fonte autorevole; il JSON locale resta
+    // compatibile con gli orari caricati prima dell'introduzione dello storico.
+    $rows = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $department, $year, $week);
+    $rows = $rows ?? [];
 
-// Compatibilità temporanea con gli orari caricati prima dell'introduzione
-// dell'anno nel nome file: non li riutilizziamo mai per anni diversi.
-if (!is_file($file) && $year === (int) (new DateTimeImmutable('now'))->format('o')) {
-    $legacyFile = $directory . DIRECTORY_SEPARATOR . $week . '-' . $department . '.json';
-    if (is_file($legacyFile)) {
-        $file = $legacyFile;
-    }
-}
-
-if (!is_file($file)) {
-    scheduleResponse(['ok' => true, 'rows' => []]);
-}
-
-$raw = file_get_contents($file);
-$rows = is_string($raw) ? json_decode($raw, true) : null;
-if (!is_array($rows)) {
-    error_log('File turni non valido: ' . basename($file));
+    $rows = appScheduleAdjustmentApplyApproved($pdo, (string) $_SESSION['user']['cf'], $year, $week, $rows);
+    scheduleResponse(['ok' => true, 'rows' => $rows]);
+} catch (Throwable $error) {
+    error_log('Orario temporaneamente non disponibile: ' . $error->getMessage());
     scheduleResponse(['ok' => false, 'error' => 'Orario temporaneamente non disponibile'], 500);
 }
-
-scheduleResponse(['ok' => true, 'rows' => $rows]);

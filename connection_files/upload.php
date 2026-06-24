@@ -25,6 +25,7 @@ require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../gestore_ods/orario_converter_lib.php';
 require __DIR__ . '/connection.php';
 require __DIR__ . '/push_lib.php';
+require __DIR__ . '/schedule_adjustment_lib.php';
 
 const APP_UPLOAD_UNREGISTERED_VALUE = '__UNREGISTERED__';
 
@@ -279,39 +280,12 @@ foreach ($scheduleNames as $key => $_displayName) {
     }
 }
 
+$preparedSchedules = [];
 try {
-    $saveMapping = $pdo->prepare(
-        'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
-    );
-    $pdo->beginTransaction();
-    foreach ($scheduleNames as $key => $_displayName) {
-        if (!empty($unregisteredKeys[$key])) {
-            // Conserviamo la scelta per non richiederla nuovamente a ogni upload.
-            // Potrà essere sostituita da un'associazione utente nella gestione dedicata.
-            $saveMapping->execute([$reparto, $key, APP_UPLOAD_UNREGISTERED_VALUE, (string) ($_SESSION['user']['cf'] ?? '')]);
-            continue;
-        }
-        $saveMapping->execute([$reparto, $key, $mappings[$key], (string) ($_SESSION['user']['cf'] ?? '')]);
-    }
-    $pdo->commit();
-} catch (Throwable $error) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-    error_log('Impossibile salvare le associazioni orari: ' . $error->getMessage());
-    appUploadFail(500, 'Impossibile salvare le associazioni. Riprova più tardi.');
-}
-
-$results = [];
-
-foreach ($convertedFiles as $fileData) {
-    $originalName = $fileData['file'];
-    try {
+    foreach ($convertedFiles as $fileData) {
+        $originalName = $fileData['file'];
         $converted = $fileData['converted'];
         $converted['data'] = associaUtentiAlleRigheOrario($converted['data'], $mappings, $unregisteredKeys);
-
         $scheduleMeta = appPushExtractIsoWeekYear($originalName, [
             'week' => (int) $converted['settimana'],
             'year' => (int) $converted['anno'],
@@ -319,134 +293,174 @@ foreach ($convertedFiles as $fileData) {
         if ($scheduleMeta['week'] !== (int) $converted['settimana']) {
             throw new RuntimeException('La settimana indicata nel nome file non coincide con quella contenuta nell\'Excel.');
         }
-        $outputFile = $outputDir . DIRECTORY_SEPARATOR . $scheduleMeta['year'] . '-' . $converted['settimana'] . '-' . $reparto . '.json';
-        $previousData = appPushDecodeJsonFile($outputFile);
-        scriviJson($outputFile, $converted["data"]);
 
-        $changeSet = appPushBuildChangeSet(
-            $previousData,
-            $converted["data"],
-            $pdo,
-            $scheduleMeta['year'],
-            $scheduleMeta['week']
-        );
-        $batchId = bin2hex(random_bytes(16));
-        $historySummary = [
-            'batch' => $batchId,
-            'stored' => 0,
-            'errors' => [],
-        ];
-        $storedChangesByUser = [];
-
-        foreach ($changeSet['targets'] as $userCf => $entries) {
-            try {
-                $storedChangesByUser[$userCf] = appPushStoreScheduleChanges(
-                    $pdo,
-                    $batchId,
-                    (string) $userCf,
-                    (string) ($_SESSION['user']['cf'] ?? ''),
-                    $scheduleMeta['year'],
-                    $scheduleMeta['week'],
-                    $originalName,
-                    $entries
-                );
-                $historySummary['stored'] += $storedChangesByUser[$userCf];
-            } catch (Throwable $historyError) {
-                $historySummary['errors'][$userCf] = $historyError->getMessage();
-            }
-        }
-
-        $pushSummary = [
-            'department' => [],
-            'admins' => [],
-            'targets' => [],
-        ];
-
-        if ($changeSet['generalChanged']) {
-            $uploaderCf = (string) ($_SESSION['user']['cf'] ?? '');
-            $uploaderName = trim((string) ($_SESSION['user']['nome'] ?? '') . ' ' . (string) ($_SESSION['user']['cognome'] ?? ''));
-            $departmentLabel = appDepartments()[$reparto] ?? $reparto;
-
-            foreach (appUploadDepartmentNotificationRecipients($pdo, $reparto) as $recipientCf) {
-                try {
-                    $pushSummary['department'][$recipientCf] = appPushSendPayload($pdo, [
-                        'title' => 'Nuovi orari caricati',
-                        'body' => 'Gli orari del reparto ' . $departmentLabel . ' sono stati aggiornati.',
-                        'url' => './index.php',
-                        'recipient_cf' => $recipientCf,
-                    ], $recipientCf);
-                } catch (Throwable $pushError) {
-                    $pushSummary['department'][$recipientCf] = [
-                        'error' => $pushError->getMessage(),
-                    ];
-                }
-            }
-
-            foreach (appUploadAdminNotificationRecipients($pdo, $uploaderCf) as $recipientCf) {
-                try {
-                    $pushSummary['admins'][$recipientCf] = appPushSendPayload($pdo, [
-                        'title' => 'Orari aggiornati: ' . $departmentLabel,
-                        'body' => ($uploaderName !== '' ? $uploaderName : 'Un responsabile') . ' ha caricato gli orari del reparto ' . $departmentLabel . '.',
-                        'url' => './index.php',
-                        'recipient_cf' => $recipientCf,
-                    ], $recipientCf);
-                } catch (Throwable $pushError) {
-                    $pushSummary['admins'][$recipientCf] = [
-                        'error' => $pushError->getMessage(),
-                    ];
-                }
-            }
-        }
-
-        foreach ($changeSet['targets'] as $userCf => $entries) {
-            if (!is_array($entries) || $entries === []) {
-                continue;
-            }
-
-            $firstChange = $entries[0];
-            $changeCount = count($entries);
-            $body = $changeCount === 1
-                ? 'Orario del ' . ($firstChange['dateLabel'] ?? 'giorno selezionato') . ' modificato da capo'
-                : 'Hai ' . $changeCount . ' modifiche di orario';
-            $title = $changeCount === 1
-                ? 'Orario modificato'
-                : 'Orari aggiornati';
-            $changeUrl = !empty($storedChangesByUser[$userCf])
-                ? './index.php?changes=1&batch=' . rawurlencode($batchId)
-                : './index.php';
-
-            try {
-                $pushSummary['targets'][$userCf] = appPushSendPayload($pdo, [
-                    'title' => $title,
-                    'body' => $body,
-                    'url' => $changeUrl,
-                    'recipient_cf' => $userCf,
-                ], $userCf);
-            } catch (Throwable $pushError) {
-                $pushSummary['targets'][$userCf] = [
-                    'error' => $pushError->getMessage(),
-                ];
-            }
-        }
-
-        $results[] = [
-            "file" => $originalName,
-            "settimana" => $converted["settimana"],
-            "reparto" => $reparto,
-            "output" => basename($outputFile),
-            "righe" => count($converted["data"]),
-            "history" => $historySummary,
-            "push" => $pushSummary,
-        ];
-    } catch (Throwable $e) {
-        $results[] = [
-            "file" => $originalName,
-            "error" => $e->getMessage(),
+        $preparedSchedules[] = [
+            'file' => $originalName,
+            'converted' => $converted,
+            'year' => (int) $scheduleMeta['year'],
+            'week' => (int) $scheduleMeta['week'],
+            'output' => $outputDir . DIRECTORY_SEPARATOR . $scheduleMeta['year'] . '-' . $scheduleMeta['week'] . '-' . $reparto . '.json',
+            'batch' => bin2hex(random_bytes(16)),
         ];
     }
+
+    usort($preparedSchedules, static fn (array $a, array $b): int => [$a['year'], $a['week']] <=> [$b['year'], $b['week']]);
+
+    $saveMapping = $pdo->prepare(
+        'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
+    );
+    $pdo->beginTransaction();
+    appScheduleAdjustmentLockDepartment($pdo, $reparto);
+    foreach ($scheduleNames as $key => $_displayName) {
+        $savedValue = !empty($unregisteredKeys[$key]) ? APP_UPLOAD_UNREGISTERED_VALUE : $mappings[$key];
+        $saveMapping->execute([$reparto, $key, $savedValue, (string) ($_SESSION['user']['cf'] ?? '')]);
+    }
+
+    foreach ($preparedSchedules as &$schedule) {
+        appScheduleAdjustmentLockWeek($pdo, $reparto, $schedule['year'], $schedule['week']);
+        $previousData = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $reparto, $schedule['year'], $schedule['week']) ?? [];
+        appScheduleAdjustmentStoreUploadVersion(
+            $pdo,
+            $schedule['batch'],
+            $reparto,
+            $schedule['year'],
+            $schedule['week'],
+            $schedule['file'],
+            (string) ($_SESSION['user']['cf'] ?? ''),
+            $schedule['converted']['data']
+        );
+        $schedule['requestsToReview'] = appScheduleAdjustmentReconcileUpload(
+            $pdo,
+            $reparto,
+            $schedule['year'],
+            $schedule['week'],
+            $schedule['converted']['data']
+        );
+        $schedule['changeSet'] = appPushBuildChangeSet(
+            $previousData,
+            $schedule['converted']['data'],
+            $pdo,
+            $schedule['year'],
+            $schedule['week']
+        );
+        $schedule['history'] = ['batch' => $schedule['batch'], 'stored' => 0, 'errors' => []];
+        $schedule['storedChangesByUser'] = [];
+        foreach ($schedule['changeSet']['targets'] as $userCf => $entries) {
+            $schedule['storedChangesByUser'][$userCf] = appPushStoreScheduleChanges(
+                $pdo,
+                $schedule['batch'],
+                (string) $userCf,
+                (string) ($_SESSION['user']['cf'] ?? ''),
+                $schedule['year'],
+                $schedule['week'],
+                $schedule['file'],
+                $entries
+            );
+            $schedule['history']['stored'] += $schedule['storedChangesByUser'][$userCf];
+        }
+    }
+    unset($schedule);
+    $pdo->commit();
+} catch (Throwable $error) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log('Upload orari annullato: ' . $error->getMessage());
+    appUploadFail(500, 'Nessun orario è stato aggiornato. Riprova più tardi.');
 }
 
-echo json_encode([
-    "ok" => true,
-    "results" => $results,
-], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+$results = [];
+foreach ($preparedSchedules as $schedule) {
+    $cacheWarning = '';
+    try {
+        // Il JSON è una cache di compatibilità: l'app legge la versione attiva dal database.
+        scriviJson($schedule['output'], $schedule['converted']['data']);
+    } catch (Throwable $cacheError) {
+        $cacheWarning = 'Cache JSON non aggiornata: ' . $cacheError->getMessage();
+        error_log($cacheWarning);
+    }
+
+    $pushSummary = ['department' => [], 'admins' => [], 'targets' => [], 'reviews' => []];
+    foreach ($schedule['requestsToReview'] as $userCf) {
+        try {
+            $pushSummary['reviews'][$userCf] = appPushSendPayload($pdo, [
+                'title' => 'Segnalazione da riesaminare',
+                'body' => 'Il turno previsto è stato aggiornato dal capo. Verifica la tua segnalazione ore.',
+                'url' => './index.php',
+                'recipient_cf' => $userCf,
+            ], $userCf);
+        } catch (Throwable $pushError) {
+            $pushSummary['reviews'][$userCf] = ['error' => $pushError->getMessage()];
+        }
+    }
+
+    if ($schedule['changeSet']['generalChanged']) {
+        $uploaderCf = (string) ($_SESSION['user']['cf'] ?? '');
+        $uploaderName = trim((string) ($_SESSION['user']['nome'] ?? '') . ' ' . (string) ($_SESSION['user']['cognome'] ?? ''));
+        $departmentLabel = appDepartments()[$reparto] ?? $reparto;
+        foreach (appUploadDepartmentNotificationRecipients($pdo, $reparto) as $recipientCf) {
+            try {
+                $pushSummary['department'][$recipientCf] = appPushSendPayload($pdo, [
+                    'title' => 'Nuovi orari caricati',
+                    'body' => 'Gli orari del reparto ' . $departmentLabel . ' sono stati aggiornati.',
+                    'url' => './index.php',
+                    'recipient_cf' => $recipientCf,
+                ], $recipientCf);
+            } catch (Throwable $pushError) {
+                $pushSummary['department'][$recipientCf] = ['error' => $pushError->getMessage()];
+            }
+        }
+        foreach (appUploadAdminNotificationRecipients($pdo, $uploaderCf) as $recipientCf) {
+            try {
+                $pushSummary['admins'][$recipientCf] = appPushSendPayload($pdo, [
+                    'title' => 'Orari aggiornati: ' . $departmentLabel,
+                    'body' => ($uploaderName !== '' ? $uploaderName : 'Un responsabile') . ' ha caricato gli orari del reparto ' . $departmentLabel . '.',
+                    'url' => './index.php',
+                    'recipient_cf' => $recipientCf,
+                ], $recipientCf);
+            } catch (Throwable $pushError) {
+                $pushSummary['admins'][$recipientCf] = ['error' => $pushError->getMessage()];
+            }
+        }
+    }
+
+    foreach ($schedule['changeSet']['targets'] as $userCf => $entries) {
+        if (!is_array($entries) || $entries === []) {
+            continue;
+        }
+        $firstChange = $entries[0];
+        $changeCount = count($entries);
+        $title = $changeCount === 1 ? 'Orario modificato' : 'Orari aggiornati';
+        $body = $changeCount === 1
+            ? 'Orario del ' . ($firstChange['dateLabel'] ?? 'giorno selezionato') . ' modificato da capo'
+            : 'Hai ' . $changeCount . ' modifiche di orario';
+        $changeUrl = !empty($schedule['storedChangesByUser'][$userCf])
+            ? './index.php?changes=1&batch=' . rawurlencode($schedule['batch'])
+            : './index.php';
+        try {
+            $pushSummary['targets'][$userCf] = appPushSendPayload($pdo, [
+                'title' => $title,
+                'body' => $body,
+                'url' => $changeUrl,
+                'recipient_cf' => $userCf,
+            ], $userCf);
+        } catch (Throwable $pushError) {
+            $pushSummary['targets'][$userCf] = ['error' => $pushError->getMessage()];
+        }
+    }
+
+    $results[] = [
+        'file' => $schedule['file'],
+        'settimana' => $schedule['week'],
+        'reparto' => $reparto,
+        'output' => basename($schedule['output']),
+        'righe' => count($schedule['converted']['data']),
+        'history' => $schedule['history'],
+        'push' => $pushSummary,
+        'warning' => $cacheWarning,
+    ];
+}
+
+echo json_encode(['ok' => true, 'results' => $results], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

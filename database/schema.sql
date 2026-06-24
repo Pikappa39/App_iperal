@@ -97,6 +97,73 @@ CREATE TABLE IF NOT EXISTS schedule_change_log (
     INDEX idx_schedule_change_batch (batch_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS schedule_upload_versions (
+    id CHAR(32) NOT NULL PRIMARY KEY,
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    source_file VARCHAR(255) NOT NULL,
+    uploaded_by_cf VARCHAR(16) NOT NULL,
+    schedule_snapshot MEDIUMTEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_schedule_upload_versions_week (reparto, iso_year, iso_week, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_active_versions (
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    version_id CHAR(32) NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (reparto, iso_year, iso_week),
+    INDEX idx_schedule_active_versions_version (version_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_week_locks (
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    touched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (reparto, iso_year, iso_week)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_department_locks (
+    reparto VARCHAR(20) NOT NULL PRIMARY KEY,
+    touched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_adjustment_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_cf VARCHAR(16) NOT NULL,
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    schedule_date DATE NOT NULL,
+    day_name VARCHAR(20) NOT NULL,
+    base_upload_id CHAR(32) NULL DEFAULT NULL,
+    original_shift VARCHAR(255) NOT NULL,
+    current_original_shift VARCHAR(255) NOT NULL,
+    requested_shift VARCHAR(255) NOT NULL,
+    request_note VARCHAR(1000) NULL DEFAULT NULL,
+    status ENUM('pending', 'review', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    review_reason VARCHAR(255) NULL DEFAULT NULL,
+    decision_note VARCHAR(1000) NULL DEFAULT NULL,
+    decided_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    decided_at DATETIME NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_schedule_adjustment_user_date (user_cf, schedule_date, status),
+    INDEX idx_schedule_adjustment_manage (reparto, status, schedule_date),
+    INDEX idx_schedule_adjustment_week (reparto, iso_year, iso_week)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_adjustment_day_locks (
+    user_cf VARCHAR(16) NOT NULL,
+    schedule_date DATE NOT NULL,
+    touched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_cf, schedule_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS user_invites (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     invited_by_cf VARCHAR(16) NOT NULL,

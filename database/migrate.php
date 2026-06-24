@@ -80,6 +80,34 @@ if (!in_array($badgeType, ['char', 'varchar'], true) || $badgeLength < 20) {
     echo "Colonna utenti.badge aggiornata.\n";
 }
 
+// Gli identificativi tecnici dei nuovi account sono lunghi 16 caratteri.
+// Le installazioni precedenti possono avere ancora colonne da 15 caratteri.
+foreach ([
+    ['table' => 'utenti', 'column' => 'cod_fiscale'],
+    ['table' => 'user_invites', 'column' => 'invited_cf'],
+] as $identityColumn) {
+    $statement = $pdo->prepare(
+        "SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+           AND COLUMN_NAME = ?
+         LIMIT 1"
+    );
+    $statement->execute([$identityColumn['table'], $identityColumn['column']]);
+    $column = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$column) {
+        throw new RuntimeException('Colonna ' . $identityColumn['table'] . '.' . $identityColumn['column'] . ' non trovata');
+    }
+
+    $columnType = strtolower((string) $column['DATA_TYPE']);
+    $columnLength = (int) ($column['CHARACTER_MAXIMUM_LENGTH'] ?? 0);
+    if (!in_array($columnType, ['char', 'varchar'], true) || $columnLength < 16) {
+        $pdo->exec('ALTER TABLE ' . $identityColumn['table'] . ' MODIFY ' . $identityColumn['column'] . ' VARCHAR(16) NOT NULL');
+        echo 'Colonna ' . $identityColumn['table'] . '.' . $identityColumn['column'] . " aggiornata.\n";
+    }
+}
+
 $inviteRoleColumn = $pdo->query(
     "SELECT 1
      FROM information_schema.COLUMNS

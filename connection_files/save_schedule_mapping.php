@@ -4,6 +4,8 @@ require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 require_once __DIR__ . '/connection.php';
 require __DIR__ . '/../gestore_ods/orario_converter_lib.php';
+require __DIR__ . '/push_lib.php';
+require __DIR__ . '/schedule_adjustment_lib.php';
 
 function appScheduleMappingRedirect(string $query = ''): void
 {
@@ -20,13 +22,31 @@ function appScheduleMappingQuery(string $reparto, array $parameters = []): strin
     return '?' . http_build_query($parameters);
 }
 
-function appScheduleMappingWriteJson(string $path, string $contents): void
+function appScheduleMappingWeeks(PDO $pdo, string $department): array
 {
-    $temporaryPath = $path . '.tmp-' . bin2hex(random_bytes(8));
-    if (@file_put_contents($temporaryPath, $contents, LOCK_EX) === false || !@rename($temporaryPath, $path)) {
-        @unlink($temporaryPath);
-        throw new RuntimeException('Impossibile aggiornare un orario già caricato.');
+    $weeks = [];
+    $pattern = '/^(\d{4})-(\d{1,2})-' . preg_quote($department, '/') . '\.json$/';
+    foreach (glob(__DIR__ . '/../turni_json/*-' . $department . '.json') ?: [] as $jsonFile) {
+        if (!preg_match($pattern, basename($jsonFile), $matches)) {
+            continue;
+        }
+        $weeks[(int) $matches[1] . ':' . (int) $matches[2]] = [
+            'year' => (int) $matches[1],
+            'week' => (int) $matches[2],
+        ];
     }
+
+    $statement = $pdo->prepare('SELECT iso_year, iso_week FROM schedule_active_versions WHERE reparto = ?');
+    $statement->execute([$department]);
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $weeks[(int) $row['iso_year'] . ':' . (int) $row['iso_week']] = [
+            'year' => (int) $row['iso_year'],
+            'week' => (int) $row['iso_week'],
+        ];
+    }
+
+    ksort($weeks, SORT_NATURAL);
+    return array_values($weeks);
 }
 
 $capo = (int) ($_SESSION['user']['capo'] ?? 0);
@@ -49,7 +69,6 @@ if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) |
     appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
 
-$updatedFiles = [];
 try {
     $userStatement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? AND reparto = ? LIMIT 1');
     $userStatement->execute([$userCf, $reparto]);
@@ -63,73 +82,97 @@ try {
     $mappingStatement->execute([$reparto, $scheduleName]);
     $mappingExists = (bool) $mappingStatement->fetchColumn();
 
+    $pdo->beginTransaction();
+    appScheduleAdjustmentLockDepartment($pdo, $reparto);
+
     $historicalRows = 0;
     $historicalNameFound = false;
-    $jsonFiles = glob(__DIR__ . '/../turni_json/*-' . $reparto . '.json') ?: [];
-    foreach ($jsonFiles as $jsonFile) {
-        $originalContents = @file_get_contents($jsonFile);
-        $decoded = is_string($originalContents) ? json_decode($originalContents, true) : null;
-        if (!is_array($decoded)) {
+    $updatedSchedules = [];
+    $reviewUsers = [];
+    foreach (appScheduleMappingWeeks($pdo, $reparto) as $scheduleWeek) {
+        appScheduleAdjustmentLockWeek($pdo, $reparto, $scheduleWeek['year'], $scheduleWeek['week']);
+        $rows = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $reparto, $scheduleWeek['year'], $scheduleWeek['week']);
+        if ($rows === null) {
             continue;
         }
 
         $changed = false;
-        foreach ($decoded as &$row) {
+        foreach ($rows as &$row) {
             if (!is_array($row) || normalizzaChiaveAddetto((string) ($row['ADDETTO'] ?? '')) !== $scheduleName) {
                 continue;
             }
             $historicalNameFound = true;
+            $historicalRows++;
+            if ((string) ($row['COD_FISCALE'] ?? '') === $userCf && empty($row['UTENTE_NON_REGISTRATO'])) {
+                continue;
+            }
             $row['COD_FISCALE'] = $userCf;
             unset($row['UTENTE_NON_REGISTRATO']);
             $changed = true;
-            $historicalRows++;
         }
         unset($row);
 
-        if ($changed) {
-            $newContents = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            if ($newContents === false) {
-                throw new RuntimeException('Impossibile preparare l’aggiornamento degli orari.');
-            }
-            $updatedFiles[] = [
-                'path' => $jsonFile,
-                'original' => $originalContents,
-                'updated' => $newContents,
-            ];
+        if (!$changed) {
+            continue;
         }
+
+        $batchId = bin2hex(random_bytes(16));
+        appScheduleAdjustmentStoreUploadVersion(
+            $pdo,
+            $batchId,
+            $reparto,
+            $scheduleWeek['year'],
+            $scheduleWeek['week'],
+            'Associazione addetto: ' . $scheduleName,
+            (string) ($_SESSION['user']['cf'] ?? ''),
+            $rows
+        );
+        foreach (appScheduleAdjustmentReconcileUpload($pdo, $reparto, $scheduleWeek['year'], $scheduleWeek['week'], $rows) as $reviewUserCf) {
+            $reviewUsers[$reviewUserCf] = true;
+        }
+        $updatedSchedules[] = [
+            'path' => __DIR__ . '/../turni_json/' . $scheduleWeek['year'] . '-' . $scheduleWeek['week'] . '-' . $reparto . '.json',
+            'rows' => $rows,
+        ];
     }
 
     if (!$mappingExists && !$historicalNameFound) {
         throw new RuntimeException('Nominativo non trovato.');
     }
 
-    $pdo->beginTransaction();
     $saveMapping = $pdo->prepare(
         'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
     );
     $saveMapping->execute([$reparto, $scheduleName, $userCf, (string) ($_SESSION['user']['cf'] ?? '')]);
-
-    foreach ($updatedFiles as $updatedFile) {
-        appScheduleMappingWriteJson($updatedFile['path'], $updatedFile['updated']);
-    }
     $pdo->commit();
 } catch (Throwable $error) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    foreach ($updatedFiles as $updatedFile) {
-        if (isset($updatedFile['original']) && is_string($updatedFile['original'])) {
-            try {
-                appScheduleMappingWriteJson($updatedFile['path'], $updatedFile['original']);
-            } catch (Throwable $restoreError) {
-                error_log('Ripristino orario non riuscito: ' . $restoreError->getMessage());
-            }
-        }
-    }
     error_log('Impossibile salvare associazione orario: ' . $error->getMessage());
     appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
+}
+
+foreach ($updatedSchedules as $updatedSchedule) {
+    try {
+        scriviJson($updatedSchedule['path'], $updatedSchedule['rows']);
+    } catch (Throwable $cacheError) {
+        error_log('Cache associazione orari non aggiornata: ' . $cacheError->getMessage());
+    }
+}
+foreach (array_keys($reviewUsers) as $reviewUserCf) {
+    try {
+        appPushSendPayload($pdo, [
+            'title' => 'Segnalazione da riesaminare',
+            'body' => 'L’associazione dell’orario è stata aggiornata. Verifica la tua segnalazione ore.',
+            'url' => './index.php',
+            'recipient_cf' => $reviewUserCf,
+        ], $reviewUserCf);
+    } catch (Throwable $pushError) {
+        error_log('Push riesame associazione non inviata: ' . $pushError->getMessage());
+    }
 }
 
 appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['updated' => $historicalRows]));

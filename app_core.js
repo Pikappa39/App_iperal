@@ -8,6 +8,7 @@ const appToolbar = document.querySelector(".app-toolbar");
 const openOrari = document.getElementById("openOrari");
 const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
+const scheduleAdjustmentsItem = document.getElementById("scheduleAdjustmentsItem");
 const communicationsItem = document.getElementById("communicationsItem");
 const profileItem = document.getElementById("profileItem");
 const setting=document.getElementById("setting");
@@ -29,6 +30,7 @@ let appNavigationPosition = 0;
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 const SCHEDULE_ENDPOINT = "connection_files/schedule.php";
 const NOTES_ENDPOINT = "connection_files/note.php";
+const SCHEDULE_DAY_KEYS = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"];
 const today = new Date();
 const YEAR_CHOICES = Array.from({ length: 5 }, (_, index) => today.getFullYear() - 2 + index);
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
@@ -171,6 +173,9 @@ async function appNavigationRestore(state) {
             case "scheduleChanges":
                 await mostraModificheOrari();
                 break;
+            case "scheduleAdjustments":
+                await mostraRichiesteOre();
+                break;
             case "communications":
                 await mostraComunicazioni();
                 break;
@@ -243,12 +248,15 @@ function formatMonthKey(anno, mese) {
     ].join("-");
 }
 
-function getWeekNumber(date) {
+function getIsoWeekInfo(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return {
+        year: d.getUTCFullYear(),
+        week: Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+    };
 }
 
 async function getWeekData(anno, settimana) {
@@ -513,12 +521,12 @@ function updateMonthNotesCache(anno, mese, dataKey, entries) {
     appState.monthNotesPromises[monthKey] = Promise.resolve(normalized);
 }
 
-function getOrarioDaSettimana(dataSettimana, userCf, userName, giornoParola) {
+function getRigaOrarioDaSettimana(dataSettimana, userCf, userName) {
     if (!Array.isArray(dataSettimana) || (!userCf && !userName)) {
-        return "";
+        return null;
     }
 
-    const soloAddetto = dataSettimana.find((riga) => {
+    return dataSettimana.find((riga) => {
         const rowCf = (riga.COD_FISCALE || "").toString().trim().toUpperCase();
         if (userCf && rowCf) {
             return rowCf === userCf;
@@ -526,13 +534,91 @@ function getOrarioDaSettimana(dataSettimana, userCf, userName, giornoParola) {
 
         // Compatibilità con i file storici, caricati prima delle associazioni.
         return (riga.ADDETTO || "").toString().trim().toUpperCase() === userName;
-    });
+    }) || null;
+}
+
+function getOrarioDaSettimana(dataSettimana, userCf, userName, giornoParola) {
+    const soloAddetto = getRigaOrarioDaSettimana(dataSettimana, userCf, userName);
 
     if (!soloAddetto) {
         return "";
     }
 
     return soloAddetto[giornoParola] || "";
+}
+
+function minutiLavoratiDaTurno(turno) {
+    const testo = (turno || "").toString();
+    const intervalli = /(?:^|\s|\/)(\d{1,2})\s*[:.]\s*(\d{2})\s*[-–—]\s*(\d{1,2})\s*[:.]\s*(\d{2})(?=$|\s|\/)/g;
+    let totale = 0;
+    let match;
+    let haIntervalliEspliciti = false;
+
+    while ((match = intervalli.exec(testo)) !== null) {
+        haIntervalliEspliciti = true;
+        const inizioOre = Number(match[1]);
+        const inizioMinuti = Number(match[2]);
+        const fineOre = Number(match[3]);
+        const fineMinuti = Number(match[4]);
+
+        if (inizioOre > 23 || fineOre > 23 || inizioMinuti > 59 || fineMinuti > 59) {
+            continue;
+        }
+
+        const inizio = inizioOre * 60 + inizioMinuti;
+        let fine = fineOre * 60 + fineMinuti;
+        if (fine < inizio) {
+            fine += 24 * 60;
+        }
+
+        totale += fine - inizio;
+    }
+
+    if (haIntervalliEspliciti) {
+        return totale;
+    }
+
+    // Gli Excel standard salvano le fasce come coppie di orari, ad esempio
+    // "05:00 10:00 10:30 12:00", senza il trattino tra entrata e uscita.
+    const orari = [];
+    const orariSemplici = /(?:^|\s|\/)(\d{1,2})\s*[:.]\s*(\d{2})(?=$|\s|\/)/g;
+    while ((match = orariSemplici.exec(testo)) !== null) {
+        const ore = Number(match[1]);
+        const minuti = Number(match[2]);
+        if (ore <= 23 && minuti <= 59) {
+            orari.push(ore * 60 + minuti);
+        }
+    }
+
+    for (let indice = 0; indice + 1 < orari.length; indice += 2) {
+        let fine = orari[indice + 1];
+        if (fine < orari[indice]) {
+            fine += 24 * 60;
+        }
+        totale += fine - orari[indice];
+    }
+
+    return totale;
+}
+
+function minutiLavoratiSettimana(dataSettimana, userCf, userName) {
+    const riga = getRigaOrarioDaSettimana(dataSettimana, userCf, userName);
+    if (!riga) {
+        return 0;
+    }
+
+    return SCHEDULE_DAY_KEYS.reduce((totale, giorno) => totale + minutiLavoratiDaTurno(riga[giorno]), 0);
+}
+
+function formatTotaleOreSettimanali(minuti) {
+    const ore = Math.floor(minuti / 60);
+    const minutiResidui = minuti % 60;
+
+    if (minutiResidui === 0) {
+        return ore + "h";
+    }
+
+    return ore + "h " + String(minutiResidui).padStart(2, "0") + "m";
 }
 
 async function mostraOrari(Nsettimana, giorno_parola, anno = today.getFullYear()) {

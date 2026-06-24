@@ -28,6 +28,11 @@ if (scheduleChangesItem) {
         mostraModificheOrari();
     });
 }
+if (scheduleAdjustmentsItem) {
+    scheduleAdjustmentsItem.addEventListener("click", () => {
+        mostraRichiesteOre();
+    });
+}
 if (communicationsItem) {
     communicationsItem.addEventListener("click", () => {
         mostraComunicazioni();

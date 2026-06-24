@@ -1,7 +1,7 @@
 <?php
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.3.3');
+    define('APP_VERSION', '0.4.0');
 }
 
 if (!defined('PUSH_VAPID_SUBJECT')) {
@@ -110,6 +110,37 @@ if (!function_exists('appIsValidDepartment')) {
     function appIsValidDepartment(string $department): bool
     {
         return array_key_exists($department, appDepartments());
+    }
+}
+
+if (!function_exists('appAvailableAvatars')) {
+    function appAvailableAvatars(): array
+    {
+        $avatars = [];
+        $files = glob(__DIR__ . '/img/*.png') ?: [];
+
+        foreach ($files as $file) {
+            $avatar = pathinfo($file, PATHINFO_FILENAME);
+            if (!preg_match('/^[A-Za-z0-9_-]+$/', $avatar) || str_starts_with($avatar, 'icon-')) {
+                continue;
+            }
+
+            $avatars[] = $avatar;
+        }
+
+        $avatars = array_values(array_unique($avatars));
+        usort($avatars, static function (string $left, string $right): int {
+            if ($left === 'default') {
+                return -1;
+            }
+            if ($right === 'default') {
+                return 1;
+            }
+
+            return strnatcasecmp($left, $right);
+        });
+
+        return $avatars;
     }
 }
 
