@@ -91,3 +91,23 @@ Dopo una prova riuscita, pianifica l'esecuzione notturna alle 02:15 con `crontab
 ```
 
 Il comando richiede che `ubuntu` possa eseguire `sudo mysqldump` senza password e che la configurazione rclone dell'utente `ubuntu` contenga il remote `myorari-crypt:`. Conserva con cura le credenziali rclone e la password del remote cifrato: servono per un eventuale ripristino.
+
+### Verifica automatica del backup
+
+Lo script seguente non scarica né modifica il backup: controlla sul remote cifrato che l'ultimo archivio esista, non sia vuoto e abbia al massimo 30 ore. Eseguilo come `ubuntu`:
+
+```sh
+bash /var/www/html/App_iperal-1/scripts/check_backup_myorari.sh
+```
+
+Pianificalo dopo il backup notturno, ad esempio alle 05:00:
+
+```cron
+0 5 * * * /var/www/html/App_iperal-1/scripts/check_backup_myorari.sh >> /home/ubuntu/myorari-backup-check.log 2>&1
+```
+
+Puoi cambiare il limite temporale senza modificare lo script:
+
+```sh
+MYORARI_BACKUP_MAX_AGE_HOURS=36 bash /var/www/html/App_iperal-1/scripts/check_backup_myorari.sh
+```
