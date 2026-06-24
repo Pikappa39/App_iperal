@@ -61,6 +61,7 @@ $clientBootstrap = [
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
+            <li><button type="button" class="dropdown-item" id="guideItem">Guida</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
             <li><button type="button" class="dropdown-item" id="scheduleChangesItem">Aggiornamenti orari</button></li>
             <li><button type="button" class="dropdown-item" id="scheduleAdjustmentsItem">Richieste ore</button></li>
@@ -459,6 +460,7 @@ window.appNotifications = {
 };
 
 const logoutLink = document.getElementById("logoutLink");
+const guideItem = document.getElementById("guideItem");
 if (logoutLink) {
     logoutLink.addEventListener("click", function (event) {
         event.preventDefault();
@@ -478,6 +480,12 @@ if (logoutLink) {
                 logoutForm.submit();
             }
         })();
+    });
+}
+
+if (guideItem) {
+    guideItem.addEventListener("click", function () {
+        window.location.href = "guida.php";
     });
 }
 

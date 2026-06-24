@@ -202,7 +202,13 @@ try {
             "reparto"=> $user["reparto"],
             "session_version" => (int) ($user["session_version"] ?? 0),
         ];
-        echo json_encode([
+        try {
+            app_session_touch_user($pdo, (string) $user["cod_fiscale"], true);
+        } catch (Throwable $touchError) {
+            error_log('Errore aggiornamento last_seen: ' . $touchError->getMessage());
+        }
+
+        jsonResponse([
             "logged" => true,
             "nome" => $_SESSION["user"]["nome"],
             "cf" => $_SESSION["user"]["cf"],
@@ -211,7 +217,6 @@ try {
             "capo" => $_SESSION["user"]["capo"],
             "reparto"=> $_SESSION["user"]["reparto"]
         ]);
-        app_session_touch_user($pdo, (string) $user["cod_fiscale"], true);
     } else {
         appLoginRecordFailure($pdo, $emailHash);
         jsonResponse([

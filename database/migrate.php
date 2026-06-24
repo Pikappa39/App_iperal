@@ -134,4 +134,30 @@ if (!$activeUserColumn) {
     echo "Colonna utenti.attivo aggiunta.\n";
 }
 
+$sessionVersionColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utenti'
+       AND COLUMN_NAME = 'session_version'
+     LIMIT 1"
+)->fetchColumn();
+if (!$sessionVersionColumn) {
+    $pdo->exec('ALTER TABLE utenti ADD session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER attivo');
+    echo "Colonna utenti.session_version aggiunta.\n";
+}
+
+$lastSeenColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utenti'
+       AND COLUMN_NAME = 'last_seen'
+     LIMIT 1"
+)->fetchColumn();
+if (!$lastSeenColumn) {
+    $pdo->exec('ALTER TABLE utenti ADD last_seen DATETIME NULL DEFAULT NULL AFTER session_version');
+    echo "Colonna utenti.last_seen aggiunta.\n";
+}
+
 echo "Migrazione database completata.\n";
