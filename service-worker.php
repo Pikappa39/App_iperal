@@ -10,6 +10,7 @@ $cacheName = 'app-iperal-v' . APP_VERSION;
 $staticAssets = [
     './app_core.js?v=' . $assetVersion,
     './app_calendar.js?v=' . $assetVersion,
+    './app_adjustments.js?v=' . $assetVersion,
     './app_notes.js?v=' . $assetVersion,
     './app_communications.js?v=' . $assetVersion,
     './userhome.js?v=' . $assetVersion,
@@ -20,10 +21,10 @@ $staticAssets = [
     './manifest.php?v=' . $assetVersion,
     './img/icon-192.png?v=' . $assetVersion,
     './img/icon-512.png?v=' . $assetVersion,
-    './img/default.png',
-    './img/avatar1.png',
-    './img/avatar2.png',
-    './img/avatar3.png',
+    ...array_map(
+        static fn (string $avatar): string => './img/' . rawurlencode($avatar) . '.png',
+        appAvailableAvatars()
+    ),
 ];
 ?>
 const CACHE_NAME = <?php echo json_encode($cacheName); ?>;
@@ -186,8 +187,11 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      // Un errore momentaneo del server non deve finire nella cache offline.
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      }
       return response;
     }).catch(() =>
       caches.match(event.request).then((response) => response || offlinePageResponse())
