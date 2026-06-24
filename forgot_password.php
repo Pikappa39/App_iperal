@@ -20,7 +20,7 @@ $turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
             <label class="form-label" for="email">Email</label>
             <input class="form-control" type="email" id="email" name="email" autocomplete="email" required>
             <?php if ($turnstileEnabled): ?>
-                <div class="mt-3 cf-turnstile" data-sitekey="<?php echo htmlspecialchars($turnstileSiteKey, ENT_QUOTES, 'UTF-8'); ?>"></div>
+                <div class="mt-3 cf-turnstile" data-sitekey="<?php echo htmlspecialchars($turnstileSiteKey, ENT_QUOTES, 'UTF-8'); ?>" data-error-callback="appTurnstileError"></div>
             <?php endif; ?>
             <p id="message" class="mt-3" aria-live="polite"></p>
             <button class="btn btn-primary" type="submit">Invia il link</button>
@@ -28,6 +28,16 @@ $turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
         </form>
     </main>
     <?php if ($turnstileEnabled): ?>
+    <script>
+    window.appTurnstileError = function () {
+        const message = document.getElementById('message');
+        if (message) {
+            message.className = 'mt-3 text-danger';
+            message.textContent = 'Il controllo di sicurezza non è riuscito. Ricarica la pagina e riprova; se continua, disattiva temporaneamente estensioni che bloccano contenuti.';
+        }
+        return true;
+    };
+    </script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <?php endif; ?>
     <script>

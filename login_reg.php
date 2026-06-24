@@ -40,7 +40,7 @@ if (isset($_SESSION['user'])) {
               </div>
               <?php if ($turnstileEnabled): ?>
               <div class="mt-3 mb-3">
-                <div class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars($turnstileSiteKey, ENT_QUOTES, 'UTF-8'); ?>"></div>
+                <div class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars($turnstileSiteKey, ENT_QUOTES, 'UTF-8'); ?>" data-error-callback="appTurnstileError"></div>
               </div>
               <?php endif; ?>
               <p id="login-error-message" class="text-danger mt-2" style="display: none;"></p>
@@ -91,6 +91,16 @@ if (isset($_SESSION['user'])) {
 </body>
 
 <?php if ($turnstileEnabled): ?>
+<script>
+window.appTurnstileError = function () {
+  const errorBox = document.getElementById("login-error-message");
+  if (errorBox) {
+    errorBox.textContent = "Il controllo di sicurezza non è riuscito. Ricarica la pagina e riprova; se continua, disattiva temporaneamente estensioni che bloccano contenuti.";
+    errorBox.style.display = "block";
+  }
+  return true;
+};
+</script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <?php endif; ?>
 <script>
