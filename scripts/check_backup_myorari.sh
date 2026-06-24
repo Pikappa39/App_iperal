@@ -27,7 +27,8 @@ latest_archive="$(rclone lsf --files-only "$RCLONE_REMOTE" \
 
 stamp="${latest_archive#${ARCHIVE_PREFIX}}"
 stamp="${stamp%.tar.gz}"
-backup_epoch="$(date -d "${stamp/_/ }" +%s 2>/dev/null)" || fail "Data non leggibile nel nome ${latest_archive}."
+backup_timestamp="${stamp:0:10} ${stamp:11:2}:${stamp:14:2}:${stamp:17:2}"
+backup_epoch="$(date -d "$backup_timestamp" +%s 2>/dev/null)" || fail "Data non leggibile nel nome ${latest_archive}."
 now_epoch="$(date +%s)"
 age_seconds=$((now_epoch - backup_epoch))
 age_hours=$((age_seconds / 3600))
