@@ -53,6 +53,21 @@ Usa `minor` per una nuova funzione e `major` per cambiamenti incompatibili. Aggi
 php scripts/release.php minor "Nuova funzione" --push
 ```
 
+## Verifica post-deploy
+
+Dopo aver aggiornato il codice e ricaricato Apache su EC2, esegui il controllo HTTP automatico. Verifica home, login, CSS, manifest e service worker senza usare account o modificare dati:
+
+```sh
+cd /var/www/html/App_iperal-1
+bash scripts/post_deploy_check.sh
+```
+
+Lo script termina con errore se un endpoint non risponde con `200` o con il tipo di contenuto previsto. Per verificare un ambiente diverso puoi passare l'URL completo come argomento:
+
+```sh
+bash scripts/post_deploy_check.sh https://staging.example.com
+```
+
 ## Backup automatici su Google Drive
 
 Su EC2 configura prima il remote cifrato `myorari-crypt:` con rclone. Lo script `scripts/backup_myorari.sh` crea un dump MySQL coerente, archivia i file dell'applicazione (escludendo sessioni e `.git`), carica il risultato sul remote cifrato e rimuove i backup più vecchi di 30 giorni.
