@@ -39,6 +39,14 @@ try {
     $rows = $rows ?? [];
 
     $rows = appScheduleAdjustmentApplyApproved($pdo, (string) $_SESSION['user']['cf'], $year, $week, $rows);
+    $userCf = strtoupper(trim((string) $_SESSION['user']['cf']));
+    $rows = array_values(array_filter($rows, static function ($row) use ($userCf): bool {
+        if (!is_array($row)) {
+            return false;
+        }
+
+        return strtoupper(trim((string) ($row['COD_FISCALE'] ?? ''))) === $userCf;
+    }));
     scheduleResponse(['ok' => true, 'rows' => $rows]);
 } catch (Throwable $error) {
     error_log('Orario temporaneamente non disponibile: ' . $error->getMessage());

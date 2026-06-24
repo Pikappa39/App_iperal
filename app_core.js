@@ -532,18 +532,14 @@ function updateMonthNotesCache(anno, mese, dataKey, entries) {
 }
 
 function getRigaOrarioDaSettimana(dataSettimana, userCf, userName) {
-    if (!Array.isArray(dataSettimana) || (!userCf && !userName)) {
+    const normalizedUserCf = (userCf || "").toString().trim().toUpperCase();
+    if (!Array.isArray(dataSettimana) || !normalizedUserCf) {
         return null;
     }
 
     return dataSettimana.find((riga) => {
         const rowCf = (riga.COD_FISCALE || "").toString().trim().toUpperCase();
-        if (userCf && rowCf) {
-            return rowCf === userCf;
-        }
-
-        // Compatibilità con i file storici, caricati prima delle associazioni.
-        return (riga.ADDETTO || "").toString().trim().toUpperCase() === userName;
+        return rowCf === normalizedUserCf;
     }) || null;
 }
 
