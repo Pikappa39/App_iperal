@@ -86,7 +86,7 @@ try {
         passwordResetResponse(['ok' => true, 'message' => $genericMessage]);
     }
 
-    $userQuery = $pdo->prepare('SELECT cod_fiscale, email FROM utenti WHERE email = ? LIMIT 1');
+    $userQuery = $pdo->prepare('SELECT cod_fiscale, email FROM utenti WHERE email = ? AND attivo = 1 LIMIT 1');
     $userQuery->execute([$email]);
     $user = $userQuery->fetch();
     if (!$user) {

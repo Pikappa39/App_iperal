@@ -53,7 +53,7 @@ function appUploadDepartmentUsers(PDO $pdo, string $reparto): array
     $statement = $pdo->prepare(
         'SELECT cod_fiscale, nome, cognome, badge
          FROM utenti
-         WHERE reparto = ?
+         WHERE reparto = ? AND attivo = 1
          ORDER BY cognome, nome, cod_fiscale'
     );
     $statement->execute([$reparto]);
@@ -89,7 +89,8 @@ function appUploadDepartmentNotificationRecipients(PDO $pdo, string $reparto): a
         'SELECT cod_fiscale
          FROM utenti
          WHERE reparto = ?
-           AND capo <> 3'
+           AND capo <> 3
+           AND attivo = 1'
     );
     $statement->execute([$reparto]);
 
@@ -105,6 +106,7 @@ function appUploadAdminNotificationRecipients(PDO $pdo, string $uploaderCf): arr
         'SELECT cod_fiscale
          FROM utenti
          WHERE capo = 3
+           AND attivo = 1
            AND cod_fiscale <> ?'
     );
     $statement->execute([$uploaderCf]);

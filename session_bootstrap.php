@@ -145,7 +145,7 @@ function app_session_validate_user(): void
 
     try {
         $statement = $pdo->prepare(
-            'SELECT session_version, nome, cognome, avatar, capo, reparto
+            'SELECT session_version, nome, cognome, avatar, capo, reparto, attivo
              FROM utenti
              WHERE cod_fiscale = ?
              LIMIT 1'
@@ -154,7 +154,7 @@ function app_session_validate_user(): void
         $currentUser = $statement->fetch(PDO::FETCH_ASSOC);
         $sessionVersion = (int) ($sessionUser['session_version'] ?? 0);
 
-        if (!$currentUser || (int) $currentUser['session_version'] !== $sessionVersion) {
+        if (!$currentUser || (int) ($currentUser['attivo'] ?? 1) !== 1 || (int) $currentUser['session_version'] !== $sessionVersion) {
             app_session_destroy_current();
             return;
         }

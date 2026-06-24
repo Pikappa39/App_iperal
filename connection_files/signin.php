@@ -190,7 +190,7 @@ try {
         (string) ($user['password'] ?? APP_LOGIN_DUMMY_PASSWORD_HASH)
     );
 
-    if ($user && $passwordMatches) {
+    if ($user && $passwordMatches && (int) ($user['attivo'] ?? 1) === 1) {
         appLoginClearFailures($pdo, $emailHash);
         session_regenerate_id(true);
         $_SESSION["user"] = [

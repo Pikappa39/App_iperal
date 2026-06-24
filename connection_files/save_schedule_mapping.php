@@ -70,7 +70,7 @@ if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) |
 }
 
 try {
-    $userStatement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? AND reparto = ? LIMIT 1');
+    $userStatement = $pdo->prepare('SELECT 1 FROM utenti WHERE cod_fiscale = ? AND reparto = ? AND attivo = 1 LIMIT 1');
     $userStatement->execute([$userCf, $reparto]);
     if (!$userStatement->fetchColumn()) {
         throw new RuntimeException('Utente non valido per il reparto.');

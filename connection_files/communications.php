@@ -37,7 +37,7 @@ function communicationCanManageUser(PDO $pdo, string $userCf, int $viewerRole, s
         return false;
     }
 
-    $stmt = $pdo->prepare('SELECT reparto FROM utenti WHERE cod_fiscale = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT reparto FROM utenti WHERE cod_fiscale = ? AND attivo = 1 LIMIT 1');
     $stmt->execute([$userCf]);
     return (string) $stmt->fetchColumn() === $viewerDepartment;
 }
@@ -70,10 +70,10 @@ try {
         }
 
         if ($view === 'users') {
-            $query = 'SELECT cod_fiscale, nome, cognome, reparto FROM utenti';
+            $query = 'SELECT cod_fiscale, nome, cognome, reparto FROM utenti WHERE attivo = 1';
             $params = [];
             if (in_array($viewerRole, [1, 2], true)) {
-                $query .= ' WHERE reparto = ?';
+                $query .= ' AND reparto = ?';
                 $params[] = $viewerDepartment;
             }
             $query .= ' ORDER BY cognome, nome';
@@ -152,7 +152,7 @@ try {
         if (!appIsValidDepartment($targetDepartment)) {
             communicationResponse(['ok' => false, 'error' => 'Reparto non valido'], 400);
         }
-        $stmt = $pdo->prepare('SELECT cod_fiscale FROM utenti WHERE reparto = ?');
+        $stmt = $pdo->prepare('SELECT cod_fiscale FROM utenti WHERE reparto = ? AND attivo = 1');
         $stmt->execute([$targetDepartment]);
         $recipients = array_map(static fn (array $row): string => (string) $row['cod_fiscale'], $stmt->fetchAll(PDO::FETCH_ASSOC));
     } else {

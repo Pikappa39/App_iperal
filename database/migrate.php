@@ -121,4 +121,17 @@ if (!$inviteRoleColumn) {
     echo "Colonna user_invites.invited_capo aggiunta.\n";
 }
 
+$activeUserColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utenti'
+       AND COLUMN_NAME = 'attivo'
+     LIMIT 1"
+)->fetchColumn();
+if (!$activeUserColumn) {
+    $pdo->exec('ALTER TABLE utenti ADD attivo TINYINT(1) NOT NULL DEFAULT 1 AFTER reparto');
+    echo "Colonna utenti.attivo aggiunta.\n";
+}
+
 echo "Migrazione database completata.\n";

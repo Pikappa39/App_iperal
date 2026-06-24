@@ -71,7 +71,7 @@ try {
     $capo = (int) ($sessionUser['capo'] ?? 0);
     $viewerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
     $userDepartments = [];
-    $departmentQuery = $pdo->query('SELECT cod_fiscale, reparto FROM utenti');
+    $departmentQuery = $pdo->query('SELECT cod_fiscale, reparto FROM utenti WHERE attivo = 1');
     foreach ($departmentQuery->fetchAll(PDO::FETCH_ASSOC) as $userDepartment) {
         $userDepartments[(string) $userDepartment['cod_fiscale']] = (string) ($userDepartment['reparto'] ?? '');
     }

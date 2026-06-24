@@ -226,7 +226,7 @@ function appPushUserLabels(array $user): array
 
 function appPushLoadUsers(PDO $pdo): array
 {
-    $stmt = $pdo->query('SELECT cod_fiscale, nome, cognome FROM utenti');
+    $stmt = $pdo->query('SELECT cod_fiscale, nome, cognome FROM utenti WHERE attivo = 1');
     $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     $index = [];
 

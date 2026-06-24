@@ -195,7 +195,8 @@ function appScheduleAdjustmentManagerRecipients(PDO $pdo, string $department): a
     $statement = $pdo->prepare(
         'SELECT cod_fiscale
          FROM utenti
-         WHERE capo = 3 OR (reparto = ? AND capo = 1)'
+         WHERE attivo = 1
+           AND (capo = 3 OR (reparto = ? AND capo = 1))'
     );
     $statement->execute([$department]);
     return array_map(static fn (array $row): string => (string) $row['cod_fiscale'], $statement->fetchAll(PDO::FETCH_ASSOC));

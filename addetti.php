@@ -67,14 +67,19 @@ $invites = [];
 $databaseError = !$connessione || !($pdo instanceof PDO);
 $inviteFlash = $_SESSION['invite_flash'] ?? null;
 unset($_SESSION['invite_flash']);
+$userManagementFlash = $_SESSION['user_management_flash'] ?? null;
+unset($_SESSION['user_management_flash']);
 
 if (!$databaseError) {
-    $userStatement = $pdo->prepare(
-        'SELECT cod_fiscale, nome, cognome, reparto, last_seen
+    $userQuery =
+        'SELECT cod_fiscale, nome, cognome, reparto, capo, attivo, last_seen
          FROM utenti
-         WHERE reparto = ?
-         ORDER BY cognome, nome, cod_fiscale'
-    );
+         WHERE reparto = ?';
+    if (!$isGlobalAdmin) {
+        $userQuery .= ' AND attivo = 1';
+    }
+    $userQuery .= ' ORDER BY attivo DESC, cognome, nome, cod_fiscale';
+    $userStatement = $pdo->prepare($userQuery);
     $userStatement->execute([$reparto]);
     $users = $userStatement->fetchAll(PDO::FETCH_ASSOC);
 
@@ -115,6 +120,7 @@ $usersByCf = [];
 foreach ($users as $user) {
     $usersByCf[(string) $user['cod_fiscale']] = $user;
 }
+$assignableUsers = array_values(array_filter($users, static fn (array $user): bool => (int) ($user['attivo'] ?? 1) === 1));
 
 // Include anche i nominativi presenti negli orari storici, caricati prima
 // dell'introduzione della tabella delle associazioni.
@@ -245,6 +251,12 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
             </div>
         <?php endif; ?>
 
+        <?php if (is_array($userManagementFlash) && isset($userManagementFlash['message'], $userManagementFlash['type'])): ?>
+            <div class="alert alert-<?php echo appAddettiEscape((string) $userManagementFlash['type']); ?>">
+                <?php echo appAddettiEscape((string) $userManagementFlash['message']); ?>
+            </div>
+        <?php endif; ?>
+
         <?php if ($canInvite): ?>
         <section class="card shadow-sm mb-4">
             <div class="card-body">
@@ -366,7 +378,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
         <section class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h5">Utenti registrati</h2>
-                <p class="text-muted">Sono inclusi tutti gli utenti del reparto selezionato, anche se non hanno ancora un nominativo negli orari.</p>
+                <p class="text-muted">Sono inclusi gli utenti del reparto selezionato, anche se non hanno ancora un nominativo negli orari.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
@@ -378,7 +390,13 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             <?php if ($canViewLastSeen): ?>
                                 <th>Ultima attività</th>
                             <?php endif; ?>
+                            <?php if ($isGlobalAdmin): ?>
+                                <th>Stato</th>
+                            <?php endif; ?>
                             <th>Nominativi negli orari</th>
+                            <?php if ($isGlobalAdmin): ?>
+                                <th>Gestione account</th>
+                            <?php endif; ?>
                         </tr>
                         </thead>
                         <tbody>
@@ -392,11 +410,57 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                 <?php if ($canViewLastSeen): ?>
                                     <td><?php echo appAddettiEscape(appAddettiLastSeenLabel($user['last_seen'] ?? null)); ?></td>
                                 <?php endif; ?>
+                                <?php if ($isGlobalAdmin): ?>
+                                    <td>
+                                        <?php if ((int) ($user['attivo'] ?? 1) === 1): ?>
+                                            <span class="badge text-bg-success">Attivo</span>
+                                        <?php else: ?>
+                                            <span class="badge text-bg-secondary">Disattivato</span>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endif; ?>
                                 <td><?php echo $scheduleUserNames === [] ? '<span class="text-muted">Nessuno</span>' : appAddettiEscape(implode(', ', $scheduleUserNames)); ?></td>
+                                <?php if ($isGlobalAdmin): ?>
+                                    <td>
+                                        <?php if ((int) ($user['capo'] ?? 0) === 3): ?>
+                                            <span class="text-muted">Admin protetto</span>
+                                        <?php elseif ((int) ($user['attivo'] ?? 1) === 1): ?>
+                                            <form action="connection_files/manage_users.php" method="post" onsubmit="return confirm('Disattivare questo account? L’utente verrà scollegato e non riceverà notifiche.');">
+                                                <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                                <input type="hidden" name="action" value="deactivate">
+                                                <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                                <button type="submit" class="btn btn-outline-warning btn-sm">Disattiva</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <div class="d-grid gap-2">
+                                                <form action="connection_files/manage_users.php" method="post">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                    <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                                    <input type="hidden" name="action" value="reactivate">
+                                                    <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                                    <button type="submit" class="btn btn-outline-success btn-sm">Riattiva</button>
+                                                </form>
+                                                <details>
+                                                    <summary class="text-danger small">Elimina definitivamente</summary>
+                                                    <form action="connection_files/manage_users.php" method="post" class="mt-2" onsubmit="return confirm('Eliminazione definitiva: dati personali, note, associazioni e notifiche saranno rimossi.');">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                                        <input type="hidden" name="action" value="delete">
+                                                        <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                                        <label class="form-label small" for="deleteConfirm-<?php echo appAddettiEscape($userCf); ?>">Digita: ELIMINA <?php echo appAddettiEscape($userCf); ?></label>
+                                                        <input class="form-control form-control-sm mb-2" id="deleteConfirm-<?php echo appAddettiEscape($userCf); ?>" type="text" name="confirmation" autocomplete="off" required>
+                                                        <button type="submit" class="btn btn-danger btn-sm">Conferma eliminazione</button>
+                                                    </form>
+                                                </details>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="<?php echo $isGlobalAdmin ? '4' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo $isGlobalAdmin ? '6' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -423,7 +487,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                         <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
                                         <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
                                         <select class="form-select form-select-sm" name="user_cf" required aria-label="Nuovo utente per <?php echo appAddettiEscape($row['name']); ?>">
-                                            <?php foreach ($users as $user): ?>
+                                            <?php foreach ($assignableUsers as $user): ?>
                                                 <?php $userCf = (string) $user['cod_fiscale']; ?>
                                                 <option value="<?php echo appAddettiEscape($userCf); ?>"<?php echo $userCf === $row['user_cf'] ? ' selected' : ''; ?>><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
                                             <?php endforeach; ?>
@@ -461,7 +525,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                         <input type="hidden" name="schedule_name" value="<?php echo appAddettiEscape($row['key']); ?>">
                                         <select class="form-select form-select-sm" name="user_cf" required aria-label="Utente da associare a <?php echo appAddettiEscape($row['name']); ?>">
                                             <option value="">Seleziona utente…</option>
-                                            <?php foreach ($users as $user): ?>
+                                            <?php foreach ($assignableUsers as $user): ?>
                                                 <?php $userCf = (string) $user['cod_fiscale']; ?>
                                                 <option value="<?php echo appAddettiEscape($userCf); ?>"><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
                                             <?php endforeach; ?>
