@@ -1331,6 +1331,11 @@ textarea {
     white-space: pre-wrap;
 }
 
+.admin-note-card__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .vista-modifiche {
     max-width: 760px;
     margin-inline: auto;

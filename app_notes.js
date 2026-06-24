@@ -212,6 +212,42 @@ function createAdminNoteCard(entry) {
     card.appendChild(meta);
     card.appendChild(note);
 
+    const actions = document.createElement("div");
+    actions.className = "admin-note-card__actions";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn-outline-danger btn-sm";
+    remove.textContent = "Elimina nota";
+    remove.addEventListener("click", async () => {
+        if (!entry.entryId || !window.confirm("Eliminare definitivamente questa nota?")) {
+            return;
+        }
+
+        remove.disabled = true;
+        remove.textContent = "Eliminazione...";
+        const form = new FormData();
+        form.append("action", "delete_admin");
+        form.append("date", entry.date || "");
+        form.append("entry_id", entry.entryId);
+        form.append("csrf_token", window.appCsrfToken || "");
+
+        try {
+            const response = await fetch(NOTES_ENDPOINT, { method: "POST", body: form });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.ok) {
+                throw new Error(result.error || "Impossibile eliminare la nota");
+            }
+            showAppToast("Nota eliminata");
+            mostraNoteAdmin();
+        } catch (error) {
+            remove.disabled = false;
+            remove.textContent = "Elimina nota";
+            showAppToast(error.message || "Impossibile eliminare la nota");
+        }
+    });
+    actions.appendChild(remove);
+    card.appendChild(actions);
+
     return card;
 }
 //questa funzione createAdminMonthSection crea una sezione per un mese specifico contenente le note degli utenti

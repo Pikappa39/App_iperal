@@ -182,6 +182,15 @@ try {
         return $notes;
     };
 
+    $noteEntryId = static function (string $dateKey, array $entry): string {
+        return hash('sha256', implode("\n", [
+            $dateKey,
+            (string) ($entry['userKey'] ?? ''),
+            (string) ($entry['updatedAt'] ?? ''),
+            (string) ($entry['note'] ?? ''),
+        ]));
+    };
+
     $saveMonthNotes = static function ($filePath, array $payload) {
         $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         if ($json === false) {
@@ -248,6 +257,7 @@ try {
                     foreach ($dayEntries as $dayEntry) {
                         $entries[] = [
                             "date" => $entryDate,
+                            "entryId" => $noteEntryId((string) $entryDate, $dayEntry),
                             "userKey" => (string) ($dayEntry["userKey"] ?? ""),
                             "userName" => (string) ($dayEntry["userName"] ?? ""),
                             "note" => (string) ($dayEntry["note"] ?? ""),
@@ -323,6 +333,79 @@ try {
             "ok" => false,
             "error" => "Metodo non consentito",
         ], 405);
+    }
+
+    $action = (string) ($_POST['action'] ?? 'save');
+    if ($action === 'delete_admin') {
+        if (!in_array($capo, [1, 2, 3], true)) {
+            jsonResponse(['ok' => false, 'error' => 'Accesso negato'], 403);
+        }
+
+        $dateKey = $normalizeDateKey($_POST['date'] ?? '');
+        $entryId = trim((string) ($_POST['entry_id'] ?? ''));
+        if ($dateKey === null || !preg_match('/^[a-f0-9]{64}$/', $entryId)) {
+            jsonResponse(['ok' => false, 'error' => 'Nota non valida'], 400);
+        }
+
+        $monthKey = substr($dateKey, 0, 7);
+        $filePath = $monthFilePath($storageDir, $monthKey);
+        $payload = $withMonthLock($filePath, static function () use (
+            $filePath,
+            $monthKey,
+            $dateKey,
+            $entryId,
+            $canViewEntry,
+            $noteEntryId,
+            $loadMonthNotes,
+            $normalizeNotesStructure,
+            $saveMonthNotes
+        ) {
+            $payload = $loadMonthNotes($filePath, $monthKey);
+            $payload['notes'] = $normalizeNotesStructure($payload['notes']);
+            $entries = $payload['notes'][$dateKey] ?? [];
+            $entryIndex = null;
+
+            foreach ($entries as $index => $entry) {
+                if (!is_array($entry) || !hash_equals($noteEntryId($dateKey, $entry), $entryId)) {
+                    continue;
+                }
+                if (!$canViewEntry($entry)) {
+                    throw new RuntimeException('Non puoi eliminare questa nota.');
+                }
+                $entryIndex = $index;
+                break;
+            }
+
+            if ($entryIndex === null) {
+                throw new RuntimeException('La nota non è più disponibile. Ricarica l’elenco.');
+            }
+
+            array_splice($entries, $entryIndex, 1);
+            if ($entries === []) {
+                unset($payload['notes'][$dateKey]);
+            } else {
+                $payload['notes'][$dateKey] = array_values($entries);
+            }
+
+            $saveResult = $saveMonthNotes($filePath, $payload);
+            if (empty($saveResult['ok'])) {
+                throw new RuntimeException('Impossibile eliminare la nota.');
+            }
+
+            return $payload;
+        });
+
+        jsonResponse([
+            'ok' => true,
+            'month' => $monthKey,
+            'date' => $dateKey,
+            'notes' => array_values($filterNotesForViewer([
+                $dateKey => $payload['notes'][$dateKey] ?? [],
+            ])[$dateKey] ?? []),
+        ]);
+    }
+    if ($action !== 'save') {
+        jsonResponse(['ok' => false, 'error' => 'Operazione non valida'], 400);
     }
 
     $dateKey = $normalizeDateKey($_POST["date"] ?? "");

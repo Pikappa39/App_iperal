@@ -18,7 +18,13 @@ function appUserManagementFlash(string $type, string $message): void
     $_SESSION['user_management_flash'] = ['type' => $type, 'message' => $message];
 }
 
-function appUserManagementRemoveNotes(string $userCf): void
+function appUserManagementNormalizeName(string $value): string
+{
+    $value = trim((string) preg_replace('/\s+/u', ' ', $value));
+    return mb_strtoupper($value, 'UTF-8');
+}
+
+function appUserManagementRemoveNotes(array $userKeys, ?string $userName = null): void
 {
     $directory = __DIR__ . '/../note_json';
     if (!is_dir($directory)) {
@@ -27,6 +33,8 @@ function appUserManagementRemoveNotes(string $userCf): void
 
     $files = glob($directory . '/*.json') ?: [];
     sort($files, SORT_STRING);
+    $userKeys = array_fill_keys(array_filter(array_map('strval', $userKeys), static fn (string $key): bool => $key !== ''), true);
+    $normalizedName = $userName !== null ? appUserManagementNormalizeName($userName) : '';
     $locks = [];
     $changes = [];
 
@@ -51,8 +59,17 @@ function appUserManagementRemoveNotes(string $userCf): void
                 if (!is_array($entries)) {
                     continue;
                 }
-                $filtered = array_values(array_filter($entries, static function ($entry) use ($userCf): bool {
-                    return !is_array($entry) || (string) ($entry['userKey'] ?? '') !== $userCf;
+                $filtered = array_values(array_filter($entries, static function ($entry) use ($userKeys, $normalizedName): bool {
+                    if (!is_array($entry)) {
+                        return true;
+                    }
+
+                    if (isset($userKeys[(string) ($entry['userKey'] ?? '')])) {
+                        return false;
+                    }
+
+                    return $normalizedName === ''
+                        || appUserManagementNormalizeName((string) ($entry['userName'] ?? '')) !== $normalizedName;
                 }));
                 if (count($filtered) !== count($entries)) {
                     $data['notes'][$date] = $filtered;
@@ -124,7 +141,7 @@ try {
     }
 
     $pdo->beginTransaction();
-    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, capo, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
+    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, email, capo, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
     $targetQuery->execute([$targetCf]);
     $target = $targetQuery->fetch(PDO::FETCH_ASSOC);
     if (!is_array($target)) {
@@ -157,6 +174,21 @@ try {
         throw new RuntimeException('Per confermare digita esattamente: ELIMINA ' . $targetCf);
     }
 
+    $noteKeys = [$targetCf];
+    $inviteIdentityQuery = $pdo->prepare(
+        'SELECT invited_cf, accepted_user_cf
+         FROM user_invites
+         WHERE LOWER(invited_email) = LOWER(?)'
+    );
+    $inviteIdentityQuery->execute([(string) $target['email']]);
+    foreach ($inviteIdentityQuery->fetchAll(PDO::FETCH_ASSOC) as $inviteIdentity) {
+        $noteKeys[] = (string) ($inviteIdentity['invited_cf'] ?? '');
+        $noteKeys[] = (string) ($inviteIdentity['accepted_user_cf'] ?? '');
+    }
+    $sameNameQuery = $pdo->prepare('SELECT COUNT(*) FROM utenti WHERE nome = ? AND cognome = ?');
+    $sameNameQuery->execute([(string) $target['nome'], (string) $target['cognome']]);
+    $noteName = (int) $sameNameQuery->fetchColumn() === 1 ? $name : null;
+
     $pdo->prepare('DELETE FROM communication_recipients WHERE recipient_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE cr FROM communication_recipients cr JOIN communications c ON c.id = cr.communication_id WHERE c.author_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM communications WHERE author_cf = ?')->execute([$targetCf]);
@@ -167,10 +199,11 @@ try {
     $pdo->prepare('DELETE FROM schedule_adjustment_requests WHERE user_cf = ? OR decided_by_cf = ?')->execute([$targetCf, $targetCf]);
     $pdo->prepare('UPDATE schedule_name_mappings SET created_by_cf = NULL WHERE created_by_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM schedule_name_mappings WHERE user_cf = ?')->execute([$targetCf]);
-    $pdo->prepare('DELETE FROM user_invites WHERE invited_by_cf = ? OR invited_cf = ? OR accepted_user_cf = ?')->execute([$targetCf, $targetCf, $targetCf]);
+    $pdo->prepare('DELETE FROM user_invites WHERE invited_by_cf = ? OR invited_cf = ? OR accepted_user_cf = ? OR LOWER(invited_email) = LOWER(?)')
+        ->execute([$targetCf, $targetCf, $targetCf, (string) $target['email']]);
     $pdo->prepare('DELETE FROM utenti WHERE cod_fiscale = ?')->execute([$targetCf]);
 
-    appUserManagementRemoveNotes($targetCf);
+    appUserManagementRemoveNotes($noteKeys, $noteName);
     $pdo->commit();
     appUserManagementFlash('success', $name . ' e i relativi dati personali sono stati eliminati definitivamente.');
 } catch (Throwable $error) {

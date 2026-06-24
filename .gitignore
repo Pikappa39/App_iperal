@@ -9,6 +9,7 @@
 /backup-myorari.sql
 /backups/
 /note_json/*.json
+/note_json/*.lock
 !/note_json/.gitkeep
 !/note_json/.htaccess
 
