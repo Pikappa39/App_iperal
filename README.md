@@ -55,7 +55,7 @@ php scripts/release.php minor "Nuova funzione" --push
 
 ## Verifica post-deploy
 
-Dopo aver aggiornato il codice e ricaricato Apache su EC2, esegui il controllo HTTP automatico. Verifica home, login, CSS, manifest e service worker senza usare account o modificare dati:
+Dopo aver aggiornato il codice e ricaricato Apache su EC2, esegui il controllo HTTP automatico. Verifica home, login, CSS, manifest e service worker senza usare account o modificare dati. Per evitare che Cloudflare tratti il controllo eseguito da EC2 come un bot, per impostazione predefinita lo script contatta Apache in locale mantenendo hostname e HTTPS corretti:
 
 ```sh
 cd /var/www/html/App_iperal-1
@@ -66,6 +66,12 @@ Lo script termina con errore se un endpoint non risponde con `200` o con il tipo
 
 ```sh
 bash scripts/post_deploy_check.sh https://staging.example.com
+```
+
+Per controllare il percorso pubblico attraverso Cloudflare, esegui lo script da una macchina esterna a EC2:
+
+```sh
+APP_HEALTHCHECK_PUBLIC=1 bash scripts/post_deploy_check.sh
 ```
 
 ## Backup automatici su Google Drive
