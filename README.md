@@ -1,5 +1,7 @@
 # MyOrari
 
+Per i controlli prima e dopo un rilascio, consulta [TESTING.md](TESTING.md).
+
 ## Installazione e aggiornamento database
 
 Configura le variabili in `app_local_env.php` oppure nell'ambiente del server, poi esegui una sola volta dal terminale del server:
