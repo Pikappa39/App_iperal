@@ -67,11 +67,13 @@ sudo -n mysqldump \
     --no-tablespaces \
     --databases "$DB_NAME" | gzip -9 > "$DB_DUMP"
 
-tar \
+# Alcuni file applicativi sono leggibili solo da Apache. L'archivio resta
+# dell'utente ubuntu grazie alla redirezione eseguita prima di sudo.
+sudo -n tar \
     --exclude='./storage/sessions' \
     --exclude='./.git' \
     -C "$APP_DIR" \
-    -czf "$FILES_ARCHIVE" .
+    -czf - . > "$FILES_ARCHIVE"
 
 (
     cd "$WORK_DIR"
