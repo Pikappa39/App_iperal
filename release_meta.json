@@ -1,7 +1,13 @@
 {
-    "latest": "0.10.0",
-    "updated_at": "2026-06-25T15:15:06+00:00",
+    "latest": "0.10.1",
+    "updated_at": "2026-06-25T16:03:31+00:00",
     "releases": [
+        {
+            "version": "0.10.1",
+            "previous_version": "0.10.0",
+            "description": "Pagina ripristino PWA",
+            "released_at": "2026-06-25T16:03:31+00:00"
+        },
         {
             "version": "0.10.0",
             "previous_version": "0.9.0",

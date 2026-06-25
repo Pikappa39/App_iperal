@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.10.0');
+    define('APP_VERSION', '0.10.1');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
