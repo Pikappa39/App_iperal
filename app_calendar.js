@@ -336,11 +336,28 @@ async function mostraGiorni(anno, mese, options = {}) {
     container.appendChild(createCalendarNavigation(anno, mese));
 
     const noteMese = await getMonthNotes(anno, mese);
-    const settimaneCaricate = {};
-    await Promise.all([...weeksToLoad.values()].map(async (isoWeek) => {
-        const key = isoWeek.year + ":" + isoWeek.week;
-        settimaneCaricate[key] = await getWeekData(isoWeek.year, isoWeek.week);
-    }));
+    let settimaneCaricate = {};
+    try {
+        const monthWeeks = await getMonthScheduleData(anno, mese);
+        const missingWeeks = [];
+        [...weeksToLoad.values()].forEach((isoWeek) => {
+            const key = isoWeek.year + ":" + isoWeek.week;
+            if (Object.prototype.hasOwnProperty.call(monthWeeks, key)) {
+                settimaneCaricate[key] = Array.isArray(monthWeeks[key]) ? monthWeeks[key] : [];
+            } else {
+                missingWeeks.push(isoWeek);
+            }
+        });
+        if (missingWeeks.length > 0) {
+            const fallbackWeeks = await getWeeksScheduleData(new Map(
+                missingWeeks.map((isoWeek) => [isoWeek.year + ":" + isoWeek.week, isoWeek])
+            ));
+            settimaneCaricate = Object.assign(settimaneCaricate, fallbackWeeks);
+        }
+    } catch (error) {
+        console.warn("Endpoint mensile non disponibile, uso il caricamento settimanale", error);
+        settimaneCaricate = await getWeeksScheduleData(weeksToLoad);
+    }
 
     if (viewToken !== appState.calendarViewToken || appState.view !== "giorni") {
         return;

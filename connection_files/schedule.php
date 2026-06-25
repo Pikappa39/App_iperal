@@ -33,20 +33,7 @@ if (!appIsValidDepartment($department)) {
 }
 
 try {
-    // Le versioni archiviate sono la fonte autorevole; il JSON locale resta
-    // compatibile con gli orari caricati prima dell'introduzione dello storico.
-    $rows = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $department, $year, $week);
-    $rows = $rows ?? [];
-
-    $rows = appScheduleAdjustmentApplyApproved($pdo, (string) $_SESSION['user']['cf'], $year, $week, $rows);
-    $userCf = strtoupper(trim((string) $_SESSION['user']['cf']));
-    $rows = array_values(array_filter($rows, static function ($row) use ($userCf): bool {
-        if (!is_array($row)) {
-            return false;
-        }
-
-        return strtoupper(trim((string) ($row['COD_FISCALE'] ?? ''))) === $userCf;
-    }));
+    $rows = appScheduleAdjustmentLoadUserScheduleRows($pdo, $department, $year, $week, (string) $_SESSION['user']['cf']);
     scheduleResponse(['ok' => true, 'rows' => $rows]);
 } catch (Throwable $error) {
     error_log('Orario temporaneamente non disponibile: ' . $error->getMessage());

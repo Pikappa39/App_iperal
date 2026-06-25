@@ -23,6 +23,7 @@ const appState = {
     noteViewToken: 0,
     calendarViewToken: 0,
     weekCache: Object.create(null),
+    monthSchedulePromises: Object.create(null),
     monthNotesCache: Object.create(null),
     monthNotesPromises: Object.create(null),
     transientCache: Object.create(null)
@@ -33,6 +34,7 @@ let appNavigationPosition = 0;
 
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 const SCHEDULE_ENDPOINT = "connection_files/schedule.php";
+const MONTH_SCHEDULE_ENDPOINT = "connection_files/month_schedule.php";
 const NOTES_ENDPOINT = "connection_files/note.php";
 const SCHEDULE_DAY_KEYS = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"];
 const today = new Date();
@@ -328,6 +330,46 @@ async function getWeekData(anno, settimana) {
     }
 
     return appState.weekCache[key];
+}
+
+async function getMonthScheduleData(anno, mese) {
+    if (!getCurrentUserKey()) {
+        return {};
+    }
+
+    const key = String(anno) + ":" + String(mese);
+    if (!appState.monthSchedulePromises[key]) {
+        appState.monthSchedulePromises[key] = (async () => {
+            const query = new URLSearchParams({ year: String(anno), month: String(mese) });
+            const response = await fetch(MONTH_SCHEDULE_ENDPOINT + "?" + query.toString(), {
+                cache: "no-store"
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok || !payload.weeks || typeof payload.weeks !== "object") {
+                throw new Error(payload.error || "Orario mensile non disponibile");
+            }
+
+            Object.entries(payload.weeks).forEach(([weekKey, rows]) => {
+                appState.weekCache[weekKey] = Promise.resolve(Array.isArray(rows) ? rows : []);
+            });
+
+            return payload.weeks;
+        })().catch((error) => {
+            delete appState.monthSchedulePromises[key];
+            throw error;
+        });
+    }
+
+    return appState.monthSchedulePromises[key];
+}
+
+async function getWeeksScheduleData(weeksToLoad) {
+    const settimaneCaricate = {};
+    await Promise.all([...weeksToLoad.values()].map(async (isoWeek) => {
+        const key = isoWeek.year + ":" + isoWeek.week;
+        settimaneCaricate[key] = await getWeekData(isoWeek.year, isoWeek.week);
+    }));
+    return settimaneCaricate;
 }
 
 function formatScheduleChangeDate(value) {

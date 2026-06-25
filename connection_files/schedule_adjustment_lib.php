@@ -164,6 +164,21 @@ function appScheduleAdjustmentLoadCurrentScheduleRows(PDO $pdo, string $departme
         ?? appScheduleAdjustmentLoadJsonScheduleRows($department, $year, $week);
 }
 
+function appScheduleAdjustmentLoadUserScheduleRows(PDO $pdo, string $department, int $year, int $week, string $userCf): array
+{
+    $rows = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $department, $year, $week) ?? [];
+    $rows = appScheduleAdjustmentApplyApproved($pdo, $userCf, $year, $week, $rows);
+    $normalizedUserCf = strtoupper(trim($userCf));
+
+    return array_values(array_filter($rows, static function ($row) use ($normalizedUserCf): bool {
+        if (!is_array($row)) {
+            return false;
+        }
+
+        return strtoupper(trim((string) ($row['COD_FISCALE'] ?? ''))) === $normalizedUserCf;
+    }));
+}
+
 function appScheduleAdjustmentFindOriginalShift(PDO $pdo, string $department, int $year, int $week, string $userCf, string $dayName): ?string
 {
     $rows = appScheduleAdjustmentLoadCurrentScheduleRows($pdo, $department, $year, $week);
