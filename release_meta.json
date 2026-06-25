@@ -1,0 +1,18 @@
+{
+    "latest": "0.10.0",
+    "updated_at": "2026-06-25T15:15:06+00:00",
+    "releases": [
+        {
+            "version": "0.10.0",
+            "previous_version": "0.9.0",
+            "description": "Console admin, nuova UI glass e popup changelog",
+            "released_at": "2026-06-25T15:15:06+00:00"
+        },
+        {
+            "version": "0.9.0",
+            "previous_version": "",
+            "description": "Aggiornamenti grafici, console amministrativa e rifiniture operative.",
+            "released_at": "2026-06-25T00:00:00+02:00"
+        }
+    ]
+}

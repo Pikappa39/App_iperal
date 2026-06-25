@@ -63,6 +63,8 @@ Prima prepara con `git add` soltanto i file verificati. Poi il comando seguente 
 php scripts/release.php patch "Descrizione della correzione"
 ```
 
+La descrizione viene salvata anche in `release_meta.json` e mostrata nell'app come popup changelog al primo avvio della nuova versione.
+
 Usa `minor` per una nuova funzione e `major` per cambiamenti incompatibili. Aggiungi `--push` soltanto quando vuoi pubblicare commit e tag su `origin`:
 
 ```sh

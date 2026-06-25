@@ -194,6 +194,15 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione addetti</title>
+    <script>
+    (function () {
+        try {
+            document.documentElement.dataset.theme = localStorage.getItem("app-iperal-theme") === "dark" ? "dark" : "light";
+        } catch (error) {
+            document.documentElement.dataset.theme = "light";
+        }
+    })();
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
 </head>

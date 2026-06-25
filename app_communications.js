@@ -110,7 +110,7 @@ async function mostraComunicazioni() {
 
     if (!isCapoUser()) return;
     const compose = document.createElement("form");
-    compose.className = "card card-body mt-5";
+    compose.className = "card card-body mt-5 communication-compose";
     compose.innerHTML = '<h4>Nuova comunicazione</h4><input class="form-control mb-2" name="title" maxlength="150" placeholder="Titolo" required><textarea class="form-control mb-2" name="message" maxlength="3000" rows="4" placeholder="Messaggio" required></textarea><select class="form-select mb-2" name="priority"><option value="normal">Normale</option><option value="important">Importante</option></select><select class="form-select mb-2" name="target_type"><option value="department">Tutto il reparto</option><option value="user">Singolo addetto</option></select><select class="form-select mb-2" name="department"></select><select class="form-select mb-2 d-none" name="recipient_cf"></select><button class="btn btn-primary" type="submit">Invia</button><p class="mb-0 mt-2" aria-live="polite"></p>';
     wrapper.appendChild(compose);
     const department = compose.elements.department;

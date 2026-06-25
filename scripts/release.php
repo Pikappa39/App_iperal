@@ -115,12 +115,45 @@ if ($tagExists === 0) {
     releaseFail("Il tag {$tag} esiste già.");
 }
 
+$previousVersion = $matches[1] . '.' . $matches[2] . '.' . $matches[3];
 $updatedConfig = preg_replace($pattern, "define('APP_VERSION', '{$version}');", $config, 1);
 if (!is_string($updatedConfig) || file_put_contents($configPath, $updatedConfig) === false) {
     releaseFail('Impossibile aggiornare APP_VERSION.');
 }
 
+$releaseMetaPath = $projectRoot . '/release_meta.json';
+$releaseMeta = [
+    'latest' => $version,
+    'updated_at' => date(DATE_ATOM),
+    'releases' => [],
+];
+if (is_file($releaseMetaPath)) {
+    $decodedMeta = json_decode((string) file_get_contents($releaseMetaPath), true);
+    if (is_array($decodedMeta)) {
+        $releaseMeta = $decodedMeta;
+    }
+}
+if (!isset($releaseMeta['releases']) || !is_array($releaseMeta['releases'])) {
+    $releaseMeta['releases'] = [];
+}
+
+array_unshift($releaseMeta['releases'], [
+    'version' => $version,
+    'previous_version' => $previousVersion,
+    'description' => $description,
+    'released_at' => date(DATE_ATOM),
+]);
+$releaseMeta['latest'] = $version;
+$releaseMeta['updated_at'] = date(DATE_ATOM);
+$releaseMeta['releases'] = array_slice($releaseMeta['releases'], 0, 30);
+
+$encodedMeta = json_encode($releaseMeta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if (!is_string($encodedMeta) || file_put_contents($releaseMetaPath, $encodedMeta . "\n") === false) {
+    releaseFail('Impossibile aggiornare release_meta.json.');
+}
+
 releaseRunOrFail(['git', 'add', 'app_config.php'], $projectRoot);
+releaseRunOrFail(['git', 'add', 'release_meta.json'], $projectRoot);
 releaseRunOrFail(['git', 'commit', '-m', "Versione {$tag} - {$description}"], $projectRoot);
 releaseRunOrFail(['git', 'tag', '-a', $tag, '-m', "Versione {$tag} - {$description}"], $projectRoot);
 

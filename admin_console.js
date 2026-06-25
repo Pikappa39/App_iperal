@@ -45,6 +45,54 @@
         });
     });
 
+    const search = document.querySelector("[data-admin-console-search]");
+    const searchStatus = document.querySelector("[data-admin-console-search-status]");
+    const rows = Array.from(document.querySelectorAll("[data-admin-console-row]"));
+    const panels = Array.from(document.querySelectorAll("[data-admin-console-panel]"));
+
+    function updateSearch() {
+        if (!(search instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const query = search.value.trim().toLocaleLowerCase();
+        let visibleRows = 0;
+        const active = query.length > 0;
+
+        rows.forEach((row) => {
+            const text = (row.dataset.searchText || "").toLocaleLowerCase();
+            const visible = !active || text.includes(query);
+            row.hidden = !visible;
+            if (visible) {
+                visibleRows += 1;
+            }
+        });
+
+        panels.forEach((panel) => {
+            const panelRows = Array.from(panel.querySelectorAll("[data-admin-console-row]"));
+            const hasVisibleRows = panelRows.some((row) => !row.hidden);
+            panel.hidden = active && !hasVisibleRows;
+            if (active && hasVisibleRows) {
+                panel.open = true;
+            }
+        });
+
+        if (searchStatus) {
+            if (!active) {
+                searchStatus.textContent = "";
+            } else {
+                searchStatus.textContent = visibleRows === 1
+                    ? "1 risultato trovato"
+                    : `${visibleRows} risultati trovati`;
+            }
+        }
+    }
+
+    if (search instanceof HTMLInputElement) {
+        search.addEventListener("input", updateSearch);
+        updateSearch();
+    }
+
     refreshCountdown();
     window.setInterval(refreshCountdown, 1000);
 }());

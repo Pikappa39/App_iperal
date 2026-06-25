@@ -17,6 +17,15 @@ if (isset($_SESSION['user'])) {
     }
 }
 
+$releaseMeta = [];
+$releaseMetaPath = __DIR__ . '/release_meta.json';
+if (is_file($releaseMetaPath)) {
+    $decodedReleaseMeta = json_decode((string) file_get_contents($releaseMetaPath), true);
+    if (is_array($decodedReleaseMeta)) {
+        $releaseMeta = $decodedReleaseMeta;
+    }
+}
+
 $clientBootstrap = [
     'userSession' => $_SESSION['user'] ?? null,
     'userKey' => $_SESSION['user']['cf'] ?? '',
@@ -27,11 +36,22 @@ $clientBootstrap = [
     'departments' => appDepartments(),
     'pushPublicKey' => $pushPublicKey,
     'csrfToken' => app_csrf_token(),
+    'appVersion' => APP_VERSION,
+    'releaseMeta' => $releaseMeta,
 ];
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <script>
+    (function () {
+        try {
+            document.documentElement.dataset.theme = localStorage.getItem("app-iperal-theme") === "dark" ? "dark" : "light";
+        } catch (error) {
+            document.documentElement.dataset.theme = "light";
+        }
+    })();
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="manifest" href="manifest.php?v=<?php echo rawurlencode(APP_VERSION); ?>">
@@ -63,13 +83,6 @@ $clientBootstrap = [
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="guideItem">Guida</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
-            <li><button type="button" class="dropdown-item" id="scheduleChangesItem">Aggiornamenti orari</button></li>
-            <li><button type="button" class="dropdown-item" id="scheduleAdjustmentsItem">Richieste ore</button></li>
-            <?php if (in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 3], true)): ?>
-                <li><button type="button" class="dropdown-item" id="departmentOverviewItem">Panoramica reparto</button></li>
-            <?php endif; ?>
-            <li><button type="button" class="dropdown-item" id="communicationsItem">Comunicazioni</button></li>
-            <li><button type="button" class="dropdown-item d-none" id="noteAdminItem">Note</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
             <li>
               <form id="logoutForm" action="connection_files/logout.php" method="post">
@@ -77,8 +90,6 @@ $clientBootstrap = [
                 <button class="dropdown-item" id="logoutLink" type="submit">Logout</button>
               </form>
             </li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item d-none" id="uploadItem" href="testjs.php">Upload</a></li>
           </ul>
         </div>
       <?php else: ?>
@@ -94,14 +105,73 @@ $clientBootstrap = [
 
   <div id="appToast" class="app-toast app-hidden" hidden role="status" aria-live="polite"></div>
 
+  <div id="changelogDialog" class="changelog-dialog app-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="changelogTitle">
+    <div class="changelog-dialog__panel">
+      <button type="button" id="changelogCloseBtn" class="changelog-dialog__close" aria-label="Chiudi novità">×</button>
+      <p class="changelog-dialog__eyebrow">Aggiornamento disponibile</p>
+      <h2 id="changelogTitle">Novità dell'app</h2>
+      <p id="changelogSubtitle" class="changelog-dialog__subtitle"></p>
+      <div id="changelogBody" class="changelog-dialog__body"></div>
+      <button type="button" id="changelogOkBtn" class="btn btn-primary changelog-dialog__action">Ho capito</button>
+    </div>
+  </div>
+
   <section id="homeScreen" class="home-screen">
-    <div class="home-actions">
-      <button type="button" id="openOrari" class="home-orari sfera">Orari</button>
-      <?php if (isset($_SESSION['user']) && in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 2, 3], true)): ?>
-        <a href="addetti.php" class="home-orari sfera home-addetti">Addetti</a>
-      <?php endif; ?>
-      <?php if (isset($_SESSION['user']) && (int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
-        <a href="admin_console.php" class="home-orari sfera home-admin-console">Console</a>
+    <div class="home-dashboard">
+      <div class="home-actions">
+        <button type="button" id="openOrari" class="home-orari sfera">
+          <span class="home-action-icon" aria-hidden="true">⏱</span>
+          <span class="home-action-label">Orari</span>
+        </button>
+        <button type="button" id="communicationsItem" class="home-orari sfera home-communications">
+          <span class="home-action-icon" aria-hidden="true">✉</span>
+          <span class="home-action-label">Comunicazioni</span>
+        </button>
+        <button type="button" id="scheduleAdjustmentsItem" class="home-orari sfera home-adjustments">
+          <span class="home-action-icon" aria-hidden="true">±</span>
+          <span class="home-action-label">Richieste ore</span>
+        </button>
+      </div>
+
+      <?php if (isset($_SESSION['user'])): ?>
+        <div class="home-tools" aria-label="Funzioni operative">
+          <button type="button" class="home-tool" id="scheduleChangesItem">
+            <span class="home-tool-icon" aria-hidden="true">↻</span>
+            <strong>Aggiornamenti orari</strong>
+            <span>Variazioni pubblicate</span>
+          </button>
+          <?php if (in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 2, 3], true)): ?>
+            <a href="addetti.php" class="home-tool">
+              <span class="home-tool-icon" aria-hidden="true">◎</span>
+              <strong>Addetti</strong>
+              <span>Utenti e associazioni</span>
+            </a>
+            <a class="home-tool" id="uploadItem" href="testjs.php">
+              <span class="home-tool-icon" aria-hidden="true">↑</span>
+              <strong>Upload</strong>
+              <span>Carica file orari</span>
+            </a>
+            <button type="button" class="home-tool d-none" id="noteAdminItem">
+              <span class="home-tool-icon" aria-hidden="true">✎</span>
+              <strong>Note</strong>
+              <span>Gestione note reparto</span>
+            </button>
+          <?php endif; ?>
+          <?php if (in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 3], true)): ?>
+            <button type="button" class="home-tool" id="departmentOverviewItem">
+              <span class="home-tool-icon" aria-hidden="true">▦</span>
+              <strong>Panoramica reparto</strong>
+              <span>Vista settimanale</span>
+            </button>
+          <?php endif; ?>
+          <?php if ((int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
+            <a href="admin_console.php" class="home-tool home-tool--admin">
+              <span class="home-tool-icon" aria-hidden="true">⌘</span>
+              <strong>Console</strong>
+              <span>Supervisione sistema</span>
+            </a>
+          <?php endif; ?>
+        </div>
       <?php endif; ?>
     </div>
 
@@ -137,6 +207,8 @@ window.avatar = window.appBootstrap.avatar;
 window.reparto = window.appBootstrap.reparto;
 window.pushPublicKey = window.appBootstrap.pushPublicKey;
 window.appCsrfToken = window.appBootstrap.csrfToken;
+window.appVersion = window.appBootstrap.appVersion;
+window.appReleaseMeta = window.appBootstrap.releaseMeta || {};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
@@ -154,6 +226,12 @@ const updateBanner = document.getElementById("updateBanner");
 const updateNowBtn = document.getElementById("updateNowBtn");
 const checkUpdatesItem = document.getElementById("checkUpdatesItem");
 const appToast = document.getElementById("appToast");
+const changelogDialog = document.getElementById("changelogDialog");
+const changelogCloseBtn = document.getElementById("changelogCloseBtn");
+const changelogOkBtn = document.getElementById("changelogOkBtn");
+const changelogTitle = document.getElementById("changelogTitle");
+const changelogSubtitle = document.getElementById("changelogSubtitle");
+const changelogBody = document.getElementById("changelogBody");
 let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
@@ -228,6 +306,175 @@ function showAppToast(message) {
     }, 3200);
 }
 window.showAppToast = showAppToast;
+
+function appStorageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (error) {
+        return null;
+    }
+}
+
+function appStorageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (error) {
+        // Lo storage può essere disabilitato: in quel caso il popup resta non persistente.
+    }
+}
+
+function compareAppVersions(left, right) {
+    const parse = function (value) {
+        return String(value || "")
+            .split(".")
+            .map(function (part) {
+                return Number.parseInt(part, 10) || 0;
+            });
+    };
+    const a = parse(left);
+    const b = parse(right);
+    for (let i = 0; i < 3; i += 1) {
+        if ((a[i] || 0) > (b[i] || 0)) return 1;
+        if ((a[i] || 0) < (b[i] || 0)) return -1;
+    }
+    return 0;
+}
+
+function releaseEntryDateLabel(value) {
+    const date = new Date(String(value || ""));
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    return new Intl.DateTimeFormat("it-IT", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    }).format(date);
+}
+
+function getChangelogEntries(lastSeenVersion, currentVersion) {
+    const meta = window.appReleaseMeta || {};
+    const releases = Array.isArray(meta.releases) ? meta.releases : [];
+    const entries = releases
+        .filter(function (entry) {
+            const version = String(entry.version || "");
+            if (!version) return false;
+            if (compareAppVersions(version, currentVersion) > 0) return false;
+            return lastSeenVersion
+                ? compareAppVersions(version, lastSeenVersion) > 0
+                : compareAppVersions(version, currentVersion) === 0;
+        })
+        .sort(function (a, b) {
+            return compareAppVersions(a.version, b.version);
+        });
+
+    if (entries.length > 0) {
+        return entries;
+    }
+
+    if (!lastSeenVersion || compareAppVersions(lastSeenVersion, currentVersion) < 0) {
+        return [{
+            version: currentVersion,
+            previous_version: lastSeenVersion || "",
+            description: "Aggiornamenti e miglioramenti dell'app.",
+            released_at: meta.updated_at || ""
+        }];
+    }
+
+    return [];
+}
+
+function hideChangelogDialog() {
+    if (!changelogDialog) {
+        return;
+    }
+
+    changelogDialog.hidden = true;
+    changelogDialog.classList.add("app-hidden");
+    appStorageSet("app-iperal-changelog-version", String(window.appVersion || ""));
+}
+
+function showChangelogIfNeeded() {
+    const currentVersion = String(window.appVersion || "").trim();
+    if (!currentVersion || !changelogDialog || !changelogBody) {
+        return;
+    }
+
+    const lastSeenVersion = appStorageGet("app-iperal-changelog-version");
+    if (lastSeenVersion === currentVersion) {
+        return;
+    }
+
+    const entries = getChangelogEntries(lastSeenVersion, currentVersion);
+    if (entries.length === 0) {
+        appStorageSet("app-iperal-changelog-version", currentVersion);
+        return;
+    }
+
+    const title = lastSeenVersion
+        ? "Aggiornamento completato"
+        : "Novità dell'app";
+    const subtitle = lastSeenVersion
+        ? "Versione " + lastSeenVersion + " → " + currentVersion
+        : "Versione " + currentVersion;
+
+    changelogTitle.textContent = title;
+    changelogSubtitle.textContent = subtitle;
+    changelogBody.innerHTML = "";
+
+    const list = document.createElement("div");
+    list.className = "changelog-dialog__list";
+    entries.forEach(function (entry) {
+        const item = document.createElement("article");
+        item.className = "changelog-dialog__item";
+
+        const heading = document.createElement("strong");
+        heading.textContent = "v" + String(entry.version || currentVersion);
+
+        const date = releaseEntryDateLabel(entry.released_at);
+        if (date) {
+            const small = document.createElement("span");
+            small.textContent = date;
+            heading.appendChild(small);
+        }
+
+        const description = document.createElement("p");
+        description.textContent = String(entry.description || "Aggiornamenti e miglioramenti dell'app.");
+
+        item.append(heading, description);
+        list.appendChild(item);
+    });
+
+    changelogBody.appendChild(list);
+    changelogDialog.hidden = false;
+    changelogDialog.classList.remove("app-hidden");
+    window.setTimeout(function () {
+        if (changelogOkBtn) {
+            changelogOkBtn.focus();
+        }
+    }, 0);
+}
+
+if (changelogCloseBtn) {
+    changelogCloseBtn.addEventListener("click", hideChangelogDialog);
+}
+if (changelogOkBtn) {
+    changelogOkBtn.addEventListener("click", hideChangelogDialog);
+}
+if (changelogDialog) {
+    changelogDialog.addEventListener("click", function (event) {
+        if (event.target === changelogDialog) {
+            hideChangelogDialog();
+        }
+    });
+}
+window.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && changelogDialog && !changelogDialog.hidden) {
+        hideChangelogDialog();
+    }
+});
+window.addEventListener("load", showChangelogIfNeeded);
 
 function base64UrlToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -614,10 +861,6 @@ if (profileImg) {
 }
 
 const capo = String(window.capo ?? "0");
-const uploadItem = document.querySelector("#uploadItem");
-if (uploadItem && (capo === "1" || capo === "2" || capo === "3")) {
-    uploadItem.classList.remove("d-none");
-}
 if (noteAdminItem && (capo === "1" || capo === "2" || capo === "3")) {
     noteAdminItem.classList.remove("d-none");
 }

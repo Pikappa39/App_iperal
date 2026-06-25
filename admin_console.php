@@ -165,6 +165,98 @@ function appAdminConsoleDiagnosticClass(string $status): string
     };
 }
 
+function appAdminConsoleSearchText(array $values): string
+{
+    $text = implode(' ', array_map(static fn ($value): string => is_scalar($value) ? (string) $value : '', $values));
+    $text = mb_strtolower($text, 'UTF-8');
+    $text = preg_replace('/\s+/u', ' ', $text);
+
+    return trim(is_string($text) ? $text : '');
+}
+
+function appAdminConsoleBuildAssociationIssues(array $mappings): array
+{
+    $issues = [];
+    $byUser = [];
+
+    foreach ($mappings as $mapping) {
+        $userCf = (string) ($mapping['user_cf'] ?? '');
+        if ($userCf === APP_SCHEDULE_MAPPING_IGNORED_VALUE) {
+            $issues[] = [
+                'severity' => 'info',
+                'type' => 'Ignorato',
+                'schedule_name' => (string) ($mapping['schedule_name'] ?? ''),
+                'reparto' => (string) ($mapping['reparto'] ?? ''),
+                'detail' => 'Questo nominativo e stato marcato come da ignorare.',
+            ];
+            continue;
+        }
+        if ($userCf === '__UNREGISTERED__') {
+            $issues[] = [
+                'severity' => 'warning',
+                'type' => 'Non registrato',
+                'schedule_name' => (string) ($mapping['schedule_name'] ?? ''),
+                'reparto' => (string) ($mapping['reparto'] ?? ''),
+                'detail' => 'Il nominativo esiste negli orari, ma non ha ancora un account collegato.',
+            ];
+            continue;
+        }
+
+        $linkedName = trim((string) ($mapping['nome'] ?? '') . ' ' . (string) ($mapping['cognome'] ?? ''));
+        if ($linkedName === '') {
+            $issues[] = [
+                'severity' => 'danger',
+                'type' => 'Da verificare',
+                'schedule_name' => (string) ($mapping['schedule_name'] ?? ''),
+                'reparto' => (string) ($mapping['reparto'] ?? ''),
+                'detail' => 'L’associazione punta a un account non trovato o non piu coerente.',
+            ];
+            continue;
+        }
+        if ((int) ($mapping['attivo'] ?? 1) !== 1) {
+            $issues[] = [
+                'severity' => 'warning',
+                'type' => 'Utente disattivato',
+                'schedule_name' => (string) ($mapping['schedule_name'] ?? ''),
+                'reparto' => (string) ($mapping['reparto'] ?? ''),
+                'detail' => 'L’associazione punta a ' . $linkedName . ', che risulta disattivato.',
+            ];
+        }
+
+        if ($userCf !== '') {
+            $byUser[$userCf][] = [
+                'schedule_name' => (string) ($mapping['schedule_name'] ?? ''),
+                'reparto' => (string) ($mapping['reparto'] ?? ''),
+                'linked_name' => $linkedName,
+            ];
+        }
+    }
+
+    foreach ($byUser as $rows) {
+        if (count($rows) <= 1) {
+            continue;
+        }
+
+        $names = array_map(static fn (array $row): string => $row['schedule_name'], $rows);
+        $first = $rows[0];
+        $issues[] = [
+            'severity' => 'info',
+            'type' => 'Multipla associazione',
+            'schedule_name' => implode(', ', $names),
+            'reparto' => (string) ($first['reparto'] ?? ''),
+            'detail' => (string) ($first['linked_name'] ?? 'Account') . ' ha piu nominativi collegati.',
+        ];
+    }
+
+    usort($issues, static function (array $left, array $right): int {
+        $weight = ['danger' => 0, 'warning' => 1, 'info' => 2, 'ok' => 3];
+        return ($weight[(string) ($left['severity'] ?? 'info')] ?? 2) <=> ($weight[(string) ($right['severity'] ?? 'info')] ?? 2)
+            ?: strnatcasecmp((string) ($left['schedule_name'] ?? ''), (string) ($right['schedule_name'] ?? ''));
+    });
+
+    return $issues;
+}
+
 function appAdminConsoleAddDiagnostic(
     array &$diagnostics,
     string $area,
@@ -593,6 +685,8 @@ $auditLogs = [];
 $auditLogError = false;
 $diagnostics = [];
 $diagnosticSummary = ['ok' => 0, 'warning' => 0, 'danger' => 0, 'info' => 0];
+$associationIssues = [];
+$associationIssueSummary = ['danger' => 0, 'warning' => 0, 'info' => 0];
 $namesByUser = [];
 $stats = [
     'active_users' => 0,
@@ -667,6 +761,13 @@ if ($unlocked && !$databaseError) {
     $stats['active_users'] = count($users);
     $stats['mappings'] = count($mappings);
     $stats['pending_invites'] = count(array_filter($inviteRows, static fn (array $invite): bool => appInviteStatus($invite) === 'pending'));
+    $associationIssues = appAdminConsoleBuildAssociationIssues($mappings);
+    foreach ($associationIssues as $issue) {
+        $severity = (string) ($issue['severity'] ?? 'info');
+        if (array_key_exists($severity, $associationIssueSummary)) {
+            $associationIssueSummary[$severity]++;
+        }
+    }
     $diagnostics = appAdminConsoleBuildDiagnostics($pdo, $consoleConfigured);
     $diagnosticSummary = appAdminConsoleDiagnosticSummary($diagnostics);
 
@@ -773,11 +874,20 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
             </article>
         </section>
 
-        <section class="admin-console-section">
-            <div class="admin-console-section__header">
-                <h2>Diagnostica sistema</h2>
-                <span><?php echo count($diagnostics); ?> controlli</span>
-            </div>
+        <section class="admin-console-search">
+            <label class="form-label" for="adminConsoleSearch">Ricerca globale</label>
+            <input class="form-control form-control-lg" id="adminConsoleSearch" type="search" placeholder="Cerca utenti, email, nominativi Excel, inviti, audit..." data-admin-console-search autocomplete="off">
+            <p class="admin-console-search__status" data-admin-console-search-status></p>
+        </section>
+
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Diagnostica sistema</strong>
+                    <small><?php echo count($diagnostics); ?> controlli</small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
             <div class="admin-console-health-summary" aria-label="Riepilogo diagnostica">
                 <article class="admin-console-health-summary__ok">
                     <span>OK</span>
@@ -810,7 +920,7 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     <tbody>
                     <?php foreach ($diagnostics as $diagnostic): ?>
                         <?php $status = (string) ($diagnostic['status'] ?? 'info'); ?>
-                        <tr>
+                        <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText($diagnostic)); ?>">
                             <td><?php echo appAdminConsoleEscape((string) $diagnostic['area']); ?></td>
                             <td><strong><?php echo appAdminConsoleEscape((string) $diagnostic['name']); ?></strong></td>
                             <td><span class="badge <?php echo appAdminConsoleEscape(appAdminConsoleDiagnosticClass($status)); ?>"><?php echo appAdminConsoleEscape(appAdminConsoleDiagnosticLabel($status)); ?></span></td>
@@ -824,7 +934,8 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     </tbody>
                 </table>
             </div>
-        </section>
+            </div>
+        </details>
 
         <section class="admin-console-filters">
             <form method="get" class="row g-3 align-items-end">
@@ -856,11 +967,14 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
             </form>
         </section>
 
-        <section class="admin-console-section">
-            <div class="admin-console-section__header">
-                <h2>Utenti attivi</h2>
-                <span><?php echo count($users); ?> utenti</span>
-            </div>
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Utenti attivi</strong>
+                    <small><?php echo count($users); ?> utenti</small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>
@@ -875,7 +989,15 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     <tbody>
                     <?php foreach ($users as $user): ?>
                         <?php $userCf = (string) $user['cod_fiscale']; ?>
-                        <tr>
+                        <?php $scheduleNames = $namesByUser[$userCf] ?? []; ?>
+                        <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                            $user['nome'] ?? '',
+                            $user['cognome'] ?? '',
+                            $user['email'] ?? '',
+                            $user['reparto'] ?? '',
+                            appAdminConsoleRoleLabel((int) $user['capo']),
+                            implode(' ', $scheduleNames),
+                        ])); ?>">
                             <td>
                                 <strong><?php echo appAdminConsoleEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></strong><br>
                                 <span class="text-muted"><?php echo appAdminConsoleEscape((string) $user['email']); ?></span>
@@ -884,7 +1006,6 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                             <td><?php echo appAdminConsoleEscape(appAdminConsoleRoleLabel((int) $user['capo'])); ?></td>
                             <td><?php echo appAdminConsoleEscape(appAdminConsoleLastSeenLabel($user['last_seen'] ?? null)); ?></td>
                             <td>
-                                <?php $scheduleNames = $namesByUser[$userCf] ?? []; ?>
                                 <?php if ($scheduleNames === []): ?>
                                     <span class="text-muted">Nessuno</span>
                                 <?php else: ?>
@@ -906,13 +1027,60 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     </tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="admin-console-section">
-            <div class="admin-console-section__header">
-                <h2>Associazioni orari</h2>
-                <span><?php echo count($mappings); ?> associazioni</span>
             </div>
+        </details>
+
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Problemi associazioni</strong>
+                    <small>
+                        <?php echo count($associationIssues); ?> segnalazioni
+                        <?php if ($associationIssues !== []): ?>
+                            · <?php echo (int) $associationIssueSummary['danger']; ?> critiche
+                            · <?php echo (int) $associationIssueSummary['warning']; ?> attenzioni
+                        <?php endif; ?>
+                    </small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
+            <div class="table-responsive">
+                <table class="table align-middle admin-console-table">
+                    <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Nominativo</th>
+                        <th>Reparto</th>
+                        <th>Dettaglio</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($associationIssues as $issue): ?>
+                        <?php $severity = (string) ($issue['severity'] ?? 'info'); ?>
+                        <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText($issue)); ?>">
+                            <td><span class="badge <?php echo appAdminConsoleEscape(appAdminConsoleDiagnosticClass($severity)); ?>"><?php echo appAdminConsoleEscape((string) $issue['type']); ?></span></td>
+                            <td><strong><?php echo appAdminConsoleEscape((string) $issue['schedule_name']); ?></strong></td>
+                            <td><?php echo appAdminConsoleEscape(appDepartments()[(string) $issue['reparto']] ?? (string) $issue['reparto']); ?></td>
+                            <td><?php echo appAdminConsoleEscape((string) $issue['detail']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($associationIssues === []): ?>
+                        <tr><td colspan="4" class="text-muted">Nessun problema associazioni rilevato nei filtri attuali.</td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </details>
+
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Associazioni orari</strong>
+                    <small><?php echo count($mappings); ?> associazioni</small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>
@@ -931,7 +1099,15 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                         $isUnregistered = $userCf === '__UNREGISTERED__';
                         $linkedName = trim((string) ($mapping['nome'] ?? '') . ' ' . (string) ($mapping['cognome'] ?? ''));
                         ?>
-                        <tr>
+                        <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                            $mapping['schedule_name'] ?? '',
+                            $mapping['reparto'] ?? '',
+                            $mapping['user_cf'] ?? '',
+                            $linkedName,
+                            $mapping['email'] ?? '',
+                            $isIgnored ? 'ignorato' : '',
+                            $isUnregistered ? 'non registrato' : '',
+                        ])); ?>">
                             <td><strong><?php echo appAdminConsoleEscape((string) $mapping['schedule_name']); ?></strong></td>
                             <td><?php echo appAdminConsoleEscape(appDepartments()[(string) $mapping['reparto']] ?? (string) $mapping['reparto']); ?></td>
                             <td>
@@ -956,13 +1132,17 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     </tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="admin-console-section">
-            <div class="admin-console-section__header">
-                <h2>Inviti</h2>
-                <span><?php echo count($invites); ?> inviti</span>
             </div>
+        </details>
+
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Inviti</strong>
+                    <small><?php echo count($invites); ?> inviti</small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>
@@ -979,7 +1159,15 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     <tbody>
                     <?php foreach ($invites as $invite): ?>
                         <?php $status = (string) ($invite['computed_status'] ?? appInviteStatus($invite)); ?>
-                        <tr>
+                        <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                            $invite['invited_nome'] ?? '',
+                            $invite['invited_cognome'] ?? '',
+                            $invite['invited_email'] ?? '',
+                            $invite['reparto'] ?? '',
+                            appAdminConsoleRoleLabel((int) ($invite['invited_capo'] ?? 0)),
+                            $invite['author_name'] ?? '',
+                            appInviteStatusLabel($invite),
+                        ])); ?>">
                             <td>
                                 <strong><?php echo appAdminConsoleEscape(trim((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome'])); ?></strong><br>
                                 <span class="text-muted"><?php echo appAdminConsoleEscape((string) $invite['invited_email']); ?></span>
@@ -1023,13 +1211,17 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     </tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="admin-console-section">
-            <div class="admin-console-section__header">
-                <h2>Audit recente</h2>
-                <span><?php echo count($auditLogs); ?> eventi</span>
             </div>
+        </details>
+
+        <details class="admin-console-section" data-admin-console-panel>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Audit recente</strong>
+                    <small><?php echo count($auditLogs); ?> eventi</small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
             <?php if ($auditLogError): ?>
                 <div class="alert alert-warning mb-0">Audit non ancora disponibile. Esegui la migrazione database al prossimo rilascio.</div>
             <?php else: ?>
@@ -1046,7 +1238,15 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                         </thead>
                         <tbody>
                         <?php foreach ($auditLogs as $event): ?>
-                            <tr>
+                            <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                                $event['created_at'] ?? '',
+                                $event['actor_name'] ?? '',
+                                $event['actor_cf'] ?? '',
+                                appAdminConsoleAuditActionLabel((string) $event['action']),
+                                $event['target_type'] ?? '',
+                                $event['target_id'] ?? '',
+                                appAdminConsoleAuditDetailsLabel($event['details_json'] ?? null),
+                            ])); ?>">
                                 <td><?php echo appAdminConsoleEscape(appAdminConsoleDateLabel($event['created_at'] ?? null)); ?></td>
                                 <td><?php echo appAdminConsoleEscape((string) ($event['actor_name'] ?: $event['actor_cf'])); ?></td>
                                 <td><?php echo appAdminConsoleEscape(appAdminConsoleAuditActionLabel((string) $event['action'])); ?></td>
@@ -1069,7 +1269,8 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                     </table>
                 </div>
             <?php endif; ?>
-        </section>
+            </div>
+        </details>
     <?php endif; ?>
 </main>
 <script src="admin_console.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
