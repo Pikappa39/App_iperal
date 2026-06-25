@@ -3,6 +3,7 @@ require __DIR__ . '/../app_config.php';
 require __DIR__ . '/../session_bootstrap.php';
 app_session_start();
 require_once __DIR__ . '/connection.php';
+require_once __DIR__ . '/admin_audit_lib.php';
 require_once __DIR__ . '/invite_lib.php';
 require_once __DIR__ . '/password_reset_mail.php';
 
@@ -44,43 +45,30 @@ $managerCf = (string) ($sessionUser['cf'] ?? '');
 
 try {
     if ($action === 'revoke' || $action === 'regenerate') {
-        if ($inviteId <= 0) {
-            throw new RuntimeException('Invito non valido.');
-        }
-
-        $inviteQuery = $pdo->prepare(
-            'SELECT * FROM user_invites WHERE id = ? LIMIT 1'
-        );
-        $inviteQuery->execute([$inviteId]);
-        $invite = $inviteQuery->fetch(PDO::FETCH_ASSOC);
-        if (!$invite) {
-            throw new RuntimeException('Invito non trovato.');
-        }
-
-        $viewerRole = (int) ($sessionUser['capo'] ?? 0);
-        $managerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
-        if ($viewerRole !== 3 && ((string) ($invite['reparto'] ?? '') !== $managerDepartment || (string) ($invite['invited_by_cf'] ?? '') !== $managerCf)) {
-            throw new RuntimeException('Non puoi gestire questo invito.');
-        }
-
-        if (appInviteStatus($invite) === 'accepted') {
-            throw new RuntimeException('L’account è già stato attivato.');
-        }
-
+        $pdo->beginTransaction();
         if ($action === 'revoke') {
-            $pdo->prepare('UPDATE user_invites SET revoked_at = NOW() WHERE id = ?')->execute([$inviteId]);
+            $invite = appInviteRevokeLocked($pdo, $inviteId, $sessionUser);
+            $pdo->commit();
+            appAdminAuditLog($pdo, $sessionUser, 'invite_revoked', 'user_invite', (string) $inviteId, [
+                'email' => (string) ($invite['invited_email'] ?? ''),
+                'reparto' => (string) ($invite['reparto'] ?? ''),
+                'status' => appInviteStatus($invite),
+                'source' => 'addetti',
+            ]);
             appInviteSetFlash('success', 'Invito revocato.');
             appInviteRedirect();
         }
 
-        $token = appInviteGenerateToken();
-        $tokenHash = appInviteHashToken($token);
-        $pdo->prepare(
-            'UPDATE user_invites
-             SET token_hash = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 7 DAY), revoked_at = NULL
-             WHERE id = ?'
-        )->execute([$tokenHash, $inviteId]);
-        $link = appInviteBuildUrl($token);
+        $regenerated = appInviteRegenerateLocked($pdo, $inviteId, $sessionUser);
+        $pdo->commit();
+        $invite = $regenerated['invite'];
+        $link = (string) $regenerated['link'];
+        appAdminAuditLog($pdo, $sessionUser, 'invite_regenerated', 'user_invite', (string) $inviteId, [
+            'email' => (string) ($invite['invited_email'] ?? ''),
+            'reparto' => (string) ($invite['reparto'] ?? ''),
+            'status' => appInviteStatus($invite),
+            'source' => 'addetti',
+        ]);
         $departmentLabel = appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto'];
         try {
             sendInvitationEmail(
@@ -88,7 +76,7 @@ try {
                 trim((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome']),
                 $departmentLabel,
                 $link,
-                date('Y-m-d H:i:s', strtotime('+7 days'))
+                (string) $regenerated['expires_at']
             );
             appInviteSetFlash('success', 'Nuovo invito inviato via email a ' . (string) $invite['invited_email'] . '.');
         } catch (Throwable $mailError) {
@@ -151,6 +139,13 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))'
     );
     $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $invitedRole, $reparto, $tokenHash]);
+    $newInviteId = (int) $pdo->lastInsertId();
+    appAdminAuditLog($pdo, $sessionUser, 'invite_created', 'user_invite', $newInviteId > 0 ? (string) $newInviteId : null, [
+        'email' => $email,
+        'reparto' => $reparto,
+        'role' => $invitedRole,
+        'source' => 'addetti',
+    ]);
 
     $link = appInviteBuildUrl($token);
     $departmentLabel = appDepartments()[$reparto] ?? $reparto;
@@ -162,6 +157,9 @@ try {
         appInviteSetFlash('warning', 'Invito creato, ma l’email non è stata inviata. Copia e condividi il link manualmente.', $link);
     }
 } catch (Throwable $e) {
+    if ($pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('Gestione inviti non riuscita: ' . $e->getMessage());
     appInviteSetFlash('danger', $e->getMessage());
 }

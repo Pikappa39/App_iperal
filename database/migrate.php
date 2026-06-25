@@ -160,4 +160,17 @@ if (!$lastSeenColumn) {
     echo "Colonna utenti.last_seen aggiunta.\n";
 }
 
+$auditCreatedIndex = $pdo->query(
+    "SELECT 1
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'admin_audit_log'
+       AND INDEX_NAME = 'idx_admin_audit_created'
+     LIMIT 1"
+)->fetchColumn();
+if (!$auditCreatedIndex) {
+    $pdo->exec('ALTER TABLE admin_audit_log ADD INDEX idx_admin_audit_created (created_at)');
+    echo "Indice admin_audit_log.idx_admin_audit_created aggiunto.\n";
+}
+
 echo "Migrazione database completata.\n";

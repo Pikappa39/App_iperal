@@ -100,6 +100,9 @@ $clientBootstrap = [
       <?php if (isset($_SESSION['user']) && in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 2, 3], true)): ?>
         <a href="addetti.php" class="home-orari sfera home-addetti">Addetti</a>
       <?php endif; ?>
+      <?php if (isset($_SESSION['user']) && (int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
+        <a href="admin_console.php" class="home-orari sfera home-admin-console">Console</a>
+      <?php endif; ?>
     </div>
 
   </section>

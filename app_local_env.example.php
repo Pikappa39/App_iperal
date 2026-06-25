@@ -18,4 +18,9 @@ return [
     'APP_SMTP_USERNAME' => 'supporto@myorari.it',
     'APP_SMTP_PASSWORD' => '',
     'APP_SMTP_FROM_NAME' => 'MyOrari',
+    // Genera il valore con:
+    // php -r "echo password_hash('codice-scelto', PASSWORD_DEFAULT) . PHP_EOL;"
+    'APP_ADMIN_CONSOLE_CODE_HASH' => '',
+    'APP_ADMIN_CONSOLE_TIMEOUT_SECONDS' => '900',
+    'APP_BACKUP_LOG_PATH' => '/home/ubuntu/myorari-backup.log',
 ];

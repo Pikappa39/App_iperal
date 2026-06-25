@@ -41,6 +41,20 @@ Il comando genera una nuova chiave privata sul server e disattiva le vecchie reg
 
 Con `APP_ALLOW_SELF_REGISTRATION=0` gli account vengono creati tramite invito. I ruoli `capo=1` e `capo=3` possono aprire `addetti.php` e inviare via email un link personale di attivazione. Se l'invio SMTP non riesce, il responsabile può comunque copiare e condividere il link manualmente. Il link resta valido per 7 giorni e, dopo l'attivazione, non può essere riutilizzato.
 
+## Console admin
+
+Gli utenti con `capo=3` possono accedere a `admin_console.php`, ma la sezione resta bloccata finché non viene inserito il codice console. Configura l'hash in `app_local_env.php` o nell'ambiente del server:
+
+```sh
+php -r "echo password_hash('codice-scelto', PASSWORD_DEFAULT) . PHP_EOL;"
+```
+
+Imposta il risultato come `APP_ADMIN_CONSOLE_CODE_HASH`. La sessione della console scade automaticamente dopo `APP_ADMIN_CONSOLE_TIMEOUT_SECONDS` secondi, con valore predefinito `900`.
+
+La console registra le azioni amministrative in `admin_audit_log`; dopo il deploy esegui `php database/migrate.php` per creare la tabella se non esiste già.
+
+Per mostrare in console l'ultimo backup, configura `APP_BACKUP_LOG_PATH` se il log non si trova nel percorso standard `/home/ubuntu/myorari-backup.log`.
+
 ## Versioni Git
 
 Prima prepara con `git add` soltanto i file verificati. Poi il comando seguente incrementa `APP_VERSION`, crea un commit e aggiunge il tag Git corrispondente:

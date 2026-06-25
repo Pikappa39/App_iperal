@@ -567,6 +567,16 @@ body {
     text-decoration: none;
 }
 
+.home-admin-console {
+    display: grid;
+    place-items: center;
+    width: min(42vw, 200px);
+    min-height: min(42vw, 200px);
+    text-decoration: none;
+    background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+    color: #7c2d12;
+}
+
 .home-orari:hover {
     transform: translateY(-2px) scale(1.01);
     box-shadow: 0 14px 26px rgba(39, 68, 214, 0.22);
@@ -1455,6 +1465,11 @@ textarea {
         min-height: min(42vw, 160px);
     }
 
+    .home-admin-console {
+        width: min(42vw, 160px);
+        min-height: min(42vw, 160px);
+    }
+
     #contenitore.calendario.griglia-mesi,
     #contenitore.calendario.griglia-anni {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1619,4 +1634,270 @@ textarea {
     display: flex;
 align-items: center;  
 justify-content: center;  
+}
+
+.admin-console {
+    max-width: 1280px;
+}
+
+.admin-console-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 247, 237, 0.95), rgba(236, 253, 245, 0.9)),
+        #ffffff;
+}
+
+.admin-console-eyebrow {
+    margin: 0 0 0.25rem;
+    color: #9a3412;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-console-hero h1 {
+    margin: 0;
+    color: #111827;
+    font-weight: 800;
+}
+
+.admin-console-subtitle {
+    margin: 0.35rem 0 0;
+    color: #4b5563;
+}
+
+.admin-console-hero__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.admin-console-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 6.75rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid rgba(154, 52, 18, 0.2);
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #7c2d12;
+    font-weight: 800;
+}
+
+.admin-console-timer__icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 2px solid currentColor;
+    border-radius: 999px;
+    font-size: 0;
+    position: relative;
+}
+
+.admin-console-timer__icon::before,
+.admin-console-timer__icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    background: currentColor;
+    transform-origin: bottom center;
+}
+
+.admin-console-timer__icon::before {
+    height: 0.32rem;
+    transform: translate(-50%, -100%) rotate(0deg);
+}
+
+.admin-console-timer__icon::after {
+    height: 0.24rem;
+    transform: translate(-50%, -100%) rotate(90deg);
+}
+
+.admin-console-timer--warning {
+    color: #b91c1c;
+}
+
+.admin-console-lock {
+    display: grid;
+    place-items: center;
+    min-height: 52vh;
+}
+
+.admin-console-lock__panel {
+    width: min(100%, 520px);
+    padding: 1.5rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.admin-console-lock__panel h2 {
+    margin-bottom: 0.35rem;
+    font-weight: 800;
+}
+
+.admin-console-lock__panel p {
+    color: #64748b;
+}
+
+.admin-console-lock__form {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.admin-console-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.admin-console-stats article {
+    padding: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.admin-console-stats span {
+    display: block;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.admin-console-stats strong {
+    display: block;
+    color: #0f172a;
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.admin-console-health-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.admin-console-health-summary article {
+    padding: 0.85rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.admin-console-health-summary span {
+    display: block;
+    color: #64748b;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.admin-console-health-summary strong {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 1.65rem;
+    line-height: 1;
+}
+
+.admin-console-health-summary__ok strong {
+    color: #15803d;
+}
+
+.admin-console-health-summary__warning strong {
+    color: #a16207;
+}
+
+.admin-console-health-summary__danger strong {
+    color: #b91c1c;
+}
+
+.admin-console-health-summary__info strong {
+    color: #0369a1;
+}
+
+.admin-console-filters,
+.admin-console-section {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.admin-console-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-console-section__header h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.admin-console-section__header span {
+    color: #64748b;
+    font-weight: 700;
+}
+
+.admin-console-table {
+    min-width: 860px;
+}
+
+.admin-console-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.admin-console-tags span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.admin-console-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.86rem;
+}
+
+@media (max-width: 760px) {
+    .admin-console-hero {
+        flex-direction: column;
+    }
+
+    .admin-console-hero__actions {
+        justify-content: flex-start;
+    }
+
+    .admin-console-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-console-health-summary {
+        grid-template-columns: 1fr 1fr;
+    }
 }

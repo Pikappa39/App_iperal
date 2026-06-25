@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.8.2');
+    define('APP_VERSION', '0.9.0');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -190,5 +190,27 @@ if (!function_exists('appSmtpFromName')) {
     function appSmtpFromName(): string
     {
         return appEnv('APP_SMTP_FROM_NAME') ?: 'MyOrari';
+    }
+}
+
+if (!function_exists('appAdminConsoleCodeHash')) {
+    function appAdminConsoleCodeHash(): string
+    {
+        return appEnv('APP_ADMIN_CONSOLE_CODE_HASH');
+    }
+}
+
+if (!function_exists('appAdminConsoleTimeoutSeconds')) {
+    function appAdminConsoleTimeoutSeconds(): int
+    {
+        $seconds = (int) (appEnv('APP_ADMIN_CONSOLE_TIMEOUT_SECONDS') ?: '900');
+        if ($seconds < 300) {
+            return 300;
+        }
+        if ($seconds > 3600) {
+            return 3600;
+        }
+
+        return $seconds;
     }
 }

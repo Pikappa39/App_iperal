@@ -100,3 +100,68 @@ function appInviteDepartmentForManager(array $sessionUser, string $requestedDepa
     $department = trim((string) ($sessionUser['reparto'] ?? ''));
     return appIsValidDepartment($department) ? $department : '';
 }
+
+function appInviteCanManageInvite(array $sessionUser, array $invite): bool
+{
+    $viewerRole = (int) ($sessionUser['capo'] ?? 0);
+    if ($viewerRole === 3) {
+        return true;
+    }
+
+    $managerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
+    $managerCf = trim((string) ($sessionUser['cf'] ?? ''));
+    return $viewerRole === 1
+        && $managerDepartment !== ''
+        && $managerCf !== ''
+        && (string) ($invite['reparto'] ?? '') === $managerDepartment
+        && (string) ($invite['invited_by_cf'] ?? '') === $managerCf;
+}
+
+function appInviteLoadForUpdate(PDO $pdo, int $inviteId, array $sessionUser): array
+{
+    if ($inviteId <= 0) {
+        throw new RuntimeException('Invito non valido.');
+    }
+
+    $inviteQuery = $pdo->prepare('SELECT * FROM user_invites WHERE id = ? LIMIT 1 FOR UPDATE');
+    $inviteQuery->execute([$inviteId]);
+    $invite = $inviteQuery->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($invite)) {
+        throw new RuntimeException('Invito non trovato.');
+    }
+    if (!appInviteCanManageInvite($sessionUser, $invite)) {
+        throw new RuntimeException('Non puoi gestire questo invito.');
+    }
+    if (appInviteStatus($invite) === 'accepted') {
+        throw new RuntimeException('L’account è già stato attivato.');
+    }
+
+    return $invite;
+}
+
+function appInviteRevokeLocked(PDO $pdo, int $inviteId, array $sessionUser): array
+{
+    $invite = appInviteLoadForUpdate($pdo, $inviteId, $sessionUser);
+    $pdo->prepare('UPDATE user_invites SET revoked_at = NOW() WHERE id = ?')->execute([$inviteId]);
+
+    return $invite;
+}
+
+function appInviteRegenerateLocked(PDO $pdo, int $inviteId, array $sessionUser): array
+{
+    $invite = appInviteLoadForUpdate($pdo, $inviteId, $sessionUser);
+    $token = appInviteGenerateToken();
+    $tokenHash = appInviteHashToken($token);
+    $pdo->prepare(
+        'UPDATE user_invites
+         SET token_hash = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 7 DAY), revoked_at = NULL
+         WHERE id = ?'
+    )->execute([$tokenHash, $inviteId]);
+
+    return [
+        'invite' => $invite,
+        'token' => $token,
+        'link' => appInviteBuildUrl($token),
+        'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+    ];
+}

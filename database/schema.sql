@@ -46,6 +46,22 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     INDEX idx_login_attempts_time (attempted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    actor_cf VARCHAR(16) NOT NULL,
+    action VARCHAR(80) NOT NULL,
+    target_type VARCHAR(80) NULL DEFAULT NULL,
+    target_id VARCHAR(191) NULL DEFAULT NULL,
+    details_json TEXT NULL DEFAULT NULL,
+    request_ip_hash CHAR(64) NULL DEFAULT NULL,
+    user_agent VARCHAR(255) NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_admin_audit_created (created_at),
+    INDEX idx_admin_audit_actor_created (actor_cf, created_at),
+    INDEX idx_admin_audit_action_created (action, created_at),
+    INDEX idx_admin_audit_target (target_type, target_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS communications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     author_cf VARCHAR(16) NOT NULL,
