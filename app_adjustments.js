@@ -54,7 +54,9 @@ async function adjustmentFetch(query = "", options = {}) {
 
 async function adjustmentPost(values) {
     values.append("csrf_token", window.appCsrfToken || "");
-    return adjustmentFetch("", { method: "POST", body: values });
+    const result = await adjustmentFetch("", { method: "POST", body: values });
+    appCacheForget("scheduleAdjustments:");
+    return result;
 }
 
 function adjustmentWeekValue(dateString) {
@@ -364,7 +366,13 @@ async function mostraRichiesteOre() {
     const manager = canApproveScheduleAdjustments();
 
     try {
-        const data = await adjustmentFetch("view=" + (manager ? "manage" : "mine"));
+        const view = manager ? "manage" : "mine";
+        const cacheKey = "scheduleAdjustments:" + view;
+        let data = appCacheGet(cacheKey, 30 * 1000);
+        if (!data) {
+            data = await adjustmentFetch("view=" + view);
+            appCacheSet(cacheKey, data);
+        }
         wrapper.innerHTML = "";
         if (!data.requests.length) {
             wrapper.textContent = manager

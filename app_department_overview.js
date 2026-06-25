@@ -310,10 +310,16 @@ function overviewCreateFilters(root) {
 async function departmentOverviewFetch(year, week, department) {
     const query = new URLSearchParams({ year: String(year), week: String(week) });
     if (department) query.set("reparto", department);
+    const cacheKey = "departmentOverview:" + String(year) + ":" + String(week) + ":" + String(department || "");
+    const cached = appCacheGet(cacheKey, 60 * 1000);
+    if (cached) {
+        return cached;
+    }
+
     const response = await fetch(DEPARTMENT_OVERVIEW_ENDPOINT + "?" + query.toString(), { cache: "no-store" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || "Panoramica reparto non disponibile");
-    return data;
+    return appCacheSet(cacheKey, data);
 }
 
 async function mostraPanoramicaReparto(year, week, department, options = {}) {

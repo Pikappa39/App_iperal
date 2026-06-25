@@ -24,7 +24,8 @@ const appState = {
     calendarViewToken: 0,
     weekCache: Object.create(null),
     monthNotesCache: Object.create(null),
-    monthNotesPromises: Object.create(null)
+    monthNotesPromises: Object.create(null),
+    transientCache: Object.create(null)
 };
 let appNavigationReady = false;
 let appNavigationRestoring = false;
@@ -37,6 +38,37 @@ const SCHEDULE_DAY_KEYS = ["lunedì", "martedì", "mercoledì", "giovedì", "ven
 const today = new Date();
 const YEAR_CHOICES = Array.from({ length: 5 }, (_, index) => today.getFullYear() - 2 + index);
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+function appCacheGet(key, ttlMs) {
+    const entry = appState.transientCache[key];
+    if (!entry) {
+        return null;
+    }
+
+    if ((Date.now() - entry.createdAt) > ttlMs) {
+        delete appState.transientCache[key];
+        return null;
+    }
+
+    return entry.value;
+}
+
+function appCacheSet(key, value) {
+    appState.transientCache[key] = {
+        value,
+        createdAt: Date.now()
+    };
+    return value;
+}
+
+function appCacheForget(prefix) {
+    Object.keys(appState.transientCache).forEach((key) => {
+        if (key.startsWith(prefix)) {
+            delete appState.transientCache[key];
+        }
+    });
+}
+
 //questa funzione imposta la vista corrente, il titolo e svuota il contenitore
 function setVista(classes, titoloTesto, options = {}) {
     appState.calendarViewToken += 1;
@@ -320,13 +352,18 @@ async function mostraModificheOrari(batchId = "") {
 
     try {
         const query = batchId ? "?batch=" + encodeURIComponent(batchId) : "";
-        const response = await fetch("connection_files/schedule_changes.php" + query, {
-            cache: "no-store"
-        });
-        const data = await response.json();
+        const cacheKey = "scheduleChanges:" + (batchId || "all");
+        let data = appCacheGet(cacheKey, 60 * 1000);
+        if (!data) {
+            const response = await fetch("connection_files/schedule_changes.php" + query, {
+                cache: "no-store"
+            });
+            data = await response.json();
 
-        if (!response.ok || !data.ok) {
-            throw new Error(data.error || "Errore nel caricamento delle modifiche");
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Errore nel caricamento delle modifiche");
+            }
+            appCacheSet(cacheKey, data);
         }
 
         container.innerHTML = "";

@@ -21,10 +21,17 @@ function formatCommunicationDate(value) {
 }
 
 async function communicationFetch(view) {
+    const cacheKey = "communications:" + String(view || "inbox");
+    const ttl = view === "users" ? 5 * 60 * 1000 : 30 * 1000;
+    const cached = appCacheGet(cacheKey, ttl);
+    if (cached) {
+        return cached;
+    }
+
     const response = await fetch(COMMUNICATIONS_ENDPOINT + "?view=" + encodeURIComponent(view), { cache: "no-store" });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Operazione non riuscita");
-    return data;
+    return appCacheSet(cacheKey, data);
 }
 
 function communicationCard(item, statusText = "") {
@@ -88,8 +95,12 @@ async function mostraComunicazioni() {
                     form.append("csrf_token", window.appCsrfToken || "");
                     const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: form });
                     const result = await response.json();
-                    if (response.ok && result.ok) mostraComunicazioni();
-                    else showAppToast(result.error || "Impossibile confermare");
+                    if (response.ok && result.ok) {
+                        appCacheForget("communications:");
+                        mostraComunicazioni();
+                    } else {
+                        showAppToast(result.error || "Impossibile confermare");
+                    }
                 };
                 card.querySelector(".card-body").appendChild(acknowledge);
             }
@@ -129,6 +140,7 @@ async function mostraComunicazioni() {
         const result = await response.json().catch(() => ({}));
         status.textContent = response.ok && result.ok ? "Inviata a " + result.recipients + " destinatari." : (result.error || "Impossibile inviare.");
         if (response.ok && result.ok) {
+            appCacheForget("communications:");
             compose.reset();
             targetType.onchange();
         }

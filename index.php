@@ -155,6 +155,8 @@ let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
 let pushStateLoaded = false;
+let pushStateEnabled = false;
+let pushStatePromise = null;
 let isAppStartupPhase = true;
 let pushKeyRotationNoticeShown = false;
 
@@ -335,28 +337,56 @@ async function removeOutdatedPushSubscription(subscription) {
     }
 }
 
-async function refreshPushState(registration) {
-    if (!registration || !registration.pushManager || pushStateLoaded) {
-        return;
+async function refreshPushState(registration, options = {}) {
+    if (!registration || !registration.pushManager) {
+        return false;
     }
 
-    pushStateLoaded = true;
+    if (pushStateLoaded && !options.force) {
+        return pushStateEnabled;
+    }
 
-    try {
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
-            await removeOutdatedPushSubscription(subscription);
+    if (pushStatePromise && !options.force) {
+        return pushStatePromise;
+    }
+
+    pushStatePromise = (async function () {
+        try {
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
+                await removeOutdatedPushSubscription(subscription);
+                pushStateLoaded = true;
+                pushStateEnabled = false;
+                window.dispatchEvent(new CustomEvent("app:push-state", {
+                    detail: { enabled: false }
+                }));
+                return pushStateEnabled;
+            }
+
+            pushStateEnabled = await isPushSubscriptionActiveForCurrentUser(subscription);
+            pushStateLoaded = true;
             window.dispatchEvent(new CustomEvent("app:push-state", {
-                detail: { enabled: false }
+                detail: { enabled: pushStateEnabled }
             }));
-            return;
+            return pushStateEnabled;
+        } catch (error) {
+            console.error("Errore nel controllo push", error);
+            return false;
+        } finally {
+            pushStatePromise = null;
         }
-        window.dispatchEvent(new CustomEvent("app:push-state", {
-            detail: { enabled: await isPushSubscriptionActiveForCurrentUser(subscription) }
-        }));
-    } catch (error) {
-        console.error("Errore nel controllo push", error);
-    }
+    })();
+
+    return pushStatePromise;
+}
+
+function setPushStateEnabled(enabled) {
+    pushStateLoaded = true;
+    pushStateEnabled = !!enabled;
+    pushStatePromise = null;
+    window.dispatchEvent(new CustomEvent("app:push-state", {
+        detail: { enabled: pushStateEnabled }
+    }));
 }
 
 async function enablePushNotifications() {
@@ -413,9 +443,7 @@ async function enablePushNotifications() {
             throw new Error(data.error || "Errore nel salvataggio della subscription");
         }
 
-        window.dispatchEvent(new CustomEvent("app:push-state", {
-            detail: { enabled: true }
-        }));
+        setPushStateEnabled(true);
         showAppToast("Notifiche attivate");
     } catch (error) {
         console.error("Errore push", error);
@@ -431,13 +459,13 @@ async function disablePushNotifications() {
     const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
-        window.dispatchEvent(new CustomEvent("app:push-state", { detail: { enabled: false } }));
+        setPushStateEnabled(false);
         return;
     }
 
     await deactivatePushSubscriptionForCurrentDevice(subscription);
     await subscription.unsubscribe();
-    window.dispatchEvent(new CustomEvent("app:push-state", { detail: { enabled: false } }));
+    setPushStateEnabled(false);
     showAppToast("Notifiche disattivate");
 }
 
@@ -448,12 +476,7 @@ window.appNotifications = {
         }
 
         const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription && !pushSubscriptionUsesCurrentPublicKey(subscription)) {
-            await removeOutdatedPushSubscription(subscription);
-            return false;
-        }
-        return isPushSubscriptionActiveForCurrentUser(subscription);
+        return refreshPushState(registration);
     },
     enable: enablePushNotifications,
     disable: disablePushNotifications
@@ -513,7 +536,6 @@ if ('serviceWorker' in navigator) {
             { updateViaCache: 'none' }
         ).then(function (registration) {
             serviceWorkerRegistration = registration;
-            refreshPushState(registration);
 
             const checkWaiting = function () {
                 if (registration.waiting) {
