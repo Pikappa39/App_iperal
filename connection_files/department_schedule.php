@@ -46,6 +46,7 @@ $requestedDepartment = trim((string) ($_GET['reparto'] ?? ''));
 $department = $role === 3 && appIsValidDepartment($requestedDepartment)
     ? $requestedDepartment
     : $sessionDepartment;
+app_session_write_close_if_active();
 if (!appIsValidDepartment($department)) {
     departmentScheduleResponse(['ok' => false, 'error' => 'Reparto non valido'], 403);
 }

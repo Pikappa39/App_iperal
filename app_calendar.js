@@ -134,6 +134,13 @@ function createDaySphere(giornoInfo, target = container) {
     target.appendChild(sfera);
 }
 
+function createCalendarLoadingMessage() {
+    const loading = document.createElement("p");
+    loading.className = "changes-empty";
+    loading.textContent = "Caricamento orari...";
+    return loading;
+}
+
 const FULL_MONTH_LABELS = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
@@ -334,16 +341,18 @@ async function mostraGiorni(anno, mese, options = {}) {
 
     const { visibleDays, weeksToLoad } = buildVisibleDaysForMonth(anno, mese);
     container.appendChild(createCalendarNavigation(anno, mese));
+    const loading = createCalendarLoadingMessage();
+    container.appendChild(loading);
 
-    const noteMese = await getMonthNotes(anno, mese);
-    let settimaneCaricate = {};
-    try {
+    const notePromise = getMonthNotes(anno, mese);
+    const schedulePromise = (async () => {
         const monthWeeks = await getMonthScheduleData(anno, mese);
+        let loadedWeeks = {};
         const missingWeeks = [];
         [...weeksToLoad.values()].forEach((isoWeek) => {
             const key = isoWeek.year + ":" + isoWeek.week;
             if (Object.prototype.hasOwnProperty.call(monthWeeks, key)) {
-                settimaneCaricate[key] = Array.isArray(monthWeeks[key]) ? monthWeeks[key] : [];
+                loadedWeeks[key] = Array.isArray(monthWeeks[key]) ? monthWeeks[key] : [];
             } else {
                 missingWeeks.push(isoWeek);
             }
@@ -352,16 +361,31 @@ async function mostraGiorni(anno, mese, options = {}) {
             const fallbackWeeks = await getWeeksScheduleData(new Map(
                 missingWeeks.map((isoWeek) => [isoWeek.year + ":" + isoWeek.week, isoWeek])
             ));
-            settimaneCaricate = Object.assign(settimaneCaricate, fallbackWeeks);
+            loadedWeeks = Object.assign(loadedWeeks, fallbackWeeks);
         }
-    } catch (error) {
+        return loadedWeeks;
+    })().catch(async (error) => {
         console.warn("Endpoint mensile non disponibile, uso il caricamento settimanale", error);
-        settimaneCaricate = await getWeeksScheduleData(weeksToLoad);
+        return getWeeksScheduleData(weeksToLoad);
+    });
+
+    let noteMese = { month: formatMonthKey(anno, mese), notes: {} };
+    let settimaneCaricate = {};
+    try {
+        [noteMese, settimaneCaricate] = await Promise.all([notePromise, schedulePromise]);
+    } catch (error) {
+        console.error("Errore nel caricamento calendario", error);
+        if (viewToken === appState.calendarViewToken && appState.view === "giorni") {
+            loading.textContent = "Non riesco a caricare gli orari.";
+        }
+        return;
     }
 
     if (viewToken !== appState.calendarViewToken || appState.view !== "giorni") {
         return;
     }
+
+    loading.remove();
 
     const userCf = getCurrentUserKey();
     const userName = getCurrentUser();

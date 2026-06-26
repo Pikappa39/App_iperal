@@ -57,6 +57,7 @@ $year = filter_input(INPUT_GET, 'year', FILTER_VALIDATE_INT);
 $month = filter_input(INPUT_GET, 'month', FILTER_VALIDATE_INT);
 $department = trim((string) ($_SESSION['user']['reparto'] ?? ''));
 $userCf = (string) $_SESSION['user']['cf'];
+app_session_write_close_if_active();
 
 if ($year === false || $year === null || $year < 2020 || $year > 2100 || $month === false || $month === null || $month < 1 || $month > 12) {
     monthScheduleResponse(['ok' => false, 'error' => 'Mese non valido'], 400);

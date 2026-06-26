@@ -20,6 +20,7 @@ if (!isset($_SESSION['user']['cf'])) {
 
 $userCf = (string) $_SESSION['user']['cf'];
 $batchId = trim((string) ($_GET['batch'] ?? ''));
+app_session_write_close_if_active();
 
 if ($batchId !== '' && !preg_match('/^[a-f0-9]{32}$/', $batchId)) {
     scheduleChangesResponse(['ok' => false, 'error' => 'Gruppo modifiche non valido'], 400);

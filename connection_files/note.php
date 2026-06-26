@@ -59,6 +59,7 @@ try {
     if ($method === 'POST' && !app_csrf_request_is_valid()) {
         jsonResponse(['ok' => false, 'error' => 'Richiesta non valida. Ricarica la pagina e riprova.'], 403);
     }
+    app_session_write_close_if_active();
 
     require __DIR__ . '/connection.php';
     if (!$connessione || !($pdo instanceof PDO)) {
@@ -71,9 +72,11 @@ try {
     $capo = (int) ($sessionUser['capo'] ?? 0);
     $viewerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
     $userDepartments = [];
-    $departmentQuery = $pdo->query('SELECT cod_fiscale, reparto FROM utenti WHERE attivo = 1');
-    foreach ($departmentQuery->fetchAll(PDO::FETCH_ASSOC) as $userDepartment) {
-        $userDepartments[(string) $userDepartment['cod_fiscale']] = (string) ($userDepartment['reparto'] ?? '');
+    if (in_array($capo, [1, 2], true)) {
+        $departmentQuery = $pdo->query('SELECT cod_fiscale, reparto FROM utenti WHERE attivo = 1');
+        foreach ($departmentQuery->fetchAll(PDO::FETCH_ASSOC) as $userDepartment) {
+            $userDepartments[(string) $userDepartment['cod_fiscale']] = (string) ($userDepartment['reparto'] ?? '');
+        }
     }
 
     $canViewEntry = static function (array $entry) use ($userKey, $capo, $viewerDepartment, $userDepartments): bool {

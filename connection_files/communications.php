@@ -27,6 +27,7 @@ $viewerCf = (string) $viewer['cf'];
 $viewerRole = (int) ($viewer['capo'] ?? 0);
 $viewerDepartment = (string) ($viewer['reparto'] ?? '');
 $isManager = in_array($viewerRole, [1, 2, 3], true);
+app_session_write_close_if_active();
 
 function communicationCanManageUser(PDO $pdo, string $userCf, int $viewerRole, string $viewerDepartment): bool
 {

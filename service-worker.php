@@ -22,10 +22,7 @@ $staticAssets = [
     './manifest.php?v=' . $assetVersion,
     './img/icon-192.png?v=' . $assetVersion,
     './img/icon-512.png?v=' . $assetVersion,
-    ...array_map(
-        static fn (string $avatar): string => './img/' . rawurlencode($avatar) . '.png',
-        appAvailableAvatars()
-    ),
+    './img/default.png',
 ];
 ?>
 const CACHE_NAME = <?php echo json_encode($cacheName); ?>;

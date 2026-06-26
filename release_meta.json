@@ -1,7 +1,13 @@
 {
-    "latest": "0.10.1",
-    "updated_at": "2026-06-25T16:03:31+00:00",
+    "latest": "0.10.2",
+    "updated_at": "2026-06-26T16:51:06+00:00",
     "releases": [
+        {
+            "version": "0.10.2",
+            "previous_version": "0.10.1",
+            "description": "Ottimizzazioni prestazioni e caricamento app",
+            "released_at": "2026-06-26T16:51:06+00:00"
+        },
         {
             "version": "0.10.1",
             "previous_version": "0.10.0",

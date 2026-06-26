@@ -126,6 +126,13 @@ function app_csrf_request_is_valid(): bool
     return $expected !== '' && $provided !== '' && hash_equals($expected, $provided);
 }
 
+function app_session_write_close_if_active(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+}
+
 function app_session_validate_user(): void
 {
     global $connessione, $pdo;

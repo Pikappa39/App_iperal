@@ -8,9 +8,11 @@ if (openOrari) {
             window.location.assign("login_reg.php");
             return;
         }
-        appState.currentYear = today.getFullYear();
-        appState.currentMonth = today.getMonth() + 1;
-        mostraGiorni(appState.currentYear, appState.currentMonth);
+        appRunWithBusyElement(openOrari, async () => {
+            appState.currentYear = today.getFullYear();
+            appState.currentMonth = today.getMonth() + 1;
+            await mostraGiorni(appState.currentYear, appState.currentMonth);
+        }, "Apro...");
     });
 }
 
@@ -25,23 +27,25 @@ if (noteAdminItem) {
 }
 if (scheduleChangesItem) {
     scheduleChangesItem.addEventListener("click", () => {
-        mostraModificheOrari();
+        appRunWithBusyElement(scheduleChangesItem, () => mostraModificheOrari(), "Apro...");
     });
 }
 if (scheduleAdjustmentsItem) {
     scheduleAdjustmentsItem.addEventListener("click", () => {
-        mostraRichiesteOre();
+        appRunWithBusyElement(scheduleAdjustmentsItem, () => mostraRichiesteOre(), "Apro...");
     });
 }
 if (departmentOverviewItem) {
     departmentOverviewItem.addEventListener("click", () => {
-        const currentWeek = getIsoWeekInfo(today);
-        mostraPanoramicaReparto(currentWeek.year, currentWeek.week);
+        appRunWithBusyElement(departmentOverviewItem, async () => {
+            const currentWeek = getIsoWeekInfo(today);
+            await mostraPanoramicaReparto(currentWeek.year, currentWeek.week);
+        }, "Apro...");
     });
 }
 if (communicationsItem) {
     communicationsItem.addEventListener("click", () => {
-        mostraComunicazioni();
+        appRunWithBusyElement(communicationsItem, () => mostraComunicazioni(), "Apro...");
     });
 }
 if(profileItem){

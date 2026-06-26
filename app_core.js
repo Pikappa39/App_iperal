@@ -71,6 +71,33 @@ function appCacheForget(prefix) {
     });
 }
 
+function appRunWithBusyElement(element, callback, busyText = "") {
+    if (!element || element.dataset.appBusy === "1") {
+        return;
+    }
+
+    const originalHtml = element.innerHTML;
+    element.dataset.appBusy = "1";
+    element.disabled = true;
+    if (busyText) {
+        element.textContent = busyText;
+    }
+
+    Promise.resolve()
+        .then(callback)
+        .catch((error) => {
+            console.error("Operazione non riuscita", error);
+            showAppToast(error.message || "Operazione non riuscita");
+        })
+        .finally(() => {
+            element.disabled = false;
+            element.dataset.appBusy = "0";
+            if (busyText) {
+                element.innerHTML = originalHtml;
+            }
+        });
+}
+
 //questa funzione imposta la vista corrente, il titolo e svuota il contenitore
 function setVista(classes, titoloTesto, options = {}) {
     appState.calendarViewToken += 1;

@@ -26,6 +26,10 @@ $viewerCf = (string) $viewer['cf'];
 $viewerRole = (int) ($viewer['capo'] ?? 0);
 $viewerDepartment = trim((string) ($viewer['reparto'] ?? ''));
 $canApprove = in_array($viewerRole, [1, 3], true);
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method !== 'POST' || app_csrf_request_is_valid()) {
+    app_session_write_close_if_active();
+}
 
 function scheduleAdjustmentRequestData(array $row): array
 {
@@ -66,7 +70,6 @@ function scheduleAdjustmentLoad(PDO $pdo, int $id): ?array
 }
 
 try {
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if ($method === 'GET') {
         $view = (string) ($_GET['view'] ?? 'day');
         if ($view === 'day') {

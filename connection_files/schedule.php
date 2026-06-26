@@ -24,6 +24,8 @@ if (!isset($_SESSION['user']['cf'])) {
 $year = filter_input(INPUT_GET, 'year', FILTER_VALIDATE_INT);
 $week = filter_input(INPUT_GET, 'week', FILTER_VALIDATE_INT);
 $department = trim((string) ($_SESSION['user']['reparto'] ?? ''));
+$userCf = (string) $_SESSION['user']['cf'];
+app_session_write_close_if_active();
 
 if ($year === false || $year === null || $year < 2020 || $year > 2100 || $week === false || $week === null || $week < 1 || $week > 53) {
     scheduleResponse(['ok' => false, 'error' => 'Settimana non valida'], 400);
@@ -33,7 +35,7 @@ if (!appIsValidDepartment($department)) {
 }
 
 try {
-    $rows = appScheduleAdjustmentLoadUserScheduleRows($pdo, $department, $year, $week, (string) $_SESSION['user']['cf']);
+    $rows = appScheduleAdjustmentLoadUserScheduleRows($pdo, $department, $year, $week, $userCf);
     scheduleResponse(['ok' => true, 'rows' => $rows]);
 } catch (Throwable $error) {
     error_log('Orario temporaneamente non disponibile: ' . $error->getMessage());

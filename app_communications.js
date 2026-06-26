@@ -89,17 +89,27 @@ async function mostraComunicazioni() {
                 acknowledge.className = "btn btn-outline-primary btn-sm mt-2";
                 acknowledge.textContent = "Presa visione";
                 acknowledge.onclick = async () => {
+                    acknowledge.disabled = true;
+                    acknowledge.textContent = "Confermo...";
                     const form = new FormData();
                     form.append("action", "acknowledge");
                     form.append("communication_id", item.id);
                     form.append("csrf_token", window.appCsrfToken || "");
-                    const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: form });
-                    const result = await response.json();
-                    if (response.ok && result.ok) {
-                        appCacheForget("communications:");
-                        mostraComunicazioni();
-                    } else {
-                        showAppToast(result.error || "Impossibile confermare");
+                    try {
+                        const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: form });
+                        const result = await response.json();
+                        if (response.ok && result.ok) {
+                            appCacheForget("communications:");
+                            mostraComunicazioni();
+                        } else {
+                            acknowledge.disabled = false;
+                            acknowledge.textContent = "Presa visione";
+                            showAppToast(result.error || "Impossibile confermare");
+                        }
+                    } catch (error) {
+                        acknowledge.disabled = false;
+                        acknowledge.textContent = "Presa visione";
+                        showAppToast(error.message || "Impossibile confermare");
                     }
                 };
                 card.querySelector(".card-body").appendChild(acknowledge);
@@ -132,17 +142,25 @@ async function mostraComunicazioni() {
     };
     compose.onsubmit = async (event) => {
         event.preventDefault();
+        const submit = compose.querySelector("button[type='submit']");
+        if (submit) submit.disabled = true;
         status.textContent = "Invio in corso...";
         const values = new FormData(compose);
         values.append("action", "send");
         values.append("csrf_token", window.appCsrfToken || "");
-        const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: values });
-        const result = await response.json().catch(() => ({}));
-        status.textContent = response.ok && result.ok ? "Inviata a " + result.recipients + " destinatari." : (result.error || "Impossibile inviare.");
-        if (response.ok && result.ok) {
-            appCacheForget("communications:");
-            compose.reset();
-            targetType.onchange();
+        try {
+            const response = await fetch(COMMUNICATIONS_ENDPOINT, { method: "POST", body: values });
+            const result = await response.json().catch(() => ({}));
+            status.textContent = response.ok && result.ok ? "Inviata a " + result.recipients + " destinatari." : (result.error || "Impossibile inviare.");
+            if (response.ok && result.ok) {
+                appCacheForget("communications:");
+                compose.reset();
+                targetType.onchange();
+            }
+        } catch (error) {
+            status.textContent = error.message || "Impossibile inviare.";
+        } finally {
+            if (submit) submit.disabled = false;
         }
     };
 
