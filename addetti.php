@@ -600,6 +600,25 @@ document.querySelectorAll("[data-copy-target]").forEach(function (button) {
         }
     });
 });
+
+document.querySelectorAll('form[action="connection_files/manage_invites.php"]').forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+        if (form.dataset.submitting === "1") {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.submitting = "1";
+        const action = form.querySelector('input[name="action"]')?.value || "";
+        const label = action === "revoke"
+            ? "Revoco..."
+            : (action === "regenerate" ? "Reinvio..." : "Invio...");
+        form.querySelectorAll('button[type="submit"]').forEach(function (button) {
+            button.disabled = true;
+            button.textContent = label;
+        });
+    });
+});
 </script>
 </body>
 </html>

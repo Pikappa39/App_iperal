@@ -45,6 +45,27 @@
         });
     });
 
+    document.querySelectorAll("form").forEach((form) => {
+        const action = form.querySelector('input[name="action"]')?.value || "";
+        if (!["manual_invite_link", "revoke_invite"].includes(action)) {
+            return;
+        }
+
+        form.addEventListener("submit", (event) => {
+            if (form.dataset.submitting === "1") {
+                event.preventDefault();
+                return;
+            }
+
+            form.dataset.submitting = "1";
+            const label = action === "revoke_invite" ? "Revoco..." : "Genero...";
+            form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                button.disabled = true;
+                button.textContent = label;
+            });
+        });
+    });
+
     const search = document.querySelector("[data-admin-console-search]");
     const searchStatus = document.querySelector("[data-admin-console-search-status]");
     const rows = Array.from(document.querySelectorAll("[data-admin-console-row]"));

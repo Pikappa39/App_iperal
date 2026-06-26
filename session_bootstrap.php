@@ -4,6 +4,7 @@ require_once __DIR__ . '/php_runtime.php';
 
 const APP_SESSION_LIFETIME = 60 * 60 * 24 * 7;
 const APP_LAST_SEEN_UPDATE_INTERVAL = 300;
+const APP_PERFORMANCE_LOG_MAX_BYTES = 2 * 1024 * 1024;
 
 function app_session_storage_path(): string
 {
@@ -133,6 +134,83 @@ function app_session_write_close_if_active(): void
     }
 }
 
+function app_performance_log_path(): string
+{
+    $storageDir = __DIR__ . DIRECTORY_SEPARATOR . 'storage';
+    if (!is_dir($storageDir) && !@mkdir($storageDir, 0750, true) && !is_dir($storageDir)) {
+        return '';
+    }
+    if (!is_writable($storageDir)) {
+        return '';
+    }
+
+    return $storageDir . DIRECTORY_SEPARATOR . 'performance.log';
+}
+
+function app_performance_log_rotate(string $path): void
+{
+    $size = @filesize($path);
+    if (!is_int($size) || $size < APP_PERFORMANCE_LOG_MAX_BYTES) {
+        return;
+    }
+
+    @rename($path, $path . '.1');
+}
+
+function app_performance_log_shutdown(): void
+{
+    if (PHP_SAPI === 'cli') {
+        return;
+    }
+
+    $path = app_performance_log_path();
+    if ($path === '') {
+        return;
+    }
+
+    app_performance_log_rotate($path);
+    $startedAt = (float) ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+    $status = (int) http_response_code();
+    if ($status < 100) {
+        $status = 200;
+    }
+
+    $lastError = error_get_last();
+    if (is_array($lastError) && in_array((int) ($lastError['type'] ?? 0), [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        $status = max($status, 500);
+    }
+
+    $sessionUser = $_SESSION['user'] ?? null;
+    $entry = [
+        'ts' => date(DATE_ATOM),
+        'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+        'route' => basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')),
+        'status' => $status,
+        'duration_ms' => round((microtime(true) - $startedAt) * 1000, 1),
+        'memory_peak_kb' => (int) ceil(memory_get_peak_usage(true) / 1024),
+        'role' => is_array($sessionUser) ? (int) ($sessionUser['capo'] ?? 0) : null,
+        'authenticated' => is_array($sessionUser),
+    ];
+
+    $json = json_encode($entry, JSON_UNESCAPED_SLASHES);
+    if (!is_string($json)) {
+        return;
+    }
+
+    @file_put_contents($path, $json . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+function app_performance_log_register(): void
+{
+    static $registered = false;
+    if ($registered || PHP_SAPI === 'cli') {
+        return;
+    }
+
+    $registered = true;
+    register_shutdown_function('app_performance_log_shutdown');
+}
+
 function app_session_validate_user(): void
 {
     global $connessione, $pdo;
@@ -197,3 +275,5 @@ function app_session_touch_user(PDO $pdo, string $cf, bool $force = false): void
     $statement->execute([$cf]);
     $_SESSION['last_seen_touch'] = $now;
 }
+
+app_performance_log_register();

@@ -1,7 +1,13 @@
 {
-    "latest": "0.10.2",
-    "updated_at": "2026-06-26T16:51:06+00:00",
+    "latest": "0.10.3",
+    "updated_at": "2026-06-26T17:02:09+00:00",
     "releases": [
+        {
+            "version": "0.10.3",
+            "previous_version": "0.10.2",
+            "description": "Log performance server e miglioramento inviti",
+            "released_at": "2026-06-26T17:02:09+00:00"
+        },
         {
             "version": "0.10.2",
             "previous_version": "0.10.1",

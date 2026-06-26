@@ -145,6 +145,15 @@ function appAdminConsoleBytesLabel($bytes): string
     return ($index === 0 ? (string) (int) $value : number_format($value, 1, ',', '.')) . ' ' . $units[$index];
 }
 
+function appAdminConsoleMsLabel($value): string
+{
+    if (!is_numeric($value)) {
+        return 'Non disponibile';
+    }
+
+    return number_format((float) $value, 1, ',', '.') . ' ms';
+}
+
 function appAdminConsoleDiagnosticLabel(string $status): string
 {
     return match ($status) {
@@ -353,6 +362,137 @@ function appAdminConsoleReadTail(string $path, int $bytes = 262144): ?string
     } finally {
         fclose($handle);
     }
+}
+
+function appAdminConsolePercentile(array $values, float $percentile): float
+{
+    $values = array_values(array_filter($values, 'is_numeric'));
+    if ($values === []) {
+        return 0.0;
+    }
+
+    sort($values, SORT_NUMERIC);
+    $index = (int) ceil(($percentile / 100) * count($values)) - 1;
+    $index = max(0, min(count($values) - 1, $index));
+
+    return (float) $values[$index];
+}
+
+function appAdminConsoleBuildPerformanceReport(int $hours = 24): array
+{
+    $path = app_performance_log_path();
+    $report = [
+        'available' => false,
+        'path' => $path,
+        'hours' => $hours,
+        'requests' => 0,
+        'error_count' => 0,
+        'endpoints' => [],
+        'slow_requests' => [],
+    ];
+    if ($path === '') {
+        return $report;
+    }
+
+    $rawParts = [];
+    foreach ([$path . '.1', $path] as $candidate) {
+        $tail = appAdminConsoleReadTail($candidate, 1024 * 1024);
+        if (is_string($tail) && trim($tail) !== '') {
+            $rawParts[] = $tail;
+        }
+    }
+    if ($rawParts === []) {
+        return $report;
+    }
+
+    $cutoff = time() - ($hours * 3600);
+    $groups = [];
+    $slowRequests = [];
+    foreach (preg_split('/\R/', implode("\n", $rawParts)) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+
+        $entry = json_decode($line, true);
+        if (!is_array($entry)) {
+            continue;
+        }
+
+        $timestamp = strtotime((string) ($entry['ts'] ?? ''));
+        if ($timestamp === false || $timestamp < $cutoff) {
+            continue;
+        }
+
+        $route = basename((string) ($entry['route'] ?? ''));
+        if ($route === '') {
+            continue;
+        }
+
+        $duration = (float) ($entry['duration_ms'] ?? 0);
+        $status = (int) ($entry['status'] ?? 0);
+        $method = (string) ($entry['method'] ?? '');
+        $memoryPeak = (int) ($entry['memory_peak_kb'] ?? 0);
+        $report['requests']++;
+        if ($status >= 400) {
+            $report['error_count']++;
+        }
+
+        if (!isset($groups[$route])) {
+            $groups[$route] = [
+                'route' => $route,
+                'count' => 0,
+                'errors' => 0,
+                'durations' => [],
+                'memory_peak_kb' => 0,
+                'posts' => 0,
+            ];
+        }
+        $groups[$route]['count']++;
+        $groups[$route]['durations'][] = $duration;
+        $groups[$route]['memory_peak_kb'] = max((int) $groups[$route]['memory_peak_kb'], $memoryPeak);
+        if ($status >= 400) {
+            $groups[$route]['errors']++;
+        }
+        if ($method === 'POST') {
+            $groups[$route]['posts']++;
+        }
+
+        if ($duration >= 500 || $status >= 500) {
+            $slowRequests[] = [
+                'ts' => (string) ($entry['ts'] ?? ''),
+                'route' => $route,
+                'method' => $method,
+                'status' => $status,
+                'duration_ms' => $duration,
+                'memory_peak_kb' => $memoryPeak,
+            ];
+        }
+    }
+
+    $endpoints = [];
+    foreach ($groups as $group) {
+        $durations = $group['durations'];
+        $endpoints[] = [
+            'route' => (string) $group['route'],
+            'count' => (int) $group['count'],
+            'posts' => (int) $group['posts'],
+            'errors' => (int) $group['errors'],
+            'avg_ms' => array_sum($durations) / max(1, count($durations)),
+            'p95_ms' => appAdminConsolePercentile($durations, 95),
+            'max_ms' => max($durations),
+            'memory_peak_kb' => (int) $group['memory_peak_kb'],
+        ];
+    }
+
+    usort($endpoints, static fn (array $left, array $right): int => ((float) $right['p95_ms'] <=> (float) $left['p95_ms']) ?: ((int) $right['count'] <=> (int) $left['count']));
+    usort($slowRequests, static fn (array $left, array $right): int => ((float) $right['duration_ms'] <=> (float) $left['duration_ms']));
+
+    $report['available'] = $report['requests'] > 0;
+    $report['endpoints'] = array_slice($endpoints, 0, 12);
+    $report['slow_requests'] = array_slice($slowRequests, 0, 20);
+
+    return $report;
 }
 
 function appAdminConsoleAddBackupDiagnostic(array &$diagnostics): void
@@ -685,6 +825,15 @@ $auditLogs = [];
 $auditLogError = false;
 $diagnostics = [];
 $diagnosticSummary = ['ok' => 0, 'warning' => 0, 'danger' => 0, 'info' => 0];
+$performanceReport = [
+    'available' => false,
+    'path' => app_performance_log_path(),
+    'hours' => 24,
+    'requests' => 0,
+    'error_count' => 0,
+    'endpoints' => [],
+    'slow_requests' => [],
+];
 $associationIssues = [];
 $associationIssueSummary = ['danger' => 0, 'warning' => 0, 'info' => 0];
 $namesByUser = [];
@@ -770,6 +919,7 @@ if ($unlocked && !$databaseError) {
     }
     $diagnostics = appAdminConsoleBuildDiagnostics($pdo, $consoleConfigured);
     $diagnosticSummary = appAdminConsoleDiagnosticSummary($diagnostics);
+    $performanceReport = appAdminConsoleBuildPerformanceReport(24);
 
     try {
         $auditStatement = $pdo->query(
@@ -873,6 +1023,96 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                 <strong><?php echo (int) $stats['pending_invites']; ?></strong>
             </article>
         </section>
+
+        <details class="admin-console-section" data-admin-console-panel open>
+            <summary class="admin-console-section__summary">
+                <span>
+                    <strong>Performance server</strong>
+                    <small>
+                        ultime <?php echo (int) $performanceReport['hours']; ?>h
+                        · <?php echo (int) $performanceReport['requests']; ?> richieste
+                        · <?php echo (int) $performanceReport['error_count']; ?> errori
+                    </small>
+                </span>
+            </summary>
+            <div class="admin-console-section__body">
+                <?php if (!$performanceReport['available']): ?>
+                    <div class="alert alert-info mb-0">
+                        Non ci sono ancora dati performance sufficienti. Le nuove richieste PHP verranno registrate in <code><?php echo appAdminConsoleEscape((string) $performanceReport['path']); ?></code>.
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive mb-4">
+                        <table class="table align-middle admin-console-table">
+                            <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>Richieste</th>
+                                <th>POST</th>
+                                <th>Media</th>
+                                <th>P95</th>
+                                <th>Max</th>
+                                <th>Errori</th>
+                                <th>Memoria max</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($performanceReport['endpoints'] as $endpoint): ?>
+                                <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                                    $endpoint['route'] ?? '',
+                                    'performance server',
+                                ])); ?>">
+                                    <td><strong><?php echo appAdminConsoleEscape((string) $endpoint['route']); ?></strong></td>
+                                    <td><?php echo (int) $endpoint['count']; ?></td>
+                                    <td><?php echo (int) $endpoint['posts']; ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleMsLabel($endpoint['avg_ms'] ?? 0)); ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleMsLabel($endpoint['p95_ms'] ?? 0)); ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleMsLabel($endpoint['max_ms'] ?? 0)); ?></td>
+                                    <td><?php echo (int) $endpoint['errors']; ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleBytesLabel(((int) ($endpoint['memory_peak_kb'] ?? 0)) * 1024)); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="h6">Richieste lente recenti</h3>
+                    <div class="table-responsive">
+                        <table class="table align-middle admin-console-table">
+                            <thead>
+                            <tr>
+                                <th>Quando</th>
+                                <th>Endpoint</th>
+                                <th>Metodo</th>
+                                <th>HTTP</th>
+                                <th>Durata</th>
+                                <th>Memoria</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($performanceReport['slow_requests'] as $request): ?>
+                                <tr data-admin-console-row data-search-text="<?php echo appAdminConsoleEscape(appAdminConsoleSearchText([
+                                    $request['route'] ?? '',
+                                    $request['method'] ?? '',
+                                    $request['status'] ?? '',
+                                    'richiesta lenta performance',
+                                ])); ?>">
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleDateLabel($request['ts'] ?? null)); ?></td>
+                                    <td><strong><?php echo appAdminConsoleEscape((string) $request['route']); ?></strong></td>
+                                    <td><?php echo appAdminConsoleEscape((string) $request['method']); ?></td>
+                                    <td><?php echo (int) $request['status']; ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleMsLabel($request['duration_ms'] ?? 0)); ?></td>
+                                    <td><?php echo appAdminConsoleEscape(appAdminConsoleBytesLabel(((int) ($request['memory_peak_kb'] ?? 0)) * 1024)); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if ($performanceReport['slow_requests'] === []): ?>
+                                <tr><td colspan="6" class="text-muted">Nessuna richiesta oltre 500 ms nelle ultime ore analizzate.</td></tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </details>
 
         <section class="admin-console-search">
             <label class="form-label" for="adminConsoleSearch">Ricerca globale</label>
