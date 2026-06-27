@@ -94,8 +94,16 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
         const currentToken = appState.noteViewToken;
         const noteText = textarea.value;
         const normalizedNote = noteText.trim();
+        const originalSaveButtonHtml = saveButton.innerHTML;
 
         saveButton.disabled = true;
+        saveButton.innerHTML = "";
+        const spinner = document.createElement("span");
+        spinner.className = "app-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.textContent = "Salvataggio...";
+        saveButton.append(spinner, label);
         textarea.disabled = true;
         status.textContent = "Salvataggio in corso...";
 
@@ -103,6 +111,9 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
         formData.append("date", giornoInfo.dataKey);
         formData.append("note", noteText);
         formData.append("csrf_token", window.appCsrfToken || "");
+        formData.append("schedule_year", String(giornoInfo.anno_orario || ""));
+        formData.append("schedule_week", String(giornoInfo.settimana || ""));
+        formData.append("schedule_version", String(giornoInfo.scheduleVersion?.fingerprint || ""));
 
         try {
             const response = await fetch(NOTES_ENDPOINT, {
@@ -122,6 +133,19 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
 
             if (!response.ok || !result.ok) {
                 const serverError = result.error || "Salvataggio non riuscito";
+                if (response.status === 409 && result.schedule_changed) {
+                    const reloadMessage = serverError
+                        + " La pagina si ricaricherà tra pochi secondi; poi troverai le modifiche nella sezione Aggiornamenti orari.";
+                    status.textContent = reloadMessage;
+                    showAppToast("Orario aggiornato: ricarico la pagina");
+                    delete appState.monthNotesPromises[formatMonthKey(anno, mese)];
+                    delete appState.monthNotesCache[formatMonthKey(anno, mese)];
+                    delete appState.monthSchedulePromises[anno + ":" + mese];
+                    window.setTimeout(() => {
+                        window.location.reload();
+                    }, 2600);
+                    return;
+                }
                 if (result.details) {
                     console.error("Dettagli errore server:", result.details);
                 }
@@ -144,6 +168,7 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
         } finally {
             if (currentToken === appState.noteViewToken) {
                 saveButton.disabled = false;
+                saveButton.innerHTML = originalSaveButtonHtml;
                 textarea.disabled = false;
             }
         }

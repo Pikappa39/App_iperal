@@ -62,6 +62,7 @@ try {
     app_session_write_close_if_active();
 
     require __DIR__ . '/connection.php';
+    require __DIR__ . '/schedule_adjustment_lib.php';
     if (!$connessione || !($pdo instanceof PDO)) {
         jsonResponse([
             "ok" => false,
@@ -413,6 +414,9 @@ try {
 
     $dateKey = $normalizeDateKey($_POST["date"] ?? "");
     $note = trim((string) ($_POST["note"] ?? ""));
+    $clientScheduleVersion = trim((string) ($_POST['schedule_version'] ?? ''));
+    $clientScheduleYear = filter_var($_POST['schedule_year'] ?? null, FILTER_VALIDATE_INT);
+    $clientScheduleWeek = filter_var($_POST['schedule_week'] ?? null, FILTER_VALIDATE_INT);
 
     if ($dateKey === null) {
         jsonResponse([
@@ -425,6 +429,40 @@ try {
             "ok" => false,
             "error" => "La nota può contenere al massimo 2000 caratteri",
         ], 400);
+    }
+    if ($clientScheduleVersion !== '') {
+        $dateInfo = appScheduleAdjustmentDateInfo($dateKey);
+        if ($dateInfo === null) {
+            jsonResponse([
+                "ok" => false,
+                "error" => "Data non valida",
+            ], 400);
+        }
+
+        $expectedYear = (int) $dateInfo['year'];
+        $expectedWeek = (int) $dateInfo['week'];
+        if ($clientScheduleYear !== $expectedYear || $clientScheduleWeek !== $expectedWeek) {
+            jsonResponse([
+                "ok" => false,
+                "error" => "Orario non allineato. Riapri il giorno e riprova.",
+                "schedule_changed" => true,
+            ], 409);
+        }
+
+        $currentScheduleVersion = appScheduleAdjustmentCurrentScheduleFingerprint(
+            $pdo,
+            $viewerDepartment,
+            $expectedYear,
+            $expectedWeek
+        );
+        if (!hash_equals($currentScheduleVersion, $clientScheduleVersion)) {
+            jsonResponse([
+                "ok" => false,
+                "error" => "L'orario è stato aggiornato. Ricarico i dati prima di salvare la nota.",
+                "schedule_changed" => true,
+                "schedule_version" => $currentScheduleVersion,
+            ], 409);
+        }
     }
 
     $monthKey = substr($dateKey, 0, 7);

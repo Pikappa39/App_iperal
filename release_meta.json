@@ -1,7 +1,13 @@
 {
-    "latest": "0.10.4",
-    "updated_at": "2026-06-27T11:43:14+00:00",
+    "latest": "0.10.5",
+    "updated_at": "2026-06-27T12:13:18+00:00",
     "releases": [
+        {
+            "version": "0.10.5",
+            "previous_version": "0.10.4",
+            "description": "Cache sicura PWA e push realtime",
+            "released_at": "2026-06-27T12:13:18+00:00"
+        },
         {
             "version": "0.10.4",
             "previous_version": "0.10.3",

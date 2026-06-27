@@ -413,20 +413,24 @@ async function mostraGiorni(anno, mese, options = {}) {
 
         for (let j = i; j < i + 7 && j < visibleDays.length; j++) {
             const giorno = visibleDays[j];
-            const dataSettimana = settimaneCaricate[giorno.anno_orario + ":" + giorno.settimana] || [];
+            const weekKey = giorno.anno_orario + ":" + giorno.settimana;
+            const dataSettimana = settimaneCaricate[weekKey] || [];
             const orario = getOrarioDaSettimana(dataSettimana, userCf, userName, giorno.giorno_parola);
             const minutiLavorati = minutiLavoratiDaTurno(orario);
             const dayNotes = getDayNoteList(noteMese, giorno.dataKey);
             const currentUserNote = getCurrentUserNoteFromDayNotes(dayNotes);
+            const scheduleVersion = appState.scheduleVersionCache[weekKey] || null;
 
             createDaySphere({
                 numero: giorno.numero,
                 opaco: giorno.opaco,
                 giorno_parola: giorno.giorno_parola,
                 settimana: giorno.settimana,
+                anno_orario: giorno.anno_orario,
                 orario,
                 minutiLavorati,
                 dataKey: giorno.dataKey,
+                scheduleVersion,
                 noteSummary: getNoteSummaryForDay(currentUserNote, dayNotes)
             }, grid);
         }

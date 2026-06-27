@@ -230,6 +230,41 @@ function appScheduleAdjustmentLatestUploadVersion(PDO $pdo, string $department, 
     return is_string($id) && $id !== '' ? $id : null;
 }
 
+function appScheduleAdjustmentCurrentScheduleFingerprint(PDO $pdo, string $department, int $year, int $week): string
+{
+    $statement = $pdo->prepare(
+        'SELECT version_id, updated_at
+         FROM schedule_active_versions
+         WHERE reparto = ? AND iso_year = ? AND iso_week = ?
+         LIMIT 1'
+    );
+    $statement->execute([$department, $year, $week]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (is_array($row) && (string) ($row['version_id'] ?? '') !== '') {
+        return hash('sha256', implode('|', [
+            $department,
+            (string) $year,
+            (string) $week,
+            (string) $row['version_id'],
+            (string) ($row['updated_at'] ?? ''),
+        ]));
+    }
+
+    $file = appScheduleAdjustmentScheduleFile($department, $year, $week);
+    if ($file === null) {
+        return hash('sha256', implode('|', [$department, (string) $year, (string) $week, 'missing']));
+    }
+
+    return hash('sha256', implode('|', [
+        $department,
+        (string) $year,
+        (string) $week,
+        basename($file),
+        (string) (filemtime($file) ?: 0),
+        (string) (filesize($file) ?: 0),
+    ]));
+}
+
 function appScheduleAdjustmentStoreUploadVersion(
     PDO $pdo,
     string $id,

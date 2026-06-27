@@ -77,13 +77,12 @@ $clientBootstrap = [
       <?php if (isset($_SESSION["user"])): ?>
         <div class="dropdown">
           <button class="btn avatar-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu profilo">
-            <img id="profileImg" src="img/default.png" width="40" height="40" class="rounded-circle" alt="Profilo">
+            <img id="profileImg" src="img/default.webp?v=<?php echo rawurlencode(APP_VERSION); ?>" width="40" height="40" class="rounded-circle" alt="Profilo">
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="guideItem">Guida</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
-            <li><button type="button" class="dropdown-item" id="repairAppItem">Ripristina app</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
             <li>
               <form id="logoutForm" action="connection_files/logout.php" method="post">
@@ -114,20 +113,6 @@ $clientBootstrap = [
       <p id="changelogSubtitle" class="changelog-dialog__subtitle"></p>
       <div id="changelogBody" class="changelog-dialog__body"></div>
       <button type="button" id="changelogOkBtn" class="btn btn-primary changelog-dialog__action">Ho capito</button>
-    </div>
-  </div>
-
-  <div id="repairDialog" class="changelog-dialog app-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="repairTitle">
-    <div class="changelog-dialog__panel">
-      <button type="button" id="repairCloseBtn" class="changelog-dialog__close" aria-label="Chiudi ripristino">×</button>
-      <p class="changelog-dialog__eyebrow">Ripristino app</p>
-      <h2 id="repairTitle">Rimettiamo in ordine questa installazione</h2>
-      <p class="changelog-dialog__subtitle" id="repairSubtitle">Usalo se la PWA si apre ma i pulsanti non rispondono, oppure se resta bloccata dopo un aggiornamento.</p>
-      <div class="changelog-dialog__body">
-        <p>Il ripristino elimina cache locale, service worker e preferenze salvate su questo browser. Non elimina il tuo account o i dati sul server.</p>
-        <p id="repairStatus" class="repair-dialog__status" aria-live="polite"></p>
-      </div>
-      <button type="button" id="repairNowBtn" class="btn btn-primary changelog-dialog__action">Ripristina su questo dispositivo</button>
     </div>
   </div>
 
@@ -223,18 +208,12 @@ window.reparto = window.appBootstrap.reparto;
 window.pushPublicKey = window.appBootstrap.pushPublicKey;
 window.appCsrfToken = window.appBootstrap.csrfToken;
 window.appVersion = window.appBootstrap.appVersion;
+window.appAssetVersion = window.appBootstrap.appVersion;
 window.appReleaseMeta = window.appBootstrap.releaseMeta || {};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app_core.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="app_calendar.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="app_adjustments.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="app_department_overview.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="app_notes.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="app_communications.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="userhome.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script src="app_init.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
-<script src="setting.js?v=<?php echo rawurlencode(APP_VERSION); ?>"></script>
 <script>
 (function () {
 const updateBanner = document.getElementById("updateBanner");
@@ -247,11 +226,6 @@ const changelogOkBtn = document.getElementById("changelogOkBtn");
 const changelogTitle = document.getElementById("changelogTitle");
 const changelogSubtitle = document.getElementById("changelogSubtitle");
 const changelogBody = document.getElementById("changelogBody");
-const repairDialog = document.getElementById("repairDialog");
-const repairCloseBtn = document.getElementById("repairCloseBtn");
-const repairNowBtn = document.getElementById("repairNowBtn");
-const repairStatus = document.getElementById("repairStatus");
-const repairAppItem = document.getElementById("repairAppItem");
 let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
@@ -351,46 +325,7 @@ function appStorageRemove(key) {
     }
 }
 
-function setRepairStatus(message) {
-    if (repairStatus) {
-        repairStatus.textContent = message;
-    }
-}
-
-function showRepairDialog(reason = "") {
-    if (!repairDialog) {
-        window.location.assign("reset_app.php");
-        return;
-    }
-
-    setRepairStatus(reason);
-    repairDialog.hidden = false;
-    repairDialog.classList.remove("app-hidden");
-    window.setTimeout(function () {
-        if (repairNowBtn) {
-            repairNowBtn.focus();
-        }
-    }, 0);
-}
-
-function hideRepairDialog() {
-    if (!repairDialog) {
-        return;
-    }
-
-    repairDialog.hidden = true;
-    repairDialog.classList.add("app-hidden");
-    setRepairStatus("");
-}
-
-async function resetInstalledApp() {
-    if (!repairNowBtn) {
-        window.location.assign("reset_app.php");
-        return;
-    }
-
-    repairNowBtn.disabled = true;
-    setRepairStatus("Ripristino in corso...");
+async function clearAppRuntimeCaches() {
     try {
         if ("serviceWorker" in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
@@ -402,29 +337,13 @@ async function resetInstalledApp() {
                 return Promise.resolve();
             }));
             await new Promise((resolve) => window.setTimeout(resolve, 250));
-            await Promise.all(registrations.map((registration) => registration.unregister()));
         }
         if ("caches" in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map((key) => caches.delete(key)));
         }
-        try {
-            window.localStorage.clear();
-            window.sessionStorage.clear();
-        } catch (error) {
-            // Se lo storage è bloccato, completiamo comunque il reset cache.
-        }
-        setRepairStatus("Ripristino completato. Riapro l'app...");
-        window.setTimeout(function () {
-            window.location.replace("index.php?reset=" + Date.now());
-        }, 700);
     } catch (error) {
-        console.error("Ripristino app non riuscito", error);
-        repairNowBtn.disabled = false;
-        setRepairStatus("Non sono riuscito a completare il ripristino. Apro la pagina dedicata...");
-        window.setTimeout(function () {
-            window.location.assign("reset_app.php");
-        }, 900);
+        console.error("Pulizia cache app non riuscita", error);
     }
 }
 
@@ -456,7 +375,7 @@ async function checkAppHealth() {
         const previousWarning = Number(appStorageGet("app-iperal-boot-warning") || "0");
         appStorageSet("app-iperal-boot-warning", String(Date.now()));
         if (previousWarning > 0 && Date.now() - previousWarning < 10 * 60 * 1000) {
-            showRepairDialog("Il controllo dell'app non risponde. Se i pulsanti restano bloccati, prova il ripristino.");
+            clearAppRuntimeCaches();
         } else {
             showAppToast("Connessione app instabile, riprovo al prossimo avvio");
         }
@@ -613,33 +532,11 @@ window.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && changelogDialog && !changelogDialog.hidden) {
         hideChangelogDialog();
     }
-    if (event.key === "Escape" && repairDialog && !repairDialog.hidden) {
-        hideRepairDialog();
-    }
 });
 window.addEventListener("load", showChangelogIfNeeded);
 window.addEventListener("load", function () {
     window.setTimeout(checkAppHealth, 1200);
 });
-
-if (repairCloseBtn) {
-    repairCloseBtn.addEventListener("click", hideRepairDialog);
-}
-if (repairDialog) {
-    repairDialog.addEventListener("click", function (event) {
-        if (event.target === repairDialog) {
-            hideRepairDialog();
-        }
-    });
-}
-if (repairNowBtn) {
-    repairNowBtn.addEventListener("click", resetInstalledApp);
-}
-if (repairAppItem) {
-    repairAppItem.addEventListener("click", function () {
-        showRepairDialog("Ripristino avviato dal menu profilo.");
-    });
-}
 
 function base64UrlToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -945,6 +842,14 @@ if ('serviceWorker' in navigator) {
         window.location.reload();
     });
 
+    navigator.serviceWorker.addEventListener('message', function (event) {
+        if (!event.data || event.data.type !== "APP_PUSH_RECEIVED") {
+            return;
+        }
+
+        handleRealtimePush(event.data.payload || {});
+    });
+
     window.addEventListener('load', function () {
         navigator.serviceWorker.register(
             'service-worker.php?v=<?php echo rawurlencode(APP_VERSION); ?>',
@@ -981,6 +886,69 @@ if ('serviceWorker' in navigator) {
             console.error('Service worker registration failed:', error);
         });
     });
+}
+
+function clearScheduleRuntimeCache() {
+    appState.weekCache = Object.create(null);
+    appState.monthSchedulePromises = Object.create(null);
+    appState.scheduleVersionCache = Object.create(null);
+}
+
+async function refreshCurrentScheduleView() {
+    if (!["giorni", "giorno"].includes(appState.view) || !appState.currentYear || !appState.currentMonth) {
+        return;
+    }
+
+    await appLoadFeature("calendar");
+    await mostraGiorni(appState.currentYear, appState.currentMonth, { replaceHistory: true });
+}
+
+async function refreshCurrentCommunicationView() {
+    if (appState.view !== "communications") {
+        return;
+    }
+
+    await appLoadFeature("communications");
+    await mostraComunicazioni();
+}
+
+async function refreshCurrentAdjustmentView() {
+    if (!["scheduleAdjustments", "giorno"].includes(appState.view)) {
+        return;
+    }
+
+    await appLoadFeature("adjustments");
+    if (appState.view === "scheduleAdjustments") {
+        await mostraRichiesteOre();
+    }
+}
+
+function handleRealtimePush(payload) {
+    const type = String(payload.type || "");
+    if (!type) {
+        return;
+    }
+
+    if (["schedule_changed", "schedule_uploaded", "adjustment_review"].includes(type)) {
+        clearScheduleRuntimeCache();
+        showAppToast(payload.body || "Orari aggiornati");
+        refreshCurrentScheduleView().catch((error) => console.error("Refresh orari da push non riuscito", error));
+        if (type === "adjustment_review") {
+            refreshCurrentAdjustmentView().catch((error) => console.error("Refresh richieste da push non riuscito", error));
+        }
+        return;
+    }
+
+    if (type === "communication") {
+        showAppToast(payload.title || "Nuova comunicazione");
+        refreshCurrentCommunicationView().catch((error) => console.error("Refresh comunicazioni da push non riuscito", error));
+        return;
+    }
+
+    if (type === "adjustment_created" || type === "adjustment_decision") {
+        showAppToast(payload.title || "Richieste ore aggiornate");
+        refreshCurrentAdjustmentView().catch((error) => console.error("Refresh richieste ore da push non riuscito", error));
+    }
 }
 
 function checkForUpdatesManually() {
@@ -1022,7 +990,7 @@ const avatar = window.avatar || "default";
 let reparto = window.reparto || "Jolly";
 const profileImg = document.querySelector("#profileImg");
 if (profileImg) {
-    profileImg.src = "img/" + avatar + ".png";
+    profileImg.src = "img/" + avatar + ".webp?v=" + encodeURIComponent(String(window.appAssetVersion || window.appVersion || ""));
 }
 
 const capo = String(window.capo ?? "0");

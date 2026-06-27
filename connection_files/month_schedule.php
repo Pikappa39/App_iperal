@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store, private');
+header('Cache-Control: private, max-age=300, stale-while-revalidate=60');
 header('X-Content-Type-Options: nosniff');
 
 require __DIR__ . '/../session_bootstrap.php';
@@ -68,6 +68,7 @@ if (!appIsValidDepartment($department)) {
 
 try {
     $weeks = [];
+    $scheduleVersions = [];
     foreach (monthScheduleVisibleWeeks($year, $month) as $key => $weekInfo) {
         $weeks[$key] = appScheduleAdjustmentLoadUserScheduleRows(
             $pdo,
@@ -76,6 +77,14 @@ try {
             (int) $weekInfo['week'],
             $userCf
         );
+        $scheduleVersions[$key] = [
+            'fingerprint' => appScheduleAdjustmentCurrentScheduleFingerprint(
+                $pdo,
+                $department,
+                (int) $weekInfo['year'],
+                (int) $weekInfo['week']
+            ),
+        ];
     }
 
     monthScheduleResponse([
@@ -83,6 +92,7 @@ try {
         'year' => $year,
         'month' => $month,
         'weeks' => $weeks,
+        'schedule_versions' => $scheduleVersions,
     ]);
 } catch (Throwable $error) {
     error_log('Orario mensile temporaneamente non disponibile: ' . $error->getMessage());

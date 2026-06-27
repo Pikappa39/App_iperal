@@ -177,10 +177,13 @@ try {
     foreach ($recipients as $recipientCf) {
         try {
             appPushSendPayload($pdo, [
+                'type' => 'communication',
                 'title' => $priority === 'important' ? 'Comunicazione importante' : 'Nuova comunicazione',
                 'body' => $title,
                 'url' => './index.php?communications=1',
                 'recipient_cf' => $recipientCf,
+                'tag' => 'communication-' . $communicationId,
+                'communication_id' => $communicationId,
             ], $recipientCf);
         } catch (Throwable $pushError) {
             error_log('Push comunicazione non inviata: ' . $pushError->getMessage());

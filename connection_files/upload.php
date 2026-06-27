@@ -391,10 +391,12 @@ foreach ($preparedSchedules as $schedule) {
     foreach ($schedule['requestsToReview'] as $userCf) {
         try {
             $pushSummary['reviews'][$userCf] = appPushSendPayload($pdo, [
+                'type' => 'adjustment_review',
                 'title' => 'Segnalazione da riesaminare',
                 'body' => 'Il turno previsto è stato aggiornato dal capo. Verifica la tua segnalazione ore.',
                 'url' => './index.php',
                 'recipient_cf' => $userCf,
+                'tag' => 'adjustment-review',
             ], $userCf);
         } catch (Throwable $pushError) {
             $pushSummary['reviews'][$userCf] = ['error' => $pushError->getMessage()];
@@ -408,10 +410,12 @@ foreach ($preparedSchedules as $schedule) {
         foreach (appUploadDepartmentNotificationRecipients($pdo, $reparto) as $recipientCf) {
             try {
                 $pushSummary['department'][$recipientCf] = appPushSendPayload($pdo, [
+                    'type' => 'schedule_uploaded',
                     'title' => 'Nuovi orari caricati',
                     'body' => 'Gli orari del reparto ' . $departmentLabel . ' sono stati aggiornati.',
                     'url' => './index.php',
                     'recipient_cf' => $recipientCf,
+                    'tag' => 'schedule-uploaded-' . $reparto,
                 ], $recipientCf);
             } catch (Throwable $pushError) {
                 $pushSummary['department'][$recipientCf] = ['error' => $pushError->getMessage()];
@@ -420,10 +424,12 @@ foreach ($preparedSchedules as $schedule) {
         foreach (appUploadAdminNotificationRecipients($pdo, $uploaderCf) as $recipientCf) {
             try {
                 $pushSummary['admins'][$recipientCf] = appPushSendPayload($pdo, [
+                    'type' => 'schedule_uploaded',
                     'title' => 'Orari aggiornati: ' . $departmentLabel,
                     'body' => ($uploaderName !== '' ? $uploaderName : 'Un responsabile') . ' ha caricato gli orari del reparto ' . $departmentLabel . '.',
                     'url' => './index.php',
                     'recipient_cf' => $recipientCf,
+                    'tag' => 'schedule-uploaded-' . $reparto,
                 ], $recipientCf);
             } catch (Throwable $pushError) {
                 $pushSummary['admins'][$recipientCf] = ['error' => $pushError->getMessage()];
@@ -446,10 +452,13 @@ foreach ($preparedSchedules as $schedule) {
             : './index.php';
         try {
             $pushSummary['targets'][$userCf] = appPushSendPayload($pdo, [
+                'type' => 'schedule_changed',
                 'title' => $title,
                 'body' => $body,
                 'url' => $changeUrl,
                 'recipient_cf' => $userCf,
+                'tag' => 'schedule-changed-' . $schedule['batch'],
+                'batch' => $schedule['batch'],
             ], $userCf);
         } catch (Throwable $pushError) {
             $pushSummary['targets'][$userCf] = ['error' => $pushError->getMessage()];

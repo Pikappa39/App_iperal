@@ -24,6 +24,7 @@ const appState = {
     calendarViewToken: 0,
     weekCache: Object.create(null),
     monthSchedulePromises: Object.create(null),
+    scheduleVersionCache: Object.create(null),
     monthNotesCache: Object.create(null),
     monthNotesPromises: Object.create(null),
     transientCache: Object.create(null)
@@ -40,6 +41,53 @@ const SCHEDULE_DAY_KEYS = ["lunedì", "martedì", "mercoledì", "giovedì", "ven
 const today = new Date();
 const YEAR_CHOICES = Array.from({ length: 5 }, (_, index) => today.getFullYear() - 2 + index);
 const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+const APP_FEATURE_SCRIPTS = {
+    calendar: ["app_adjustments.js", "app_notes.js", "app_calendar.js"],
+    notes: ["app_notes.js"],
+    adjustments: ["app_adjustments.js"],
+    departmentOverview: ["app_department_overview.js"],
+    communications: ["app_communications.js"],
+    profile: ["userhome.js"],
+    settings: ["setting.js"]
+};
+const appLoadedScripts = Object.create(null);
+
+function appScriptUrl(src) {
+    if (src.includes("?")) {
+        return src;
+    }
+
+    const version = encodeURIComponent(String(window.appAssetVersion || window.appVersion || ""));
+    return version ? src + "?v=" + version : src;
+}
+
+function appLoadScript(src) {
+    const url = appScriptUrl(src);
+    if (appLoadedScripts[url]) {
+        return appLoadedScripts[url];
+    }
+
+    appLoadedScripts[url] = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = url;
+        script.async = false;
+        script.onload = resolve;
+        script.onerror = () => {
+            delete appLoadedScripts[url];
+            reject(new Error("Non riesco a caricare " + src));
+        };
+        document.head.appendChild(script);
+    });
+
+    return appLoadedScripts[url];
+}
+
+async function appLoadFeature(name) {
+    const scripts = APP_FEATURE_SCRIPTS[name] || [];
+    for (const script of scripts) {
+        await appLoadScript(script);
+    }
+}
 
 function appCacheGet(key, ttlMs) {
     const entry = appState.transientCache[key];
@@ -80,7 +128,13 @@ function appRunWithBusyElement(element, callback, busyText = "") {
     element.dataset.appBusy = "1";
     element.disabled = true;
     if (busyText) {
-        element.textContent = busyText;
+        element.innerHTML = "";
+        const spinner = document.createElement("span");
+        spinner.className = "app-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.textContent = busyText;
+        element.append(spinner, label);
     }
 
     Promise.resolve()
@@ -220,15 +274,19 @@ async function appNavigationRestore(state) {
                 showHomeScreen();
                 break;
             case "anni":
+                await appLoadFeature("calendar");
                 mostraAnni();
                 break;
             case "mesi":
+                await appLoadFeature("calendar");
                 mostraMesi(state.year);
                 break;
             case "giorni":
+                await appLoadFeature("calendar");
                 await mostraGiorni(state.year, state.month);
                 break;
             case "giorno":
+                await appLoadFeature("calendar");
                 if (state.day) {
                     await mostragiorno(state.day);
                 } else {
@@ -236,24 +294,30 @@ async function appNavigationRestore(state) {
                 }
                 break;
             case "noteAdmin":
+                await appLoadFeature("notes");
                 await mostraNoteAdmin();
                 break;
             case "scheduleChanges":
                 await mostraModificheOrari();
                 break;
             case "scheduleAdjustments":
+                await appLoadFeature("adjustments");
                 await mostraRichiesteOre();
                 break;
             case "departmentOverview":
+                await appLoadFeature("departmentOverview");
                 await mostraPanoramicaReparto(state.year, state.week, state.department);
                 break;
             case "communications":
+                await appLoadFeature("communications");
                 await mostraComunicazioni();
                 break;
             case "profilo":
+                await appLoadFeature("profile");
                 mostraProfilo();
                 break;
             case "setting":
+                await appLoadFeature("settings");
                 if (state.settingsPanel === "screen") {
                     mostraImpostazioniSchermo();
                 } else if (state.settingsPanel === "notifications") {
@@ -368,9 +432,7 @@ async function getMonthScheduleData(anno, mese) {
     if (!appState.monthSchedulePromises[key]) {
         appState.monthSchedulePromises[key] = (async () => {
             const query = new URLSearchParams({ year: String(anno), month: String(mese) });
-            const response = await fetch(MONTH_SCHEDULE_ENDPOINT + "?" + query.toString(), {
-                cache: "no-store"
-            });
+            const response = await fetch(MONTH_SCHEDULE_ENDPOINT + "?" + query.toString());
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.ok || !payload.weeks || typeof payload.weeks !== "object") {
                 throw new Error(payload.error || "Orario mensile non disponibile");
@@ -378,6 +440,9 @@ async function getMonthScheduleData(anno, mese) {
 
             Object.entries(payload.weeks).forEach(([weekKey, rows]) => {
                 appState.weekCache[weekKey] = Promise.resolve(Array.isArray(rows) ? rows : []);
+            });
+            Object.entries(payload.schedule_versions || {}).forEach(([weekKey, version]) => {
+                appState.scheduleVersionCache[weekKey] = version;
             });
 
             return payload.weeks;

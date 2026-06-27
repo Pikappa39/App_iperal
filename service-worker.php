@@ -9,20 +9,11 @@ $assetVersion = rawurlencode(APP_VERSION);
 $cacheName = 'app-iperal-v' . APP_VERSION;
 $staticAssets = [
     './app_core.js?v=' . $assetVersion,
-    './app_calendar.js?v=' . $assetVersion,
-    './app_adjustments.js?v=' . $assetVersion,
-    './app_department_overview.js?v=' . $assetVersion,
-    './app_notes.js?v=' . $assetVersion,
-    './app_communications.js?v=' . $assetVersion,
-    './userhome.js?v=' . $assetVersion,
     './app_init.js?v=' . $assetVersion,
-    './setting.js?v=' . $assetVersion,
     './sfera.css?v=' . $assetVersion,
-    './i_o_data.js',
     './manifest.php?v=' . $assetVersion,
     './img/icon-192.png?v=' . $assetVersion,
-    './img/icon-512.png?v=' . $assetVersion,
-    './img/default.png',
+    './img/default.webp?v=' . $assetVersion,
 ];
 ?>
 const CACHE_NAME = <?php echo json_encode($cacheName); ?>;
@@ -44,6 +35,17 @@ function offlinePageResponse() {
     status: 503,
     headers: { "Content-Type": "text/plain; charset=utf-8" }
   });
+}
+
+async function notifyOpenClients(payload) {
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  await Promise.all(clients.map((client) => client.postMessage({
+    type: "APP_PUSH_RECEIVED",
+    payload,
+  })));
 }
 
 self.addEventListener("install", (event) => {
@@ -99,13 +101,17 @@ self.addEventListener("push", (event) => {
       return;
     }
 
+    await notifyOpenClients(payload);
+
     const title = payload.title || "App Iperal";
     const options = {
       body: payload.body || "Hai una nuova notifica",
       icon: "./img/icon-192.png",
       badge: "./img/icon-192.png",
+      tag: payload.tag || payload.type || undefined,
       data: {
         url: payload.url || "./index.php",
+        payload,
       },
     };
 

@@ -197,12 +197,14 @@ foreach ($updatedSchedules as $updatedSchedule) {
 foreach (array_keys($reviewUsers) as $reviewUserCf) {
     try {
         appPushSendPayload($pdo, [
+            'type' => 'adjustment_review',
             'title' => 'Segnalazione da riesaminare',
             'body' => $action === 'delete'
                 ? 'L’associazione dell’orario è stata rimossa. Verifica la tua segnalazione ore.'
                 : 'L’associazione dell’orario è stata aggiornata. Verifica la tua segnalazione ore.',
             'url' => './index.php',
             'recipient_cf' => $reviewUserCf,
+            'tag' => 'adjustment-review',
         ], $reviewUserCf);
     } catch (Throwable $pushError) {
         error_log('Push riesame associazione non inviata: ' . $pushError->getMessage());

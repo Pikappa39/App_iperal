@@ -9,6 +9,7 @@ if (openOrari) {
             return;
         }
         appRunWithBusyElement(openOrari, async () => {
+            await appLoadFeature("calendar");
             appState.currentYear = today.getFullYear();
             appState.currentMonth = today.getMonth() + 1;
             await mostraGiorni(appState.currentYear, appState.currentMonth);
@@ -22,7 +23,10 @@ if (homeBtn) {
 
 if (noteAdminItem) {
     noteAdminItem.addEventListener("click", () => {
-        mostraNoteAdmin();
+        appRunWithBusyElement(noteAdminItem, async () => {
+            await appLoadFeature("notes");
+            await mostraNoteAdmin();
+        }, "Apro...");
     });
 }
 if (scheduleChangesItem) {
@@ -32,12 +36,16 @@ if (scheduleChangesItem) {
 }
 if (scheduleAdjustmentsItem) {
     scheduleAdjustmentsItem.addEventListener("click", () => {
-        appRunWithBusyElement(scheduleAdjustmentsItem, () => mostraRichiesteOre(), "Apro...");
+        appRunWithBusyElement(scheduleAdjustmentsItem, async () => {
+            await appLoadFeature("adjustments");
+            await mostraRichiesteOre();
+        }, "Apro...");
     });
 }
 if (departmentOverviewItem) {
     departmentOverviewItem.addEventListener("click", () => {
         appRunWithBusyElement(departmentOverviewItem, async () => {
+            await appLoadFeature("departmentOverview");
             const currentWeek = getIsoWeekInfo(today);
             await mostraPanoramicaReparto(currentWeek.year, currentWeek.week);
         }, "Apro...");
@@ -45,18 +53,27 @@ if (departmentOverviewItem) {
 }
 if (communicationsItem) {
     communicationsItem.addEventListener("click", () => {
-        appRunWithBusyElement(communicationsItem, () => mostraComunicazioni(), "Apro...");
+        appRunWithBusyElement(communicationsItem, async () => {
+            await appLoadFeature("communications");
+            await mostraComunicazioni();
+        }, "Apro...");
     });
 }
 if(profileItem){
     profileItem.addEventListener("click", () => {
-        mostraProfilo();
+        appRunWithBusyElement(profileItem, async () => {
+            await appLoadFeature("profile");
+            mostraProfilo();
+        }, "Apro...");
     });
 }
 
 if(setting){
     setting.addEventListener("click" ,()=>{
-        mostrasetting();
+        appRunWithBusyElement(setting, async () => {
+            await appLoadFeature("settings");
+            mostrasetting();
+        }, "Apro...");
     })
 }
 
@@ -66,7 +83,7 @@ if (window.openScheduleChangesFromUrl) {
 }
 if (new URLSearchParams(window.location.search).get("communications") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
-    mostraComunicazioni();
+    appLoadFeature("communications").then(() => mostraComunicazioni());
 }
 
 appNavigationInitialize();

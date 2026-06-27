@@ -222,10 +222,13 @@ try {
         foreach (appScheduleAdjustmentManagerRecipients($pdo, $viewerDepartment) as $recipientCf) {
             try {
                 appPushSendPayload($pdo, [
+                    'type' => 'adjustment_created',
                     'title' => 'Nuova segnalazione ore',
                     'body' => 'Un addetto ha segnalato una variazione di orario da approvare.',
                     'url' => './index.php',
                     'recipient_cf' => $recipientCf,
+                    'tag' => 'adjustment-created-' . $requestId,
+                    'request_id' => $requestId,
                 ], $recipientCf);
             } catch (Throwable $pushError) {
                 error_log('Push richiesta ore non inviata: ' . $pushError->getMessage());
@@ -284,12 +287,15 @@ try {
 
     try {
         appPushSendPayload($pdo, [
+            'type' => 'adjustment_decision',
             'title' => $status === 'approved' ? 'Variazione ore approvata' : 'Variazione ore rifiutata',
             'body' => $status === 'approved'
                 ? 'Il tuo orario effettivo è stato approvato.'
                 : 'Il capo ha rifiutato la tua segnalazione ore.',
             'url' => './index.php',
             'recipient_cf' => (string) $request['user_cf'],
+            'tag' => 'adjustment-decision-' . (int) $request['id'],
+            'request_id' => (int) $request['id'],
         ], (string) $request['user_cf']);
     } catch (Throwable $pushError) {
         error_log('Push esito richiesta ore non inviata: ' . $pushError->getMessage());

@@ -170,6 +170,24 @@ textarea,
     display: none !important;
 }
 
+.app-spinner {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    margin-right: 0.45em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 999px;
+    vertical-align: -0.15em;
+    animation: app-spin 0.72s linear infinite;
+}
+
+@keyframes app-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .app-shell {
     width: min(1180px, calc(100vw - 32px));
     margin: 0 auto;
@@ -696,13 +714,6 @@ textarea,
 .changelog-dialog__body {
     display: grid;
     gap: 12px;
-}
-
-.repair-dialog__status {
-    min-height: 1.5em;
-    margin: 0;
-    color: var(--text);
-    font-weight: 800;
 }
 
 .changelog-dialog__list {

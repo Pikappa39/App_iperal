@@ -6,7 +6,8 @@ function getAvailableAvatars() {
 }
 
 function getAvatarImagePath(avatar) {
-    return "img/" + avatar + ".png";
+    const version = encodeURIComponent(String(window.appAssetVersion || window.appVersion || ""));
+    return "img/" + avatar + ".webp" + (version ? "?v=" + version : "");
 }
 
 function syncCurrentAvatar(avatar) {

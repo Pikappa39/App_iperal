@@ -47,5 +47,5 @@ $_SESSION['user']['avatar'] = $avatar;
 avatarResponse([
     'ok' => true,
     'avatar' => $avatar,
-    'avatar_url' => 'img/' . rawurlencode($avatar) . '.png',
+    'avatar_url' => 'img/' . rawurlencode($avatar) . '.webp?v=' . rawurlencode(APP_VERSION),
 ]);
