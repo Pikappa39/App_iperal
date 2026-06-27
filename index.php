@@ -83,6 +83,7 @@ $clientBootstrap = [
             <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
             <li><button type="button" class="dropdown-item" id="guideItem">Guida</button></li>
             <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
+            <li><button type="button" class="dropdown-item" id="repairAppItem">Ripristina app</button></li>
             <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
             <li>
               <form id="logoutForm" action="connection_files/logout.php" method="post">
@@ -113,6 +114,20 @@ $clientBootstrap = [
       <p id="changelogSubtitle" class="changelog-dialog__subtitle"></p>
       <div id="changelogBody" class="changelog-dialog__body"></div>
       <button type="button" id="changelogOkBtn" class="btn btn-primary changelog-dialog__action">Ho capito</button>
+    </div>
+  </div>
+
+  <div id="repairDialog" class="changelog-dialog app-hidden" hidden role="dialog" aria-modal="true" aria-labelledby="repairTitle">
+    <div class="changelog-dialog__panel">
+      <button type="button" id="repairCloseBtn" class="changelog-dialog__close" aria-label="Chiudi ripristino">×</button>
+      <p class="changelog-dialog__eyebrow">Ripristino app</p>
+      <h2 id="repairTitle">Rimettiamo in ordine questa installazione</h2>
+      <p class="changelog-dialog__subtitle" id="repairSubtitle">Usalo se la PWA si apre ma i pulsanti non rispondono, oppure se resta bloccata dopo un aggiornamento.</p>
+      <div class="changelog-dialog__body">
+        <p>Il ripristino elimina cache locale, service worker e preferenze salvate su questo browser. Non elimina il tuo account o i dati sul server.</p>
+        <p id="repairStatus" class="repair-dialog__status" aria-live="polite"></p>
+      </div>
+      <button type="button" id="repairNowBtn" class="btn btn-primary changelog-dialog__action">Ripristina su questo dispositivo</button>
     </div>
   </div>
 
@@ -232,6 +247,11 @@ const changelogOkBtn = document.getElementById("changelogOkBtn");
 const changelogTitle = document.getElementById("changelogTitle");
 const changelogSubtitle = document.getElementById("changelogSubtitle");
 const changelogBody = document.getElementById("changelogBody");
+const repairDialog = document.getElementById("repairDialog");
+const repairCloseBtn = document.getElementById("repairCloseBtn");
+const repairNowBtn = document.getElementById("repairNowBtn");
+const repairStatus = document.getElementById("repairStatus");
+const repairAppItem = document.getElementById("repairAppItem");
 let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
@@ -320,6 +340,126 @@ function appStorageSet(key, value) {
         window.localStorage.setItem(key, value);
     } catch (error) {
         // Lo storage può essere disabilitato: in quel caso il popup resta non persistente.
+    }
+}
+
+function appStorageRemove(key) {
+    try {
+        window.localStorage.removeItem(key);
+    } catch (error) {
+        // Storage non disponibile: niente da ripulire.
+    }
+}
+
+function setRepairStatus(message) {
+    if (repairStatus) {
+        repairStatus.textContent = message;
+    }
+}
+
+function showRepairDialog(reason = "") {
+    if (!repairDialog) {
+        window.location.assign("reset_app.php");
+        return;
+    }
+
+    setRepairStatus(reason);
+    repairDialog.hidden = false;
+    repairDialog.classList.remove("app-hidden");
+    window.setTimeout(function () {
+        if (repairNowBtn) {
+            repairNowBtn.focus();
+        }
+    }, 0);
+}
+
+function hideRepairDialog() {
+    if (!repairDialog) {
+        return;
+    }
+
+    repairDialog.hidden = true;
+    repairDialog.classList.add("app-hidden");
+    setRepairStatus("");
+}
+
+async function resetInstalledApp() {
+    if (!repairNowBtn) {
+        window.location.assign("reset_app.php");
+        return;
+    }
+
+    repairNowBtn.disabled = true;
+    setRepairStatus("Ripristino in corso...");
+    try {
+        if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => {
+                const worker = registration.active || registration.waiting || registration.installing;
+                if (worker) {
+                    worker.postMessage({ type: "CLEAR_APP_CACHE" });
+                }
+                return Promise.resolve();
+            }));
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+        if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+        try {
+            window.localStorage.clear();
+            window.sessionStorage.clear();
+        } catch (error) {
+            // Se lo storage è bloccato, completiamo comunque il reset cache.
+        }
+        setRepairStatus("Ripristino completato. Riapro l'app...");
+        window.setTimeout(function () {
+            window.location.replace("index.php?reset=" + Date.now());
+        }, 700);
+    } catch (error) {
+        console.error("Ripristino app non riuscito", error);
+        repairNowBtn.disabled = false;
+        setRepairStatus("Non sono riuscito a completare il ripristino. Apro la pagina dedicata...");
+        window.setTimeout(function () {
+            window.location.assign("reset_app.php");
+        }, 900);
+    }
+}
+
+function registerAppBootSuccess() {
+    appStorageRemove("app-iperal-boot-warning");
+    appStorageSet("app-iperal-last-good-version", String(window.appVersion || ""));
+    appStorageSet("app-iperal-last-good-at", String(Date.now()));
+}
+
+async function checkAppHealth() {
+    if (!navigator.onLine) {
+        return;
+    }
+
+    const controllerMissing = "serviceWorker" in navigator && !navigator.serviceWorker.controller;
+    const lastGoodVersion = appStorageGet("app-iperal-last-good-version");
+    try {
+        const response = await fetch("manifest.php?health=" + encodeURIComponent(String(window.appVersion || "")) + "&t=" + Date.now(), {
+            cache: "no-store"
+        });
+        if (!response.ok) {
+            throw new Error("health-http-" + response.status);
+        }
+        registerAppBootSuccess();
+        if (controllerMissing && lastGoodVersion && lastGoodVersion !== String(window.appVersion || "")) {
+            showAppToast("App aggiornata: riapri se qualcosa non risponde");
+        }
+    } catch (error) {
+        const previousWarning = Number(appStorageGet("app-iperal-boot-warning") || "0");
+        appStorageSet("app-iperal-boot-warning", String(Date.now()));
+        if (previousWarning > 0 && Date.now() - previousWarning < 10 * 60 * 1000) {
+            showRepairDialog("Il controllo dell'app non risponde. Se i pulsanti restano bloccati, prova il ripristino.");
+        } else {
+            showAppToast("Connessione app instabile, riprovo al prossimo avvio");
+        }
     }
 }
 
@@ -473,8 +613,33 @@ window.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && changelogDialog && !changelogDialog.hidden) {
         hideChangelogDialog();
     }
+    if (event.key === "Escape" && repairDialog && !repairDialog.hidden) {
+        hideRepairDialog();
+    }
 });
 window.addEventListener("load", showChangelogIfNeeded);
+window.addEventListener("load", function () {
+    window.setTimeout(checkAppHealth, 1200);
+});
+
+if (repairCloseBtn) {
+    repairCloseBtn.addEventListener("click", hideRepairDialog);
+}
+if (repairDialog) {
+    repairDialog.addEventListener("click", function (event) {
+        if (event.target === repairDialog) {
+            hideRepairDialog();
+        }
+    });
+}
+if (repairNowBtn) {
+    repairNowBtn.addEventListener("click", resetInstalledApp);
+}
+if (repairAppItem) {
+    repairAppItem.addEventListener("click", function () {
+        showRepairDialog("Ripristino avviato dal menu profilo.");
+    });
+}
 
 function base64UrlToUint8Array(base64String) {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);

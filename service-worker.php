@@ -26,6 +26,7 @@ $staticAssets = [
 ];
 ?>
 const CACHE_NAME = <?php echo json_encode($cacheName); ?>;
+const APP_VERSION = <?php echo json_encode(APP_VERSION); ?>;
 const STATIC_ASSETS = <?php echo json_encode($staticAssets, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES); ?>;
 const STATIC_ASSET_URLS = new Set(
   STATIC_ASSETS.map((asset) => new URL(asset, self.location.href).href)
@@ -54,6 +55,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data && event.data.type === "CLEAR_APP_CACHE") {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+    );
   }
 });
 
@@ -155,6 +161,15 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (url.pathname.endsWith("/__app_sw_status__")) {
+    event.respondWith(
+      new Response(JSON.stringify({ ok: true, version: APP_VERSION, cache: CACHE_NAME }), {
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      })
+    );
     return;
   }
 

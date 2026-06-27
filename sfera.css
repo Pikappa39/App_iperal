@@ -698,6 +698,13 @@ textarea,
     gap: 12px;
 }
 
+.repair-dialog__status {
+    min-height: 1.5em;
+    margin: 0;
+    color: var(--text);
+    font-weight: 800;
+}
+
 .changelog-dialog__list {
     display: grid;
     gap: 10px;
