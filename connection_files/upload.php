@@ -394,7 +394,7 @@ foreach ($preparedSchedules as $schedule) {
                 'type' => 'adjustment_review',
                 'title' => 'Segnalazione da riesaminare',
                 'body' => 'Il turno previsto è stato aggiornato dal capo. Verifica la tua segnalazione ore.',
-                'url' => './index.php',
+                'url' => './index.php?adjustments=1',
                 'recipient_cf' => $userCf,
                 'tag' => 'adjustment-review',
             ], $userCf);
@@ -413,7 +413,7 @@ foreach ($preparedSchedules as $schedule) {
                     'type' => 'schedule_uploaded',
                     'title' => 'Nuovi orari caricati',
                     'body' => 'Gli orari del reparto ' . $departmentLabel . ' sono stati aggiornati.',
-                    'url' => './index.php',
+                    'url' => './index.php?orari=1',
                     'recipient_cf' => $recipientCf,
                     'tag' => 'schedule-uploaded-' . $reparto,
                 ], $recipientCf);
@@ -427,7 +427,7 @@ foreach ($preparedSchedules as $schedule) {
                     'type' => 'schedule_uploaded',
                     'title' => 'Orari aggiornati: ' . $departmentLabel,
                     'body' => ($uploaderName !== '' ? $uploaderName : 'Un responsabile') . ' ha caricato gli orari del reparto ' . $departmentLabel . '.',
-                    'url' => './index.php',
+                    'url' => './index.php?orari=1',
                     'recipient_cf' => $recipientCf,
                     'tag' => 'schedule-uploaded-' . $reparto,
                 ], $recipientCf);

@@ -78,12 +78,25 @@ if(setting){
 }
 
 showHomeScreen();
+const startupParams = new URLSearchParams(window.location.search);
 if (window.openScheduleChangesFromUrl) {
     window.openScheduleChangesFromUrl();
 }
-if (new URLSearchParams(window.location.search).get("communications") === "1") {
+if (startupParams.get("communications") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
     appLoadFeature("communications").then(() => mostraComunicazioni());
+}
+if (startupParams.get("adjustments") === "1") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    appLoadFeature("adjustments").then(() => mostraRichiesteOre());
+}
+if (startupParams.get("orari") === "1") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    appLoadFeature("calendar").then(() => {
+        appState.currentYear = today.getFullYear();
+        appState.currentMonth = today.getMonth() + 1;
+        return mostraGiorni(appState.currentYear, appState.currentMonth);
+    });
 }
 
 appNavigationInitialize();

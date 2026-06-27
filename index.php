@@ -75,6 +75,24 @@ $clientBootstrap = [
     </div>
     <div class="app-header__actions">
       <?php if (isset($_SESSION["user"])): ?>
+        <div class="notification-center">
+          <button type="button" class="notification-center__button" id="notificationBell" aria-label="Notifiche app" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15.5 18.5a3.5 3.5 0 0 1-7 0"></path>
+              <path d="M5 17h14l-1.6-2.4V10a5.4 5.4 0 0 0-10.8 0v4.6L5 17Z"></path>
+            </svg>
+            <strong id="notificationBadge" class="notification-center__badge app-hidden" hidden>0</strong>
+          </button>
+          <div id="notificationPanel" class="notification-center__panel app-hidden" hidden>
+            <div class="notification-center__header">
+              <strong>Notifiche</strong>
+              <button type="button" id="notificationRefresh" class="notification-center__refresh">Aggiorna</button>
+            </div>
+            <div id="notificationList" class="notification-center__list">
+              <p class="notification-center__empty">Caricamento...</p>
+            </div>
+          </div>
+        </div>
         <div class="dropdown">
           <button class="btn avatar-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu profilo">
             <img id="profileImg" src="img/default.webp?v=<?php echo rawurlencode(APP_VERSION); ?>" width="40" height="40" class="rounded-circle" alt="Profilo">
@@ -226,6 +244,11 @@ const changelogOkBtn = document.getElementById("changelogOkBtn");
 const changelogTitle = document.getElementById("changelogTitle");
 const changelogSubtitle = document.getElementById("changelogSubtitle");
 const changelogBody = document.getElementById("changelogBody");
+const notificationBell = document.getElementById("notificationBell");
+const notificationBadge = document.getElementById("notificationBadge");
+const notificationPanel = document.getElementById("notificationPanel");
+const notificationList = document.getElementById("notificationList");
+const notificationRefresh = document.getElementById("notificationRefresh");
 let waitingWorker = null;
 let reloadingAfterUpdate = false;
 let serviceWorkerRegistration = null;
@@ -300,6 +323,125 @@ function showAppToast(message) {
     }, 3200);
 }
 window.showAppToast = showAppToast;
+
+function setNotificationBadge(total) {
+    if (!notificationBadge) {
+        return;
+    }
+
+    const count = Number(total || 0);
+    notificationBadge.textContent = count > 99 ? "99+" : String(count);
+    notificationBadge.hidden = count < 1;
+    notificationBadge.classList.toggle("app-hidden", count < 1);
+}
+
+function setNotificationList(items) {
+    if (!notificationList) {
+        return;
+    }
+
+    notificationList.innerHTML = "";
+    if (!Array.isArray(items) || items.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "notification-center__empty";
+        empty.textContent = "Non hai notifiche da vedere.";
+        notificationList.appendChild(empty);
+        return;
+    }
+
+    items.forEach(function (item) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "notification-center__item";
+        button.dataset.url = String(item.url || "index.php");
+
+        const title = document.createElement("strong");
+        title.textContent = String(item.title || "Notifica");
+        const body = document.createElement("span");
+        body.textContent = String(item.body || "");
+        button.append(title, body);
+
+        button.addEventListener("click", function () {
+            hideNotificationPanel();
+            openNotificationTarget(button.dataset.url || "index.php");
+        });
+        notificationList.appendChild(button);
+    });
+}
+
+async function refreshNotificationCenter() {
+    if (!notificationList || !getCurrentUserKey()) {
+        return;
+    }
+
+    try {
+        const response = await fetch("connection_files/notification_center.php", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+            throw new Error(data.error || "Notifiche non disponibili");
+        }
+        setNotificationBadge(data.total || 0);
+        setNotificationList(data.items || []);
+    } catch (error) {
+        console.error("Centro notifiche non disponibile", error);
+        if (notificationList) {
+            notificationList.innerHTML = '<p class="notification-center__empty">Non riesco a caricare le notifiche.</p>';
+        }
+    }
+}
+
+function showNotificationPanel() {
+    if (!notificationPanel || !notificationBell) {
+        return;
+    }
+
+    notificationPanel.hidden = false;
+    notificationPanel.classList.remove("app-hidden");
+    notificationBell.setAttribute("aria-expanded", "true");
+    refreshNotificationCenter();
+}
+
+function hideNotificationPanel() {
+    if (!notificationPanel || !notificationBell) {
+        return;
+    }
+
+    notificationPanel.hidden = true;
+    notificationPanel.classList.add("app-hidden");
+    notificationBell.setAttribute("aria-expanded", "false");
+}
+
+async function openNotificationTarget(url) {
+    const target = new URL(url || "index.php", window.location.href);
+    if (target.searchParams.get("changes") === "1") {
+        const batchId = target.searchParams.get("batch") || "";
+        await mostraModificheOrari(batchId);
+        refreshNotificationCenter();
+        return;
+    }
+    if (target.searchParams.get("communications") === "1") {
+        await appLoadFeature("communications");
+        await mostraComunicazioni();
+        refreshNotificationCenter();
+        return;
+    }
+    if (target.searchParams.get("adjustments") === "1") {
+        await appLoadFeature("adjustments");
+        await mostraRichiesteOre();
+        refreshNotificationCenter();
+        return;
+    }
+    if (target.searchParams.get("orari") === "1") {
+        await appLoadFeature("calendar");
+        appState.currentYear = today.getFullYear();
+        appState.currentMonth = today.getMonth() + 1;
+        await mostraGiorni(appState.currentYear, appState.currentMonth);
+        refreshNotificationCenter();
+        return;
+    }
+
+    window.location.assign(target.href);
+}
 
 function appStorageGet(key) {
     try {
@@ -528,14 +670,37 @@ if (changelogDialog) {
         }
     });
 }
+if (notificationBell) {
+    notificationBell.addEventListener("click", function (event) {
+        event.stopPropagation();
+        if (notificationPanel && !notificationPanel.hidden) {
+            hideNotificationPanel();
+        } else {
+            showNotificationPanel();
+        }
+    });
+}
+if (notificationPanel) {
+    notificationPanel.addEventListener("click", function (event) {
+        event.stopPropagation();
+    });
+}
+if (notificationRefresh) {
+    notificationRefresh.addEventListener("click", refreshNotificationCenter);
+}
+document.addEventListener("click", hideNotificationPanel);
 window.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && changelogDialog && !changelogDialog.hidden) {
         hideChangelogDialog();
+    }
+    if (event.key === "Escape" && notificationPanel && !notificationPanel.hidden) {
+        hideNotificationPanel();
     }
 });
 window.addEventListener("load", showChangelogIfNeeded);
 window.addEventListener("load", function () {
     window.setTimeout(checkAppHealth, 1200);
+    window.setTimeout(refreshNotificationCenter, 1500);
 });
 
 function base64UrlToUint8Array(base64String) {
@@ -928,6 +1093,8 @@ function handleRealtimePush(payload) {
     if (!type) {
         return;
     }
+
+    refreshNotificationCenter();
 
     if (["schedule_changed", "schedule_uploaded", "adjustment_review"].includes(type)) {
         clearScheduleRuntimeCache();

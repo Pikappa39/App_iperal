@@ -229,6 +229,106 @@ textarea,
     justify-self: end;
 }
 
+.notification-center {
+    position: relative;
+}
+
+.notification-center__button {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 8px 20px rgba(20, 33, 61, 0.08);
+}
+
+.notification-center__button svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.notification-center__badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border: 2px solid var(--bg);
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 0.68rem;
+    line-height: 1;
+}
+
+.notification-center__panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 1100;
+    width: min(320px, calc(100vw - 28px));
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    box-shadow: 0 22px 55px rgba(20, 33, 61, 0.18);
+    backdrop-filter: blur(18px) saturate(145%);
+}
+
+.notification-center__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.notification-center__refresh {
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.notification-center__list {
+    display: grid;
+    gap: 8px;
+}
+
+.notification-center__item {
+    width: 100%;
+    display: grid;
+    gap: 3px;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--text);
+    text-align: left;
+}
+
+.notification-center__item span,
+.notification-center__empty {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.35;
+}
+
 .avatar-toggle {
     padding: 0;
     border: 0;

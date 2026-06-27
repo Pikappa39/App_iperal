@@ -1,7 +1,13 @@
 {
-    "latest": "0.10.5",
-    "updated_at": "2026-06-27T12:13:18+00:00",
+    "latest": "0.10.6",
+    "updated_at": "2026-06-27T12:19:24+00:00",
     "releases": [
+        {
+            "version": "0.10.6",
+            "previous_version": "0.10.5",
+            "description": "Centro notifiche interno e apertura sezioni da push",
+            "released_at": "2026-06-27T12:19:24+00:00"
+        },
         {
             "version": "0.10.5",
             "previous_version": "0.10.4",

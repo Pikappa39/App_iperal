@@ -225,7 +225,7 @@ try {
                     'type' => 'adjustment_created',
                     'title' => 'Nuova segnalazione ore',
                     'body' => 'Un addetto ha segnalato una variazione di orario da approvare.',
-                    'url' => './index.php',
+                    'url' => './index.php?adjustments=1',
                     'recipient_cf' => $recipientCf,
                     'tag' => 'adjustment-created-' . $requestId,
                     'request_id' => $requestId,
@@ -292,7 +292,7 @@ try {
             'body' => $status === 'approved'
                 ? 'Il tuo orario effettivo è stato approvato.'
                 : 'Il capo ha rifiutato la tua segnalazione ore.',
-            'url' => './index.php',
+            'url' => './index.php?adjustments=1',
             'recipient_cf' => (string) $request['user_cf'],
             'tag' => 'adjustment-decision-' . (int) $request['id'],
             'request_id' => (int) $request['id'],

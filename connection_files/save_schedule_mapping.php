@@ -202,7 +202,7 @@ foreach (array_keys($reviewUsers) as $reviewUserCf) {
             'body' => $action === 'delete'
                 ? 'L’associazione dell’orario è stata rimossa. Verifica la tua segnalazione ore.'
                 : 'L’associazione dell’orario è stata aggiornata. Verifica la tua segnalazione ore.',
-            'url' => './index.php',
+            'url' => './index.php?adjustments=1',
             'recipient_cf' => $reviewUserCf,
             'tag' => 'adjustment-review',
         ], $reviewUserCf);
