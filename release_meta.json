@@ -1,7 +1,13 @@
 {
-    "latest": "0.12.1",
-    "updated_at": "2026-06-29T22:45:41+00:00",
+    "latest": "0.12.2",
+    "updated_at": "2026-06-29T22:59:26+00:00",
     "releases": [
+        {
+            "version": "0.12.2",
+            "previous_version": "0.12.1",
+            "description": "Allinea CSP Google Fonts",
+            "released_at": "2026-06-29T22:59:26+00:00"
+        },
         {
             "version": "0.12.1",
             "previous_version": "0.12.0",
