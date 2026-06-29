@@ -26,6 +26,7 @@ function passwordResetTurnstileValidate(string $token): bool
         $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
         curl_close($curl);
         if (!is_string($body) || $status >= 400) {
+            error_log('Verifica Turnstile reset password non riuscita: HTTP ' . $status);
             return false;
         }
     } else {
@@ -37,6 +38,7 @@ function passwordResetTurnstileValidate(string $token): bool
         ]]);
         $body = @file_get_contents($endpoint, false, $context);
         if (!is_string($body)) {
+            error_log('Verifica Turnstile reset password non riuscita: risposta vuota');
             return false;
         }
     }

@@ -168,7 +168,16 @@ if (appTurnstileEnabled()) {
         ], 400);
     }
 
-    $turnstileResult = appTurnstileValidateToken($turnstileToken);
+    try {
+        $turnstileResult = appTurnstileValidateToken($turnstileToken);
+    } catch (Throwable $turnstileError) {
+        error_log('Verifica Turnstile non disponibile: ' . $turnstileError->getMessage());
+        jsonResponse([
+            'logged' => false,
+            'error_code' => 'captcha_non_disponibile',
+            'error' => 'Controllo di sicurezza temporaneamente non disponibile. Riprova tra poco.',
+        ], 503);
+    }
     if (empty($turnstileResult['success'])) {
         jsonResponse([
             'logged' => false,
