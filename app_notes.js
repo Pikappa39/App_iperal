@@ -175,8 +175,41 @@ function bindSaveDayNoteButton(anno, mese, giornoInfo, textarea, existingNotes, 
     });
 }
 
+function createDayCollapsibleSection(title, contentFactory, open = false) {
+    const details = document.createElement("details");
+    details.className = "day-detail-section";
+    details.open = open;
+    const summary = document.createElement("summary");
+    summary.className = "day-detail-section__summary";
+    summary.textContent = title;
+    const body = document.createElement("div");
+    body.className = "day-detail-section__body";
+    let loaded = false;
+    const load = () => {
+        if (loaded) {
+            return;
+        }
+        loaded = true;
+        const content = contentFactory();
+        if (content instanceof Node) {
+            body.appendChild(content);
+        }
+    };
+    details.addEventListener("toggle", () => {
+        if (details.open) {
+            load();
+        }
+    });
+    details.append(summary, body);
+    if (open) {
+        load();
+    }
+    return details;
+}
+
 async function mostragiorno(giornoInfo) {
     appState.calendarViewToken += 1;
+    appState.noteViewToken += 1;
     appState.view = "giorno";
     appState.selectedDay = giornoInfo;
     appNavigationRecordCurrentView();
@@ -188,28 +221,41 @@ async function mostragiorno(giornoInfo) {
     const anno = parseInt(annoStr, 10);
     const mese = parseInt(meseStr, 10);
 
-    const notePanel = createDayNotePanel(giornoInfo);
-    const adjustmentPanel = createDayAdjustmentPanel(giornoInfo);
-    container.appendChild(adjustmentPanel);
-    container.appendChild(notePanel.wrapper);
+    container.appendChild(createDayCollapsibleSection("Variazione orario", () => createDayAdjustmentPanel(giornoInfo), true));
+    container.appendChild(createDayCollapsibleSection("Ore in altro reparto", () => createExternalDepartmentHoursPanel(giornoInfo)));
+    container.appendChild(createDayCollapsibleSection("Ore in altro negozio", () => createExternalStoreHoursPanel(giornoInfo)));
+    container.appendChild(createDayCollapsibleSection("Note", () => {
+        const notePanel = createDayNotePanel(giornoInfo);
+        const canEdit = Boolean(getCurrentUser());
+        const token = ++appState.noteViewToken;
 
-    const token = ++appState.noteViewToken;
-    const dayNotes = await loadDayNoteContent(
-        anno,
-        mese,
-        giornoInfo,
-        notePanel.textarea,
-        notePanel.existingNotes,
-        token
-    );
+        if (canEdit) {
+            notePanel.saveButton.disabled = true;
+            notePanel.status.textContent = "Caricamento note...";
+        }
 
-    if (!getCurrentUser()) {
-        notePanel.status.textContent = "Devi accedere per salvare una nota.";
-        return;
-    }
+        loadDayNoteContent(
+            anno,
+            mese,
+            giornoInfo,
+            notePanel.textarea,
+            notePanel.existingNotes,
+            token
+        ).then(() => {
+            if (token !== appState.noteViewToken) {
+                return;
+            }
+            if (!getCurrentUser()) {
+                notePanel.status.textContent = "Devi accedere per salvare una nota.";
+                return;
+            }
+            notePanel.saveButton.disabled = false;
+            notePanel.status.textContent = "";
+            bindSaveDayNoteButton(anno, mese, giornoInfo, notePanel.textarea, notePanel.existingNotes, notePanel.status, notePanel.saveButton);
+        });
 
-    notePanel.textarea.focus();
-    bindSaveDayNoteButton(anno, mese, giornoInfo, notePanel.textarea, notePanel.existingNotes, notePanel.status, notePanel.saveButton);
+        return notePanel.wrapper;
+    }));
 }
 //questa funzione serve a generare le note di un utente
 function createAdminNoteCard(entry) {

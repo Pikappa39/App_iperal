@@ -30,7 +30,7 @@ function departmentScheduleState(array $user): string
 }
 
 $sessionUser = $_SESSION['user'] ?? null;
-if (!is_array($sessionUser) || !in_array((int) ($sessionUser['capo'] ?? 0), [1, 3], true) || !$connessione || !($pdo instanceof PDO)) {
+if (!is_array($sessionUser) || !$connessione || !($pdo instanceof PDO)) {
     departmentScheduleResponse(['ok' => false, 'error' => 'Accesso negato'], 403);
 }
 

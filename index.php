@@ -175,13 +175,11 @@ $clientBootstrap = [
               <span>Gestione note reparto</span>
             </button>
           <?php endif; ?>
-          <?php if (in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 3], true)): ?>
-            <button type="button" class="home-tool" id="departmentOverviewItem">
-              <span class="home-tool-icon" aria-hidden="true">▦</span>
-              <strong>Panoramica reparto</strong>
-              <span>Vista settimanale</span>
-            </button>
-          <?php endif; ?>
+          <button type="button" class="home-tool" id="departmentOverviewItem">
+            <span class="home-tool-icon" aria-hidden="true">▦</span>
+            <strong>Panoramica reparto</strong>
+            <span>Chi lavora oggi</span>
+          </button>
           <?php if ((int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
             <a href="admin_console.php" class="home-tool home-tool--admin">
               <span class="home-tool-icon" aria-hidden="true">⌘</span>
@@ -1112,7 +1110,12 @@ function handleRealtimePush(payload) {
         return;
     }
 
-    if (type === "adjustment_created" || type === "adjustment_decision") {
+    if (
+        type === "adjustment_created"
+        || type === "adjustment_decision"
+        || type === "extra_department_hours_created"
+        || type === "extra_department_hours_decision"
+    ) {
         showAppToast(payload.title || "Richieste ore aggiornate");
         refreshCurrentAdjustmentView().catch((error) => console.error("Refresh richieste ore da push non riuscito", error));
     }

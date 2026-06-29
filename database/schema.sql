@@ -181,6 +181,32 @@ CREATE TABLE IF NOT EXISTS schedule_adjustment_day_locks (
     PRIMARY KEY (user_cf, schedule_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS extra_hour_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    request_kind VARCHAR(20) NOT NULL,
+    user_cf VARCHAR(16) NOT NULL,
+    origin_reparto VARCHAR(20) NOT NULL,
+    target_reparto VARCHAR(20) NULL DEFAULT NULL,
+    store_name VARCHAR(120) NULL DEFAULT NULL,
+    schedule_date DATE NOT NULL,
+    minutes SMALLINT UNSIGNED NOT NULL,
+    request_note VARCHAR(1000) NULL DEFAULT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    origin_status VARCHAR(20) NULL DEFAULT NULL,
+    origin_decided_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    origin_decision_note VARCHAR(1000) NULL DEFAULT NULL,
+    origin_decided_at DATETIME NULL DEFAULT NULL,
+    target_status VARCHAR(20) NULL DEFAULT NULL,
+    target_decided_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    target_decision_note VARCHAR(1000) NULL DEFAULT NULL,
+    target_decided_at DATETIME NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_extra_hour_user_date (user_cf, schedule_date, status),
+    INDEX idx_extra_hour_origin_manage (origin_reparto, status, schedule_date),
+    INDEX idx_extra_hour_target_manage (target_reparto, status, schedule_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS user_invites (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     invited_by_cf VARCHAR(16) NOT NULL,

@@ -197,6 +197,9 @@ try {
     $pdo->prepare('DELETE FROM schedule_change_log WHERE user_cf = ? OR changed_by_cf = ?')->execute([$targetCf, $targetCf]);
     $pdo->prepare('DELETE FROM schedule_adjustment_day_locks WHERE user_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM schedule_adjustment_requests WHERE user_cf = ? OR decided_by_cf = ?')->execute([$targetCf, $targetCf]);
+    $pdo->prepare('DELETE FROM extra_hour_requests WHERE user_cf = ?')->execute([$targetCf]);
+    $pdo->prepare('UPDATE extra_hour_requests SET origin_decided_by_cf = NULL WHERE origin_decided_by_cf = ?')->execute([$targetCf]);
+    $pdo->prepare('UPDATE extra_hour_requests SET target_decided_by_cf = NULL WHERE target_decided_by_cf = ?')->execute([$targetCf]);
     $pdo->prepare('UPDATE schedule_name_mappings SET created_by_cf = NULL WHERE created_by_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM schedule_name_mappings WHERE user_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM user_invites WHERE invited_by_cf = ? OR invited_cf = ? OR accepted_user_cf = ? OR LOWER(invited_email) = LOWER(?)')

@@ -19,6 +19,8 @@ const appState = {
     currentMonth: null,
     currentWeek: null,
     departmentOverviewDepartment: null,
+    departmentOverviewMode: "day",
+    departmentOverviewDay: null,
     selectedDay: null,
     noteViewToken: 0,
     calendarViewToken: 0,
@@ -173,6 +175,8 @@ function showHomeScreen() {
     appState.currentMonth = null;
     appState.currentWeek = null;
     appState.departmentOverviewDepartment = null;
+    appState.departmentOverviewMode = "day";
+    appState.departmentOverviewDay = null;
     appState.selectedDay = null;
     titolo.innerText = "App Iperal";
     homeScreen.hidden = false;
@@ -193,6 +197,8 @@ function appNavigationBuildState() {
         month: appState.currentMonth,
         week: appState.currentWeek,
         department: appState.departmentOverviewDepartment,
+        overviewMode: appState.departmentOverviewMode,
+        overviewDay: appState.departmentOverviewDay,
         settingsPanel: appState.settingsPanel || "main",
         position: appNavigationPosition
     };
@@ -306,7 +312,10 @@ async function appNavigationRestore(state) {
                 break;
             case "departmentOverview":
                 await appLoadFeature("departmentOverview");
-                await mostraPanoramicaReparto(state.year, state.week, state.department);
+                await mostraPanoramicaReparto(state.year, state.week, state.department, {
+                    mode: state.overviewMode,
+                    day: state.overviewDay
+                });
                 break;
             case "communications":
                 await appLoadFeature("communications");

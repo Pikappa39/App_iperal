@@ -80,17 +80,35 @@ try {
             $query .= ' AND reparto = ?';
             $params[] = $viewerDepartment;
         }
+        $extraQuery = "SELECT COUNT(*)
+                       FROM extra_hour_requests
+                       WHERE request_kind = 'department'
+                         AND status = 'pending'";
+        $extraParams = [];
+        if ($viewerRole !== 3) {
+            $extraQuery .= " AND (
+                (origin_reparto = ? AND origin_status = 'pending')
+                OR (target_reparto = ? AND target_status = 'pending')
+            )";
+            $extraParams[] = $viewerDepartment;
+            $extraParams[] = $viewerDepartment;
+        }
+        $extraStmt = $pdo->prepare($extraQuery);
+        $extraStmt->execute($extraParams);
+        $extraCount = (int) $extraStmt->fetchColumn();
+
         $adjustmentStmt = $pdo->prepare($query);
         $adjustmentStmt->execute($params);
         $adjustmentCount = (int) $adjustmentStmt->fetchColumn();
-        if ($adjustmentCount > 0) {
+        $totalAdjustmentCount = $adjustmentCount + $extraCount;
+        if ($totalAdjustmentCount > 0) {
             $items[] = [
                 'type' => 'adjustments_manage',
                 'title' => 'Richieste ore',
-                'body' => $adjustmentCount === 1
-                    ? 'Hai 1 richiesta ore da valutare.'
-                    : 'Hai ' . $adjustmentCount . ' richieste ore da valutare.',
-                'count' => $adjustmentCount,
+                'body' => $totalAdjustmentCount === 1
+                    ? 'Hai 1 richiesta da approvare.'
+                    : 'Hai ' . $totalAdjustmentCount . ' richieste da approvare.',
+                'count' => $totalAdjustmentCount,
                 'url' => 'index.php?adjustments=1',
             ];
         }

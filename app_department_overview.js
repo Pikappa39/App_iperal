@@ -3,7 +3,7 @@ const OVERVIEW_START_MINUTES = 0;
 const OVERVIEW_END_MINUTES = 24 * 60;
 
 function canViewDepartmentOverview() {
-    return ["1", "3"].includes(String(window.userSession?.capo ?? "0"));
+    return Boolean(window.userSession?.cf);
 }
 
 function overviewStateLabel(state) {
@@ -35,9 +35,14 @@ function overviewWeekDays(year, week) {
         return {
             name,
             short: name.slice(0, 3),
-            date: date.toLocaleDateString("it-IT", { timeZone: "UTC", day: "2-digit", month: "2-digit" })
+            date: date.toLocaleDateString("it-IT", { timeZone: "UTC", day: "2-digit", month: "2-digit" }),
+            dateKey: formatDateKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
         };
     });
+}
+
+function overviewDefaultDay(days) {
+    return days.find((day) => day.dateKey === todayKey)?.name || days[0]?.name || SCHEDULE_DAY_KEYS[0];
 }
 
 function overviewShiftIntervals(shift) {
@@ -269,6 +274,75 @@ function overviewCreateCards(people, days) {
     return cards;
 }
 
+function overviewCreateViewToggle(mode, onChange) {
+    const group = document.createElement("div");
+    group.className = "overview-view-toggle";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Tipo vista panoramica");
+    [
+        ["day", "Giorno"],
+        ["week", "Settimana"]
+    ].forEach(([value, label]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-sm " + (mode === value ? "btn-primary" : "btn-outline-primary");
+        button.textContent = label;
+        button.setAttribute("aria-pressed", mode === value ? "true" : "false");
+        button.addEventListener("click", () => onChange(value));
+        group.appendChild(button);
+    });
+    return group;
+}
+
+function overviewCreateDayPicker(days, selectedDay, onChange) {
+    const picker = document.createElement("div");
+    picker.className = "overview-day-picker";
+    picker.setAttribute("aria-label", "Scegli giorno");
+    days.forEach((day) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "overview-day-picker__button";
+        if (day.name === selectedDay) button.classList.add("overview-day-picker__button--active");
+        if (day.dateKey === todayKey) button.classList.add("overview-day-picker__button--today");
+        const name = document.createElement("strong");
+        name.textContent = day.short;
+        const date = document.createElement("span");
+        date.textContent = day.date;
+        button.append(name, date);
+        button.addEventListener("click", () => onChange(day.name));
+        picker.appendChild(button);
+    });
+    return picker;
+}
+
+function overviewCreateDailyList(people, days, selectedDay) {
+    const dayIndex = Math.max(0, days.findIndex((day) => day.name === selectedDay));
+    const day = days[dayIndex] || days[0];
+    const list = document.createElement("div");
+    list.className = "overview-day-list";
+    people.forEach((person) => {
+        const card = document.createElement("article");
+        card.className = "overview-day-card";
+        card.dataset.overviewPerson = "";
+        card.dataset.name = (person.name + " " + person.source_name).toLocaleLowerCase("it-IT");
+        card.dataset.state = person.state;
+        if (person.state !== "registered") card.classList.add("overview-row--" + person.state);
+
+        const identity = overviewCreatePersonIdentity(person);
+        const shiftWrap = document.createElement("div");
+        shiftWrap.className = "overview-day-card__shift";
+        shiftWrap.appendChild(overviewCreateTimeline(person.days?.[day.name], overviewCarryFromPreviousDay(person, days, dayIndex)));
+        card.append(identity, shiftWrap);
+        list.appendChild(card);
+    });
+
+    if (!people.length) {
+        list.textContent = "Nessun addetto trovato per questa settimana.";
+    }
+
+    return list;
+}
+
 function overviewApplyFilters(root, query, state) {
     const normalizedQuery = String(query || "").trim().toLocaleLowerCase("it-IT");
     root.querySelectorAll("[data-overview-person]").forEach((element) => {
@@ -324,18 +398,24 @@ async function departmentOverviewFetch(year, week, department) {
 
 async function mostraPanoramicaReparto(year, week, department, options = {}) {
     if (!canViewDepartmentOverview()) {
-        showAppToast("Accesso riservato ai responsabili");
+        showAppToast("Accesso richiesto");
         return;
     }
     const currentWeek = getIsoWeekInfo(today);
     year = Number(year || currentWeek.year);
     week = Number(week || currentWeek.week);
     department = department || String(window.userSession?.reparto || "");
+    const initialDays = overviewWeekDays(year, week);
+    const initialDay = initialDays.some((day) => day.name === options.day)
+        ? options.day
+        : overviewDefaultDay(initialDays);
     showCalendarShell();
     appState.view = "departmentOverview";
     appState.currentYear = year;
     appState.currentWeek = week;
     appState.departmentOverviewDepartment = department;
+    appState.departmentOverviewMode = options.mode === "week" ? "week" : "day";
+    appState.departmentOverviewDay = initialDay;
     setVista("calendario vista-department-overview mt-4", "Panoramica reparto", { record: !options.replaceHistory });
     if (options.replaceHistory) appNavigationReplaceCurrentView();
     const viewToken = appState.calendarViewToken;
@@ -351,6 +431,12 @@ async function mostraPanoramicaReparto(year, week, department, options = {}) {
         container.innerHTML = "";
         appState.departmentOverviewDepartment = data.department;
         const days = overviewWeekDays(data.year, data.week);
+        const mode = options.mode === "week" ? "week" : "day";
+        const selectedDay = days.some((day) => day.name === options.day)
+            ? options.day
+            : overviewDefaultDay(days);
+        appState.departmentOverviewMode = mode;
+        appState.departmentOverviewDay = selectedDay;
         const monday = overviewMondayDate(data.year, data.week);
         const previousMonday = new Date(monday);
         previousMonday.setUTCDate(monday.getUTCDate() - 7);
@@ -365,7 +451,7 @@ async function mostraPanoramicaReparto(year, week, department, options = {}) {
         previous.textContent = "Settimana precedente";
         previous.addEventListener("click", () => {
             const target = overviewWeekInfoFromDate(previousMonday);
-            mostraPanoramicaReparto(target.year, target.week, data.department, { replaceHistory: true });
+            mostraPanoramicaReparto(target.year, target.week, data.department, { replaceHistory: true, mode, day: null });
         });
         const heading = document.createElement("div");
         heading.className = "overview-controls__heading";
@@ -380,23 +466,51 @@ async function mostraPanoramicaReparto(year, week, department, options = {}) {
         next.textContent = "Settimana successiva";
         next.addEventListener("click", () => {
             const target = overviewWeekInfoFromDate(nextMonday);
-            mostraPanoramicaReparto(target.year, target.week, data.department, { replaceHistory: true });
+            mostraPanoramicaReparto(target.year, target.week, data.department, { replaceHistory: true, mode, day: null });
         });
         controls.append(previous, heading, next);
         if (String(window.userSession?.capo ?? "") === "3") {
             const departmentSelect = overviewDepartmentOptions(data.department);
-            departmentSelect.addEventListener("change", () => mostraPanoramicaReparto(data.year, data.week, departmentSelect.value, { replaceHistory: true }));
+            departmentSelect.addEventListener("change", () => mostraPanoramicaReparto(data.year, data.week, departmentSelect.value, { replaceHistory: true, mode, day: selectedDay }));
             controls.appendChild(departmentSelect);
         }
 
         const intro = document.createElement("p");
         intro.className = "overview-intro";
-        intro.textContent = "Le fasce mostrano l'orario sulla stessa scala dalle 00:00 alle 24:00. Una fascia tratteggiata indica la continuazione di un turno iniziato il giorno precedente. Verde: variazione approvata. Ambra: nominativo o situazione da verificare.";
+        intro.textContent = mode === "day"
+            ? "Vista compatta del singolo giorno: scorri l'elenco per vedere chi è in turno e in quale fascia oraria."
+            : "Le fasce mostrano l'orario sulla stessa scala dalle 00:00 alle 24:00. Una fascia tratteggiata indica la continuazione di un turno iniziato il giorno precedente. Verde: variazione approvata. Ambra: nominativo o situazione da verificare.";
         const people = Array.isArray(data.people) ? data.people : [];
         const content = document.createElement("div");
-        content.className = "overview-content";
-        content.append(overviewCreateTable(people, days), overviewCreateCards(people, days));
-        container.append(controls, intro, overviewCreateFilters(content), content);
+        content.className = "overview-content overview-content--" + mode;
+        if (mode === "day") {
+            const selectedDayInfo = days.find((day) => day.name === selectedDay) || days[0];
+            const dayTitle = document.createElement("h3");
+            dayTitle.className = "overview-day-title";
+            dayTitle.textContent = selectedDayInfo.name + " " + selectedDayInfo.date;
+            content.append(dayTitle, overviewCreateDailyList(people, days, selectedDay));
+        } else {
+            content.append(overviewCreateTable(people, days), overviewCreateCards(people, days));
+        }
+        const viewTools = document.createElement("section");
+        viewTools.className = "overview-view-tools";
+        viewTools.appendChild(overviewCreateViewToggle(mode, (nextMode) => {
+            mostraPanoramicaReparto(data.year, data.week, data.department, {
+                replaceHistory: true,
+                mode: nextMode,
+                day: selectedDay
+            });
+        }));
+        if (mode === "day") {
+            viewTools.appendChild(overviewCreateDayPicker(days, selectedDay, (nextDay) => {
+                mostraPanoramicaReparto(data.year, data.week, data.department, {
+                    replaceHistory: true,
+                    mode: "day",
+                    day: nextDay
+                });
+            }));
+        }
+        container.append(controls, viewTools, intro, overviewCreateFilters(content), content);
     } catch (error) {
         if (viewToken !== appState.calendarViewToken || appState.view !== "departmentOverview") return;
         loading.textContent = error.message || "Panoramica reparto non disponibile";

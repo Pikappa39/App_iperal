@@ -10,7 +10,8 @@ function adjustmentStatusLabel(status) {
         pending: "In attesa",
         review: "Da riesaminare",
         approved: "Approvata",
-        rejected: "Rifiutata"
+        rejected: "Rifiutata",
+        recorded: "Registrata"
     }[status] || status;
 }
 
@@ -19,8 +20,17 @@ function adjustmentStatusClass(status) {
         pending: "text-bg-warning",
         review: "text-bg-info",
         approved: "text-bg-success",
-        rejected: "text-bg-secondary"
+        rejected: "text-bg-secondary",
+        recorded: "text-bg-primary"
     }[status] || "text-bg-secondary";
+}
+
+const adjustmentDayDataPromises = Object.create(null);
+
+function clearAdjustmentDayData() {
+    Object.keys(adjustmentDayDataPromises).forEach((key) => {
+        delete adjustmentDayDataPromises[key];
+    });
 }
 
 function adjustmentShiftForInput(shift) {
@@ -56,7 +66,68 @@ async function adjustmentPost(values) {
     values.append("csrf_token", window.appCsrfToken || "");
     const result = await adjustmentFetch("", { method: "POST", body: values });
     appCacheForget("scheduleAdjustments:");
+    clearAdjustmentDayData();
     return result;
+}
+
+async function getDayAdjustmentData(dateKey, options = {}) {
+    if (!adjustmentDayDataPromises[dateKey] || options.force) {
+        adjustmentDayDataPromises[dateKey] = adjustmentFetch("view=day&date=" + encodeURIComponent(dateKey));
+    }
+
+    return adjustmentDayDataPromises[dateKey];
+}
+
+function adjustmentTypeLabel(kind) {
+    return {
+        schedule_adjustment: "Variazione orario",
+        extra_department: "Altro reparto",
+        extra_store: "Altro negozio"
+    }[kind] || "Richiesta ore";
+}
+
+function createDurationSelect(name = "minutes") {
+    const select = document.createElement("select");
+    select.className = "form-select";
+    select.name = name;
+    select.required = true;
+
+    for (let minutes = 15; minutes <= 16 * 60; minutes += 15) {
+        const option = document.createElement("option");
+        option.value = String(minutes);
+        option.textContent = formatTotaleOreSettimanali(minutes);
+        if (minutes === 60) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+
+    return select;
+}
+
+function createDepartmentSelect() {
+    const select = document.createElement("select");
+    select.className = "form-select";
+    select.name = "target_reparto";
+    select.required = true;
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Scegli reparto";
+    select.appendChild(placeholder);
+
+    const currentDepartment = String(window.reparto || "");
+    Object.entries(window.appBootstrap?.departments || {}).forEach(([key, label]) => {
+        if (key === currentDepartment) {
+            return;
+        }
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = label;
+        select.appendChild(option);
+    });
+
+    return select;
 }
 
 function adjustmentWeekValue(dateString) {
@@ -94,7 +165,129 @@ function createAdjustmentMeta(request, includeUser = false) {
     return meta;
 }
 
+function createExtraHourApprovalLine(label, status, decidedByName) {
+    const line = document.createElement("div");
+    line.className = "extra-hour-request__approval";
+    const badge = document.createElement("span");
+    badge.className = "badge " + adjustmentStatusClass(status || "pending");
+    badge.textContent = adjustmentStatusLabel(status || "pending");
+    line.append(label + ": ", badge);
+    if (decidedByName) {
+        const name = document.createElement("small");
+        name.textContent = " da " + decidedByName;
+        line.appendChild(name);
+    }
+    return line;
+}
+
+function createExtraHourDecisionActions(request, side, label) {
+    const decision = document.createElement("div");
+    decision.className = "adjustment-request__actions";
+    const note = document.createElement("input");
+    note.className = "form-control form-control-sm";
+    note.maxLength = 1000;
+    note.placeholder = "Nota decisione (facoltativa)";
+
+    const approve = document.createElement("button");
+    approve.type = "button";
+    approve.className = "btn btn-success btn-sm";
+    approve.textContent = "Approva " + label;
+    const reject = document.createElement("button");
+    reject.type = "button";
+    reject.className = "btn btn-outline-danger btn-sm";
+    reject.textContent = "Rifiuta";
+    const status = document.createElement("span");
+    status.className = "small";
+
+    const decide = async (action) => {
+        approve.disabled = true;
+        reject.disabled = true;
+        status.textContent = "Salvataggio...";
+        const form = new FormData();
+        form.append("action", action);
+        form.append("request_id", request.id);
+        form.append("decision_side", side);
+        form.append("decision_note", note.value);
+        try {
+            await adjustmentPost(form);
+            showAppToast(action === "approve_extra" ? "Ore approvate" : "Ore rifiutate");
+            mostraRichiesteOre();
+        } catch (error) {
+            status.textContent = error.message;
+            approve.disabled = false;
+            reject.disabled = false;
+        }
+    };
+    approve.addEventListener("click", () => decide("approve_extra"));
+    reject.addEventListener("click", () => decide("reject_extra"));
+    decision.append(note, approve, reject, status);
+    return decision;
+}
+
+function createExtraHourRequestCard(request, options = {}) {
+    const card = document.createElement("article");
+    card.className = "adjustment-request adjustment-request--extra";
+    card.appendChild(createAdjustmentMeta(request, Boolean(options.includeUser)));
+
+    const type = document.createElement("strong");
+    type.className = "adjustment-request__type";
+    type.textContent = adjustmentTypeLabel(request.kind);
+    card.appendChild(type);
+
+    const details = document.createElement("div");
+    details.className = "adjustment-request__shifts";
+    const duration = document.createElement("strong");
+    duration.textContent = "Durata: " + (request.duration_label || formatTotaleOreSettimanali(Number(request.minutes || 0)));
+    details.appendChild(duration);
+
+    if (request.kind === "extra_department") {
+        const route = document.createElement("div");
+        route.textContent = "Da " + (request.origin_reparto_label || request.origin_reparto || "-")
+            + " a " + (request.target_reparto_label || request.target_reparto || "-");
+        details.appendChild(route);
+        details.appendChild(createExtraHourApprovalLine("Capo reparto origine", request.origin_status, request.origin_decided_by_name));
+        details.appendChild(createExtraHourApprovalLine("Capo reparto destinazione", request.target_status, request.target_decided_by_name));
+    } else {
+        const store = document.createElement("div");
+        store.textContent = "Negozio/Ipermercato: " + (request.store_name || "-");
+        details.appendChild(store);
+    }
+    card.appendChild(details);
+
+    if (request.request_note) {
+        const note = document.createElement("p");
+        note.className = "adjustment-request__note";
+        note.textContent = "Nota: " + request.request_note;
+        card.appendChild(note);
+    }
+    if (request.origin_decision_note) {
+        const note = document.createElement("p");
+        note.className = "adjustment-request__note";
+        note.textContent = "Nota capo origine: " + request.origin_decision_note;
+        card.appendChild(note);
+    }
+    if (request.target_decision_note) {
+        const note = document.createElement("p");
+        note.className = "adjustment-request__note";
+        note.textContent = "Nota capo destinazione: " + request.target_decision_note;
+        card.appendChild(note);
+    }
+
+    if (options.canDecide && request.can_decide_origin) {
+        card.appendChild(createExtraHourDecisionActions(request, "origin", "origine"));
+    }
+    if (options.canDecide && request.can_decide_target) {
+        card.appendChild(createExtraHourDecisionActions(request, "target", "destinazione"));
+    }
+
+    return card;
+}
+
 function createAdjustmentRequestCard(request, options = {}) {
+    if (request.kind && request.kind !== "schedule_adjustment") {
+        return createExtraHourRequestCard(request, options);
+    }
+
     const card = document.createElement("article");
     card.className = "adjustment-request";
     card.appendChild(createAdjustmentMeta(request, Boolean(options.includeUser)));
@@ -198,7 +391,8 @@ function createDayAdjustmentPanel(giornoInfo) {
 
 async function loadDayAdjustmentPanel(panel, giornoInfo) {
     try {
-        const data = await adjustmentFetch("view=day&date=" + encodeURIComponent(giornoInfo.dataKey));
+        const data = await getDayAdjustmentData(giornoInfo.dataKey);
+        const scheduleRequests = (data.requests || []).filter((request) => request.kind === "schedule_adjustment");
         panel.innerHTML = "";
 
         const title = document.createElement("h4");
@@ -209,8 +403,8 @@ async function loadDayAdjustmentPanel(panel, giornoInfo) {
         intro.textContent = "Segnala l'orario effettivo: il turno Excel resta sempre nello storico e la modifica diventa valida solo dopo l'approvazione del capo.";
         panel.append(title, intro);
 
-        data.requests.forEach((request) => panel.appendChild(createAdjustmentRequestCard(request)));
-        const hasOpen = data.requests.some((request) => ["pending", "review", "approved"].includes(request.status));
+        scheduleRequests.forEach((request) => panel.appendChild(createAdjustmentRequestCard(request)));
+        const hasOpen = scheduleRequests.some((request) => ["pending", "review", "approved"].includes(request.status));
         if (!data.can_create || hasOpen) {
             return;
         }
@@ -250,6 +444,145 @@ async function loadDayAdjustmentPanel(panel, giornoInfo) {
                 await adjustmentPost(values);
                 showAppToast("Segnalazione inviata al capo");
                 loadDayAdjustmentPanel(panel, giornoInfo);
+            } catch (error) {
+                status.textContent = error.message;
+                submit.disabled = false;
+            }
+        });
+        panel.appendChild(form);
+    } catch (error) {
+        panel.textContent = error.message;
+    }
+}
+
+function createExternalDepartmentHoursPanel(giornoInfo) {
+    const panel = document.createElement("section");
+    panel.className = "adjustment-panel";
+    panel.textContent = "Caricamento ore in altro reparto...";
+    loadExternalDepartmentHoursPanel(panel, giornoInfo);
+    return panel;
+}
+
+async function loadExternalDepartmentHoursPanel(panel, giornoInfo) {
+    try {
+        const data = await getDayAdjustmentData(giornoInfo.dataKey);
+        const requests = (data.requests || []).filter((request) => request.kind === "extra_department");
+        panel.innerHTML = "";
+
+        const title = document.createElement("h4");
+        title.className = "adjustment-panel__title";
+        title.textContent = "Ore in altro reparto";
+        const intro = document.createElement("p");
+        intro.className = "adjustment-panel__intro";
+        intro.textContent = "Segnala ore svolte in un reparto diverso: dovranno confermare sia il tuo capo reparto sia il capo del reparto indicato.";
+        panel.append(title, intro);
+
+        requests.forEach((request) => panel.appendChild(createExtraHourRequestCard(request)));
+
+        const form = document.createElement("form");
+        form.className = "adjustment-form";
+        const departmentLabel = document.createElement("label");
+        departmentLabel.textContent = "Reparto in cui hai lavorato";
+        const department = createDepartmentSelect();
+        const durationLabel = document.createElement("label");
+        durationLabel.textContent = "Durata";
+        const duration = createDurationSelect();
+        const note = document.createElement("textarea");
+        note.className = "form-control";
+        note.name = "request_note";
+        note.maxLength = 1000;
+        note.rows = 2;
+        note.placeholder = "Nota facoltativa";
+        const submit = document.createElement("button");
+        submit.type = "submit";
+        submit.className = "btn btn-primary";
+        submit.textContent = "Invia per doppia approvazione";
+        const status = document.createElement("div");
+        status.className = "adjustment-panel__status";
+        form.append(departmentLabel, department, durationLabel, duration, note, submit, status);
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            submit.disabled = true;
+            status.textContent = "Invio in corso...";
+            const values = new FormData(form);
+            values.append("action", "create_extra_department");
+            values.append("date", giornoInfo.dataKey);
+            try {
+                await adjustmentPost(values);
+                showAppToast("Richiesta inviata ai capi reparto");
+                loadExternalDepartmentHoursPanel(panel, giornoInfo);
+            } catch (error) {
+                status.textContent = error.message;
+                submit.disabled = false;
+            }
+        });
+        panel.appendChild(form);
+    } catch (error) {
+        panel.textContent = error.message;
+    }
+}
+
+function createExternalStoreHoursPanel(giornoInfo) {
+    const panel = document.createElement("section");
+    panel.className = "adjustment-panel";
+    panel.textContent = "Caricamento ore in altro negozio...";
+    loadExternalStoreHoursPanel(panel, giornoInfo);
+    return panel;
+}
+
+async function loadExternalStoreHoursPanel(panel, giornoInfo) {
+    try {
+        const data = await getDayAdjustmentData(giornoInfo.dataKey);
+        const requests = (data.requests || []).filter((request) => request.kind === "extra_store");
+        panel.innerHTML = "";
+
+        const title = document.createElement("h4");
+        title.className = "adjustment-panel__title";
+        title.textContent = "Ore in altro negozio";
+        const intro = document.createElement("p");
+        intro.className = "adjustment-panel__intro";
+        intro.textContent = "Registra ore svolte in un altro ipermercato o negozio per la contabilità.";
+        panel.append(title, intro);
+
+        requests.forEach((request) => panel.appendChild(createExtraHourRequestCard(request)));
+
+        const form = document.createElement("form");
+        form.className = "adjustment-form";
+        const storeLabel = document.createElement("label");
+        storeLabel.textContent = "Negozio o ipermercato";
+        const store = document.createElement("input");
+        store.className = "form-control";
+        store.name = "store_name";
+        store.maxLength = 120;
+        store.required = true;
+        store.placeholder = "Es. Iperal Verdello";
+        const durationLabel = document.createElement("label");
+        durationLabel.textContent = "Durata";
+        const duration = createDurationSelect();
+        const note = document.createElement("textarea");
+        note.className = "form-control";
+        note.name = "request_note";
+        note.maxLength = 1000;
+        note.rows = 2;
+        note.placeholder = "Nota facoltativa";
+        const submit = document.createElement("button");
+        submit.type = "submit";
+        submit.className = "btn btn-primary";
+        submit.textContent = "Registra ore";
+        const status = document.createElement("div");
+        status.className = "adjustment-panel__status";
+        form.append(storeLabel, store, durationLabel, duration, note, submit, status);
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            submit.disabled = true;
+            status.textContent = "Salvataggio...";
+            const values = new FormData(form);
+            values.append("action", "create_extra_store");
+            values.append("date", giornoInfo.dataKey);
+            try {
+                await adjustmentPost(values);
+                showAppToast("Ore in altro negozio registrate");
+                loadExternalStoreHoursPanel(panel, giornoInfo);
             } catch (error) {
                 status.textContent = error.message;
                 submit.disabled = false;
@@ -315,6 +648,24 @@ function createManagerAdjustmentFilters(requests, onChange) {
     });
     statusField.appendChild(statusSelect);
 
+    const typeField = document.createElement("label");
+    typeField.className = "adjustments-filters__field";
+    typeField.textContent = "Tipo";
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "form-select";
+    [
+        ["", "Tutti i tipi"],
+        ["schedule_adjustment", adjustmentTypeLabel("schedule_adjustment")],
+        ["extra_department", adjustmentTypeLabel("extra_department")],
+        ["extra_store", adjustmentTypeLabel("extra_store")]
+    ].forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        typeSelect.appendChild(option);
+    });
+    typeField.appendChild(typeSelect);
+
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "btn btn-outline-secondary adjustments-filters__reset";
@@ -323,19 +674,22 @@ function createManagerAdjustmentFilters(requests, onChange) {
     const emitChange = () => onChange({
         userKey: userSelect.value,
         week: weekInput.value,
-        status: statusSelect.value
+        status: statusSelect.value,
+        type: typeSelect.value
     });
     userSelect.addEventListener("change", emitChange);
     weekInput.addEventListener("change", emitChange);
     statusSelect.addEventListener("change", emitChange);
+    typeSelect.addEventListener("change", emitChange);
     reset.addEventListener("click", () => {
         userSelect.value = "";
         weekInput.value = "";
         statusSelect.value = "";
+        typeSelect.value = "";
         emitChange();
     });
 
-    filters.append(userField, weekField, statusField, reset);
+    filters.append(userField, weekField, statusField, typeField, reset);
     return filters;
 }
 
@@ -348,6 +702,9 @@ function filterManagerAdjustmentRequests(requests, filters) {
             return false;
         }
         if (filters.status && String(request.status) !== filters.status) {
+            return false;
+        }
+        if (filters.type && String(request.kind || "schedule_adjustment") !== filters.type) {
             return false;
         }
         return true;
@@ -376,8 +733,8 @@ async function mostraRichiesteOre() {
         wrapper.innerHTML = "";
         if (!data.requests.length) {
             wrapper.textContent = manager
-                ? "Non ci sono segnalazioni da gestire."
-                : "Non hai ancora segnalato variazioni di orario.";
+                ? "Non ci sono richieste ore da gestire."
+                : "Non hai ancora inserito richieste ore.";
             return;
         }
         const requests = Array.isArray(data.requests) ? data.requests : [];
@@ -394,7 +751,8 @@ async function mostraRichiesteOre() {
         const state = {
             userKey: "",
             week: "",
-            status: ""
+            status: "",
+            type: ""
         };
         const summary = document.createElement("div");
         summary.className = "adjustments-filters__summary";
@@ -422,6 +780,7 @@ async function mostraRichiesteOre() {
             state.userKey = nextState.userKey;
             state.week = nextState.week;
             state.status = nextState.status;
+            state.type = nextState.type;
             render();
         }));
         wrapper.append(summary, list);

@@ -1292,7 +1292,50 @@ textarea {
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
-    display: block;
+    display: grid;
+    gap: 12px;
+}
+
+.day-detail-section {
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.22);
+    overflow: clip;
+}
+
+.day-detail-section__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 900;
+    list-style: none;
+}
+
+.day-detail-section__summary::-webkit-details-marker {
+    display: none;
+}
+
+.day-detail-section__summary::after {
+    content: "+";
+    width: 28px;
+    height: 28px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(13, 110, 253, 0.10);
+    color: var(--primary);
+}
+
+.day-detail-section[open] .day-detail-section__summary::after {
+    content: "–";
+}
+
+.day-detail-section > :not(summary) {
+    margin: 0 12px 12px;
 }
 
 .note-panel {
@@ -1401,7 +1444,7 @@ textarea {
 
 .adjustments-filters {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.8fr) auto;
+    grid-template-columns: minmax(0, 1.2fr) minmax(160px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
     gap: 10px;
     align-items: end;
     margin-bottom: 10px;
@@ -1452,6 +1495,18 @@ textarea {
     display: grid;
     gap: 4px;
     font-size: 0.92rem;
+}
+
+.adjustment-request__type {
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.extra-hour-request__approval {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
 }
 
 .adjustment-request__note,
@@ -1526,6 +1581,108 @@ textarea {
     grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
     gap: 10px;
     margin-bottom: 12px;
+}
+
+.overview-view-tools {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.overview-view-toggle {
+    display: inline-flex;
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel);
+}
+
+.overview-view-toggle .btn {
+    border-radius: 999px;
+    font-weight: 800;
+}
+
+.overview-day-picker {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 3px 2px 7px;
+    scrollbar-width: thin;
+}
+
+.overview-day-picker__button {
+    display: grid;
+    min-width: 76px;
+    gap: 1px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    color: var(--text);
+    text-align: center;
+}
+
+.overview-day-picker__button strong {
+    text-transform: capitalize;
+}
+
+.overview-day-picker__button span {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.overview-day-picker__button--today {
+    border-color: rgba(255, 122, 0, 0.45);
+    box-shadow: 0 8px 18px rgba(255, 122, 0, 0.12);
+}
+
+.overview-day-picker__button--active {
+    border-color: rgba(13, 110, 253, 0.45);
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.14), rgba(13, 110, 253, 0.05));
+    color: #084298;
+}
+
+.overview-day-title {
+    margin: 0 0 10px;
+    color: var(--text);
+    font-size: 1.08rem;
+    font-weight: 900;
+    text-transform: capitalize;
+}
+
+.overview-day-list {
+    display: grid;
+    gap: 8px;
+}
+
+.overview-day-card {
+    display: grid;
+    grid-template-columns: minmax(150px, 240px) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    box-shadow: 0 10px 22px rgba(20, 33, 61, 0.05);
+}
+
+.overview-day-card.overview-row--unregistered,
+.overview-day-card.overview-row--unverified {
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.overview-day-card.overview-row--inactive,
+.overview-day-card.overview-row--no_schedule {
+    background: color-mix(in srgb, var(--panel) 92%, var(--muted));
+}
+
+.overview-day-card__shift {
+    min-width: 0;
 }
 
 .overview-table-wrap {
@@ -2526,6 +2683,24 @@ textarea {
 
     .overview-controls__department {
         width: 100%;
+    }
+
+    .overview-view-tools {
+        grid-template-columns: 1fr;
+    }
+
+    .overview-view-toggle {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .overview-view-toggle .btn {
+        flex: 1 1 0;
+    }
+
+    .overview-day-card {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .today {
