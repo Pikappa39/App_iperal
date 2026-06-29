@@ -1,5 +1,6 @@
 <?php
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 header("Content-Type: application/json; charset=utf-8");
 
@@ -28,6 +29,20 @@ require __DIR__ . '/push_lib.php';
 require __DIR__ . '/schedule_adjustment_lib.php';
 
 const APP_UPLOAD_UNREGISTERED_VALUE = '__UNREGISTERED__';
+const APP_UPLOAD_MAX_SCHEDULE_ROWS = 800;
+const APP_UPLOAD_MAX_SCHEDULE_COLUMNS = 40;
+
+final class AppUploadScheduleReadFilter implements IReadFilter
+{
+    public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+    {
+        if ($row < 1 || $row > APP_UPLOAD_MAX_SCHEDULE_ROWS) {
+            return false;
+        }
+
+        return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($columnAddress) <= APP_UPLOAD_MAX_SCHEDULE_COLUMNS;
+    }
+}
 
 function appUploadFail(int $status, string $message): void
 {
@@ -156,8 +171,22 @@ function appUploadReadFiles(array $files): array
             throw new RuntimeException($originalName . ': il file non è un Excel .xlsx valido.');
         }
 
-        $spreadsheet = IOFactory::load($tmpName);
-        $converted = convertWorkbookToScheduleData($spreadsheet->getActiveSheet(), $originalName);
+        $reader = IOFactory::createReaderForFile($tmpName);
+        $sheetNames = $reader->listWorksheetNames($tmpName);
+        if ($sheetNames !== []) {
+            $reader->setLoadSheetsOnly($sheetNames[0]);
+        }
+        $reader->setReadEmptyCells(false);
+        $reader->setReadFilter(new AppUploadScheduleReadFilter());
+
+        $spreadsheet = $reader->load($tmpName);
+        try {
+            $converted = convertWorkbookToScheduleData($spreadsheet->getActiveSheet(), $originalName);
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            gc_collect_cycles();
+        }
         if (isset($uploadedWeeks[$converted['settimana']])) {
             throw new RuntimeException('Hai selezionato più file per la settimana ' . $converted['settimana'] . '. Caricane uno solo per reparto.');
         }
@@ -199,6 +228,7 @@ $mode = (string) ($_POST['mode'] ?? 'upload');
 if (!in_array($mode, ['preview', 'upload'], true)) {
     appUploadFail(400, 'Operazione non valida');
 }
+$autoUploadFromPreview = $mode === 'preview' && (string) ($_POST['auto_upload'] ?? '') === '1';
 
 try {
     $convertedFiles = appUploadReadFiles($_FILES['excelFiles']);
@@ -224,6 +254,7 @@ foreach ($departmentUsers as $user) {
     $allowedUsers[(string) $user['cod_fiscale']] = true;
 }
 
+$submittedMappings = [];
 if ($mode === 'preview') {
     $rows = [];
     foreach ($scheduleNames as $key => $displayName) {
@@ -238,17 +269,21 @@ if ($mode === 'preview') {
         ];
     }
 
-    echo json_encode([
-        'ok' => true,
-        'names' => $rows,
-        'users' => $departmentUsers,
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
+    if ($rows !== [] || !$autoUploadFromPreview) {
+        echo json_encode([
+            'ok' => true,
+            'names' => $rows,
+            'users' => $departmentUsers,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
-$submittedMappings = json_decode((string) ($_POST['mappings'] ?? '{}'), true);
-if (!is_array($submittedMappings)) {
-    appUploadFail(400, 'Associazioni non valide');
+if ($mode === 'upload') {
+    $submittedMappings = json_decode((string) ($_POST['mappings'] ?? '{}'), true);
+    if (!is_array($submittedMappings)) {
+        appUploadFail(400, 'Associazioni non valide');
+    }
 }
 
 $mappings = [];

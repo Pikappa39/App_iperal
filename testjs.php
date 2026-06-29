@@ -106,6 +106,9 @@ $isGlobalAdmin = $capo === 3;
             const formData = new FormData(form);
             formData.append("mode", mode);
             formData.append("csrf_token", window.appCsrfToken || "");
+            if (mode === "preview") {
+                formData.append("auto_upload", "1");
+            }
             if (mappings !== null) {
                 formData.append("mappings", JSON.stringify(mappings));
             }
@@ -219,10 +222,12 @@ $isGlobalAdmin = $capo === 3;
                 if (!readyToUpload) {
                     statusBox.textContent = "Analisi del file in corso...";
                     const data = await sendForm("preview");
+                    if (Array.isArray(data.results)) {
+                        showUploadResult(data);
+                        return;
+                    }
                     if (!(data.names || []).length) {
-                        statusBox.textContent = "Tutti i nominativi sono già associati. Caricamento in corso...";
-                        const uploadData = await sendForm("upload", {});
-                        showUploadResult(uploadData);
+                        statusBox.textContent = "Tutti i nominativi sono già associati.";
                         return;
                     }
                     renderMappings(data);
