@@ -31,6 +31,26 @@ function appInviteRoleLabel(int $role): string
     };
 }
 
+function appInviteCanAssignBoxInfo(array $sessionUser, string $department): bool
+{
+    if (!in_array($department, ['cs', 'box'], true)) {
+        return false;
+    }
+
+    return (int) ($sessionUser['capo'] ?? 0) === 3
+        || appUserHasBoxInfo($sessionUser)
+        || ((int) ($sessionUser['capo'] ?? 0) === 1 && (string) ($sessionUser['reparto'] ?? '') === 'cs');
+}
+
+function appInviteHasBoxInfoPrivilege(array $invite): bool
+{
+    return appUserHasBoxInfo([
+        'capo' => (int) ($invite['invited_capo'] ?? 0),
+        'box_info' => (int) ($invite['invited_box_info'] ?? 0),
+        'reparto' => (string) ($invite['reparto'] ?? ''),
+    ]);
+}
+
 function appInviteNormalizeEmail(string $email): string
 {
     return strtolower(trim($email));

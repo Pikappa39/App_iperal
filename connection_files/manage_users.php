@@ -133,7 +133,7 @@ $targetCf = trim((string) ($_POST['user_cf'] ?? ''));
 $viewerCf = (string) ($sessionUser['cf'] ?? '');
 
 try {
-    if (!in_array($action, ['deactivate', 'reactivate', 'delete'], true) || $targetCf === '') {
+    if (!in_array($action, ['deactivate', 'reactivate', 'delete', 'set_box_info'], true) || $targetCf === '') {
         throw new RuntimeException('Operazione non valida.');
     }
     if (hash_equals($viewerCf, $targetCf)) {
@@ -141,7 +141,7 @@ try {
     }
 
     $pdo->beginTransaction();
-    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, email, capo, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
+    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, email, capo, reparto, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
     $targetQuery->execute([$targetCf]);
     $target = $targetQuery->fetch(PDO::FETCH_ASSOC);
     if (!is_array($target)) {
@@ -152,6 +152,21 @@ try {
     }
 
     $name = trim((string) $target['nome'] . ' ' . (string) $target['cognome']);
+    if ($action === 'set_box_info') {
+        $hasImplicitBox = (string) ($target['reparto'] ?? '') === 'box'
+            || ((int) ($target['capo'] ?? 0) === 1 && (string) ($target['reparto'] ?? '') === 'cs');
+        if ($hasImplicitBox) {
+            throw new RuntimeException('Questo account ha già l’abilitazione box automatica.');
+        }
+
+        $boxInfo = (int) ($_POST['box_info'] ?? 0) === 1 ? 1 : 0;
+        $pdo->prepare('UPDATE utenti SET box_info = ?, session_version = session_version + 1 WHERE cod_fiscale = ?')
+            ->execute([$boxInfo, $targetCf]);
+        $pdo->commit();
+        appUserManagementFlash('success', $boxInfo === 1 ? $name . ' è abilitato al box informazioni.' : $name . ' non è più abilitato al box informazioni.');
+        appUserManagementRedirect($department);
+    }
+
     if ($action === 'deactivate' || $action === 'reactivate') {
         $active = $action === 'reactivate' ? 1 : 0;
         $update = $pdo->prepare(
@@ -200,6 +215,9 @@ try {
     $pdo->prepare('DELETE FROM extra_hour_requests WHERE user_cf = ?')->execute([$targetCf]);
     $pdo->prepare('UPDATE extra_hour_requests SET origin_decided_by_cf = NULL WHERE origin_decided_by_cf = ?')->execute([$targetCf]);
     $pdo->prepare('UPDATE extra_hour_requests SET target_decided_by_cf = NULL WHERE target_decided_by_cf = ?')->execute([$targetCf]);
+    $pdo->prepare('UPDATE customer_orders SET taken_by_cf = NULL WHERE taken_by_cf = ?')->execute([$targetCf]);
+    $pdo->prepare('UPDATE customer_order_events SET actor_cf = NULL WHERE actor_cf = ?')->execute([$targetCf]);
+    $pdo->prepare('DELETE FROM customer_order_notifications WHERE recipient_cf = ?')->execute([$targetCf]);
     $pdo->prepare('UPDATE schedule_name_mappings SET created_by_cf = NULL WHERE created_by_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM schedule_name_mappings WHERE user_cf = ?')->execute([$targetCf]);
     $pdo->prepare('DELETE FROM user_invites WHERE invited_by_cf = ? OR invited_cf = ? OR accepted_user_cf = ? OR LOWER(invited_email) = LOWER(?)')

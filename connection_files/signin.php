@@ -200,6 +200,7 @@ try {
             "avatar" => $user["avatar"] ?? "default",
             "capo" => $user["capo"] ?? 0,
             "reparto"=> $user["reparto"],
+            "box_info" => (int) ($user["box_info"] ?? 0),
             "session_version" => (int) ($user["session_version"] ?? 0),
         ];
         try {
@@ -215,7 +216,8 @@ try {
             "avatar" => $_SESSION["user"]["avatar"],
             "cognome" => $_SESSION["user"]["cognome"],
             "capo" => $_SESSION["user"]["capo"],
-            "reparto"=> $_SESSION["user"]["reparto"]
+            "reparto"=> $_SESSION["user"]["reparto"],
+            "box_info" => $_SESSION["user"]["box_info"]
         ]);
     } else {
         appLoginRecordFailure($pdo, $emailHash);

@@ -91,6 +91,7 @@ try {
     $cognome = appInviteNormalizeName((string) ($_POST['cognome'] ?? ''));
     $reparto = appInviteDepartmentForManager($sessionUser, trim((string) ($_POST['reparto'] ?? '')));
     $invitedRole = appInviteRoleForManager($sessionUser, (int) ($_POST['capo'] ?? -1));
+    $invitedBoxInfo = (int) ($_POST['box_info'] ?? 0) === 1 ? 1 : 0;
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Inserisci un indirizzo email valido.');
@@ -103,6 +104,9 @@ try {
     }
     if ($invitedRole === null) {
         throw new RuntimeException('Non puoi creare un invito con questo ruolo.');
+    }
+    if ($invitedBoxInfo === 1 && !appInviteCanAssignBoxInfo($sessionUser, $reparto)) {
+        throw new RuntimeException('Non puoi assegnare privilegi box per questo reparto.');
     }
 
     $userExists = $pdo->prepare(
@@ -135,15 +139,16 @@ try {
     $insert = $pdo->prepare(
         'INSERT INTO user_invites (
             invited_by_cf, invited_email, invited_badge, invited_cf,
-            invited_nome, invited_cognome, invited_capo, reparto, token_hash, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))'
+            invited_nome, invited_cognome, invited_capo, invited_box_info, reparto, token_hash, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))'
     );
-    $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $invitedRole, $reparto, $tokenHash]);
+    $insert->execute([$managerCf, $email, $badge, $cf, $nome, $cognome, $invitedRole, $invitedBoxInfo, $reparto, $tokenHash]);
     $newInviteId = (int) $pdo->lastInsertId();
     appAdminAuditLog($pdo, $sessionUser, 'invite_created', 'user_invite', $newInviteId > 0 ? (string) $newInviteId : null, [
         'email' => $email,
         'reparto' => $reparto,
         'role' => $invitedRole,
+        'box_info' => $invitedBoxInfo,
         'source' => 'addetti',
     ]);
 

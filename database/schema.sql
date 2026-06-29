@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS utenti (
     avatar VARCHAR(50) NOT NULL DEFAULT 'default',
     capo TINYINT UNSIGNED NOT NULL DEFAULT 0,
     reparto VARCHAR(20) NULL DEFAULT NULL,
+    box_info TINYINT(1) NOT NULL DEFAULT 0,
     attivo TINYINT(1) NOT NULL DEFAULT 1,
     session_version INT UNSIGNED NOT NULL DEFAULT 0,
     last_seen DATETIME NULL DEFAULT NULL
@@ -207,6 +208,72 @@ CREATE TABLE IF NOT EXISTS extra_hour_requests (
     INDEX idx_extra_hour_target_manage (target_reparto, status, schedule_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS customer_orders (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    target_reparto VARCHAR(20) NOT NULL,
+    source_type VARCHAR(20) NOT NULL DEFAULT 'department',
+    source_reparto VARCHAR(20) NOT NULL,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_surname VARCHAR(100) NOT NULL,
+    customer_phone VARCHAR(40) NOT NULL,
+    general_note VARCHAR(2000) NULL DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'registered',
+    taken_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    taken_by_name VARCHAR(220) NOT NULL,
+    taken_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_customer_orders_target_status (target_reparto, status, taken_at),
+    INDEX idx_customer_orders_taken_by (taken_by_cf, taken_at),
+    INDEX idx_customer_orders_status (status, taken_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS customer_order_items (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT UNSIGNED NOT NULL,
+    article_name VARCHAR(255) NOT NULL,
+    ean VARCHAR(64) NULL DEFAULT NULL,
+    internal_code VARCHAR(64) NULL DEFAULT NULL,
+    quantity VARCHAR(80) NOT NULL,
+    price_at_order DECIMAL(10,2) NULL DEFAULT NULL,
+    item_note VARCHAR(1000) NULL DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'registered',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_customer_order_items_order (order_id, status),
+    INDEX idx_customer_order_items_ean (ean),
+    INDEX idx_customer_order_items_internal_code (internal_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS customer_order_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT UNSIGNED NOT NULL,
+    item_id BIGINT UNSIGNED NULL DEFAULT NULL,
+    actor_cf VARCHAR(16) NULL DEFAULT NULL,
+    actor_name VARCHAR(220) NOT NULL,
+    event_type VARCHAR(60) NOT NULL,
+    from_status VARCHAR(30) NULL DEFAULT NULL,
+    to_status VARCHAR(30) NULL DEFAULT NULL,
+    details_json TEXT NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_customer_order_events_order (order_id, created_at),
+    INDEX idx_customer_order_events_item (item_id, created_at),
+    INDEX idx_customer_order_events_actor (actor_cf, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS customer_order_notifications (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT UNSIGNED NOT NULL,
+    recipient_cf VARCHAR(16) NOT NULL,
+    event_type VARCHAR(60) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    body VARCHAR(255) NOT NULL,
+    read_at DATETIME NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_customer_order_notifications_recipient (recipient_cf, read_at, created_at),
+    INDEX idx_customer_order_notifications_order (order_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS user_invites (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     invited_by_cf VARCHAR(16) NOT NULL,
@@ -216,6 +283,7 @@ CREATE TABLE IF NOT EXISTS user_invites (
     invited_nome VARCHAR(100) NOT NULL,
     invited_cognome VARCHAR(100) NOT NULL,
     invited_capo TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    invited_box_info TINYINT(1) NOT NULL DEFAULT 0,
     reparto VARCHAR(20) NOT NULL,
     token_hash CHAR(64) NOT NULL UNIQUE,
     expires_at DATETIME NOT NULL,

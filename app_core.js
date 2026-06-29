@@ -10,6 +10,7 @@ const noteAdminItem = document.getElementById("noteAdminItem");
 const scheduleChangesItem = document.getElementById("scheduleChangesItem");
 const scheduleAdjustmentsItem = document.getElementById("scheduleAdjustmentsItem");
 const departmentOverviewItem = document.getElementById("departmentOverviewItem");
+const customerOrdersItem = document.getElementById("customerOrdersItem");
 const communicationsItem = document.getElementById("communicationsItem");
 const profileItem = document.getElementById("profileItem");
 const setting=document.getElementById("setting");
@@ -48,6 +49,7 @@ const APP_FEATURE_SCRIPTS = {
     notes: ["app_notes.js"],
     adjustments: ["app_adjustments.js"],
     departmentOverview: ["app_department_overview.js"],
+    customerOrders: ["app_customer_orders.js"],
     communications: ["app_communications.js"],
     profile: ["userhome.js"],
     settings: ["setting.js"]
@@ -320,6 +322,10 @@ async function appNavigationRestore(state) {
             case "communications":
                 await appLoadFeature("communications");
                 await mostraComunicazioni();
+                break;
+            case "customerOrders":
+                await appLoadFeature("customerOrders");
+                await mostraOrdiniClienti();
                 break;
             case "profilo":
                 await appLoadFeature("profile");

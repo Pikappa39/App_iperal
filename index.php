@@ -8,13 +8,21 @@ require __DIR__ . '/app_config.php';
 require __DIR__ . '/connection_files/push_lib.php';
 app_session_start();
 
-$pushPublicKey = '';
-if (isset($_SESSION['user'])) {
-    try {
-        $pushPublicKey = appPushPublicKey();
-    } catch (Throwable $e) {
-        error_log('Configurazione push non disponibile: ' . $e->getMessage());
+if (!isset($_SESSION['user'])) {
+    $next = 'index.php';
+    $queryString = (string) ($_SERVER['QUERY_STRING'] ?? '');
+    if ($queryString !== '') {
+        $next .= '?' . $queryString;
     }
+    header('Location: login_reg.php?next=' . rawurlencode($next), true, 302);
+    exit;
+}
+
+$pushPublicKey = '';
+try {
+    $pushPublicKey = appPushPublicKey();
+} catch (Throwable $e) {
+    error_log('Configurazione push non disponibile: ' . $e->getMessage());
 }
 
 $releaseMeta = [];
@@ -34,6 +42,8 @@ $clientBootstrap = [
     'avatars' => appAvailableAvatars(),
     'reparto' => $_SESSION['user']['reparto'] ?? 'Jolly',
     'departments' => appDepartments(),
+    'customerOrderDepartments' => appCustomerOrderDepartments(),
+    'canUseBoxOrders' => isset($_SESSION['user']) && appUserHasBoxInfo($_SESSION['user']),
     'pushPublicKey' => $pushPublicKey,
     'csrfToken' => app_csrf_token(),
     'appVersion' => APP_VERSION,
@@ -110,8 +120,6 @@ $clientBootstrap = [
             </li>
           </ul>
         </div>
-      <?php else: ?>
-        <a href="login_reg.php" class="btn btn-primary">Login/Registrazione</a>
       <?php endif; ?>
     </div>
   </header>
@@ -148,6 +156,10 @@ $clientBootstrap = [
         <button type="button" id="scheduleAdjustmentsItem" class="home-orari sfera home-adjustments">
           <span class="home-action-icon" aria-hidden="true">±</span>
           <span class="home-action-label">Richieste ore</span>
+        </button>
+        <button type="button" id="customerOrdersItem" class="home-orari sfera home-customer-orders">
+          <span class="home-action-icon" aria-hidden="true">▤</span>
+          <span class="home-action-label">Ordini clienti</span>
         </button>
       </div>
 
@@ -429,6 +441,12 @@ async function openNotificationTarget(url) {
         refreshNotificationCenter();
         return;
     }
+    if (target.searchParams.get("orders") === "1") {
+        await appLoadFeature("customerOrders");
+        await mostraOrdiniClienti();
+        refreshNotificationCenter();
+        return;
+    }
     if (target.searchParams.get("orari") === "1") {
         await appLoadFeature("calendar");
         appState.currentYear = today.getFullYear();
@@ -699,6 +717,7 @@ window.addEventListener("load", showChangelogIfNeeded);
 window.addEventListener("load", function () {
     window.setTimeout(checkAppHealth, 1200);
     window.setTimeout(refreshNotificationCenter, 1500);
+    window.setInterval(refreshNotificationCenter, 60000);
 });
 
 function base64UrlToUint8Array(base64String) {

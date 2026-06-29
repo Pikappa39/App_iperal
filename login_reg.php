@@ -3,14 +3,44 @@ require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
 
+function appLoginNextTarget($value): string
+{
+    $value = trim((string) $value);
+    if ($value === '' || preg_match('/[\x00-\x1F\x7F]/', $value) || str_contains($value, '\\')) {
+        return 'index.php';
+    }
+    if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $value) || str_starts_with($value, '//')) {
+        return 'index.php';
+    }
+
+    $parts = parse_url($value);
+    if (!is_array($parts)) {
+        return 'index.php';
+    }
+
+    $path = (string) ($parts['path'] ?? 'index.php');
+    $basename = basename($path);
+    if ($basename !== 'index.php' && $path !== '') {
+        return 'index.php';
+    }
+
+    $next = 'index.php';
+    if (isset($parts['query']) && is_string($parts['query']) && $parts['query'] !== '') {
+        $next .= '?' . $parts['query'];
+    }
+
+    return $next;
+}
+
 $turnstileEnabled = appTurnstileEnabled();
 $turnstileSiteKey = $turnstileEnabled ? appTurnstileSiteKey() : '';
 $departments = appDepartments();
 $selfRegistrationEnabled = appSelfRegistrationEnabled();
 $csrfToken = app_csrf_token();
+$nextTarget = appLoginNextTarget($_GET['next'] ?? 'index.php');
 
 if (isset($_SESSION['user'])) {
-    header('Location: index.php', true, 302);
+    header('Location: ' . $nextTarget, true, 302);
     exit;
 }
 ?>
@@ -166,7 +196,7 @@ form.addEventListener("submit", function (e) {
           console.error("[" + data.error_code + "] " + data.error);
       }
       if (data.logged) {
-          window.location.replace("index.php");
+          window.location.replace(<?php echo json_encode($nextTarget, JSON_UNESCAPED_SLASHES); ?>);
       } else {
           if (loginErrorMessage && data.error) {
             loginErrorMessage.textContent = data.error;

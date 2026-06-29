@@ -84,8 +84,8 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
 
                 $insert = $pdo->prepare(
-                    'INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo, reparto)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO utenti (cod_fiscale, nome, cognome, badge, password, email, avatar, capo, reparto, box_info)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 $insert->execute([
                     $technicalId,
@@ -97,6 +97,7 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'default',
                     $invitedRole,
                     (string) $freshInvite['reparto'],
+                    (int) ($freshInvite['invited_box_info'] ?? 0) === 1 ? 1 : 0,
                 ]);
 
                 $pdo->prepare(
@@ -115,6 +116,7 @@ if ($errorMessage === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'avatar' => 'default',
                     'capo' => $invitedRole,
                     'reparto' => (string) $freshInvite['reparto'],
+                    'box_info' => (int) ($freshInvite['invited_box_info'] ?? 0) === 1 ? 1 : 0,
                     'session_version' => 0,
                 ];
                 if ($pdo instanceof PDO) {
@@ -162,6 +164,10 @@ $inviteDepartment = $invite ? ($departments[(string) ($invite['reparto'] ?? '')]
                 <dd class="col-sm-8"><?php echo appAcceptInviteEscape((string) $invite['invited_email']); ?></dd>
                 <dt class="col-sm-4">Reparto</dt>
                 <dd class="col-sm-8"><?php echo appAcceptInviteEscape($inviteDepartment); ?></dd>
+                <?php if (appInviteHasBoxInfoPrivilege($invite)): ?>
+                    <dt class="col-sm-4">Abilitazione</dt>
+                    <dd class="col-sm-8">Box informazioni</dd>
+                <?php endif; ?>
             </dl>
 
             <form method="post" class="d-grid gap-3">

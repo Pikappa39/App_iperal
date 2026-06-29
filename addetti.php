@@ -72,7 +72,7 @@ unset($_SESSION['user_management_flash']);
 
 if (!$databaseError) {
     $userQuery =
-        'SELECT cod_fiscale, nome, cognome, reparto, capo, attivo, last_seen
+        'SELECT cod_fiscale, nome, cognome, reparto, capo, box_info, attivo, last_seen
          FROM utenti
          WHERE reparto = ?';
     if (!$isGlobalAdmin) {
@@ -324,6 +324,15 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
                         </div>
                     <?php endif; ?>
+                    <div class="col-md-6<?php echo appInviteCanAssignBoxInfo($_SESSION['user'], $capo === 3 ? '' : $reparto) ? '' : ' d-none'; ?>" id="inviteBoxInfoField">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="inviteBoxInfo" name="box_info" value="1">
+                            <label class="form-check-label" for="inviteBoxInfo">
+                                Abilita anche al box informazioni
+                            </label>
+                            <div class="form-text">Da usare per addette box/casse. Una cassiera semplice va lasciata senza questa spunta.</div>
+                        </div>
+                    </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">Invia invito</button>
                     </div>
@@ -354,7 +363,12 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                     <span class="text-muted"><?php echo appAddettiEscape((string) $invite['invited_email']); ?></span>
                                 </td>
                                 <td><?php echo appAddettiEscape(appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto']); ?></td>
-                                <td><?php echo appAddettiEscape(appInviteRoleLabel((int) ($invite['invited_capo'] ?? 0))); ?></td>
+                                <td>
+                                    <?php echo appAddettiEscape(appInviteRoleLabel((int) ($invite['invited_capo'] ?? 0))); ?>
+                                    <?php if (appInviteHasBoxInfoPrivilege($invite)): ?>
+                                        <br><span class="badge text-bg-info">Box info</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['created_at']))); ?></td>
                                 <td><?php echo appAddettiEscape(date('d/m/Y H:i', strtotime((string) $invite['expires_at']))); ?></td>
                                 <td><?php echo appAddettiEscape(appInviteStatusLabel($invite)); ?></td>
@@ -407,6 +421,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             <?php endif; ?>
                             <?php if ($isGlobalAdmin): ?>
                                 <th>Stato</th>
+                                <th>Box info</th>
                             <?php endif; ?>
                             <th>Nominativi negli orari</th>
                             <?php if ($isGlobalAdmin): ?>
@@ -416,7 +431,13 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                         </thead>
                         <tbody>
                         <?php foreach ($users as $user): ?>
-                            <?php $userCf = (string) $user['cod_fiscale']; $scheduleUserNames = $namesByUser[$userCf] ?? []; ?>
+                            <?php
+                            $userCf = (string) $user['cod_fiscale'];
+                            $scheduleUserNames = $namesByUser[$userCf] ?? [];
+                            $userHasImplicitBox = (string) ($user['reparto'] ?? '') === 'box'
+                                || ((int) ($user['capo'] ?? 0) === 1 && (string) ($user['reparto'] ?? '') === 'cs');
+                            $userHasBoxInfo = appUserHasBoxInfo($user);
+                            ?>
                             <tr>
                                 <td><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></td>
                                 <?php if ($isGlobalAdmin): ?>
@@ -433,6 +454,15 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                             <span class="badge text-bg-secondary">Disattivato</span>
                                         <?php endif; ?>
                                     </td>
+                                    <td>
+                                        <?php if ($userHasImplicitBox): ?>
+                                            <span class="badge text-bg-info">Automatico</span>
+                                        <?php elseif ($userHasBoxInfo): ?>
+                                            <span class="badge text-bg-info">Abilitato</span>
+                                        <?php else: ?>
+                                            <span class="badge text-bg-secondary">No</span>
+                                        <?php endif; ?>
+                                    </td>
                                 <?php endif; ?>
                                 <td><?php echo $scheduleUserNames === [] ? '<span class="text-muted">Nessuno</span>' : appAddettiEscape(implode(', ', $scheduleUserNames)); ?></td>
                                 <?php if ($isGlobalAdmin): ?>
@@ -440,13 +470,27 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                         <?php if ((int) ($user['capo'] ?? 0) === 3): ?>
                                             <span class="text-muted">Admin protetto</span>
                                         <?php elseif ((int) ($user['attivo'] ?? 1) === 1): ?>
-                                            <form action="connection_files/manage_users.php" method="post" onsubmit="return confirm('Disattivare questo account? L’utente verrà scollegato e non riceverà notifiche.');">
-                                                <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
-                                                <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
-                                                <input type="hidden" name="action" value="deactivate">
-                                                <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
-                                                <button type="submit" class="btn btn-outline-warning btn-sm">Disattiva</button>
-                                            </form>
+                                            <div class="d-grid gap-2">
+                                                <?php if (!$userHasImplicitBox): ?>
+                                                    <form action="connection_files/manage_users.php" method="post">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                        <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                                        <input type="hidden" name="action" value="set_box_info">
+                                                        <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                                        <input type="hidden" name="box_info" value="<?php echo $userHasBoxInfo ? '0' : '1'; ?>">
+                                                        <button type="submit" class="btn btn-outline-info btn-sm">
+                                                            <?php echo $userHasBoxInfo ? 'Disabilita box' : 'Abilita box'; ?>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                <form action="connection_files/manage_users.php" method="post" onsubmit="return confirm('Disattivare questo account? L’utente verrà scollegato e non riceverà notifiche.');">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                                    <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                                    <input type="hidden" name="action" value="deactivate">
+                                                    <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                                    <button type="submit" class="btn btn-outline-warning btn-sm">Disattiva</button>
+                                                </form>
+                                            </div>
                                         <?php else: ?>
                                             <div class="d-grid gap-2">
                                                 <form action="connection_files/manage_users.php" method="post">
@@ -475,7 +519,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="<?php echo $isGlobalAdmin ? '6' : '2'; ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo 2 + ($isGlobalAdmin ? 4 : 0) + ($canViewLastSeen ? 1 : 0); ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -600,6 +644,21 @@ document.querySelectorAll("[data-copy-target]").forEach(function (button) {
         }
     });
 });
+
+const inviteReparto = document.getElementById("inviteReparto");
+const inviteBoxInfoField = document.getElementById("inviteBoxInfoField");
+const inviteBoxInfo = document.getElementById("inviteBoxInfo");
+if (inviteReparto && inviteBoxInfoField && inviteBoxInfo) {
+    const refreshInviteBoxInfo = function () {
+        const allowed = inviteReparto.value === "cs" || inviteReparto.value === "box";
+        inviteBoxInfoField.classList.toggle("d-none", !allowed);
+        if (!allowed) {
+            inviteBoxInfo.checked = false;
+        }
+    };
+    inviteReparto.addEventListener("change", refreshInviteBoxInfo);
+    refreshInviteBoxInfo();
+}
 
 document.querySelectorAll('form[action="connection_files/manage_invites.php"]').forEach(function (form) {
     form.addEventListener("submit", function (event) {

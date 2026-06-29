@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.11.0');
+    define('APP_VERSION', '0.12.0');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -116,6 +116,35 @@ if (!function_exists('appIsValidDepartment')) {
     function appIsValidDepartment(string $department): bool
     {
         return array_key_exists($department, appDepartments());
+    }
+}
+
+if (!function_exists('appCustomerOrderDepartments')) {
+    function appCustomerOrderDepartments(): array
+    {
+        $departments = appDepartments();
+        unset($departments['box']);
+        return $departments;
+    }
+}
+
+if (!function_exists('appIsValidCustomerOrderDepartment')) {
+    function appIsValidCustomerOrderDepartment(string $department): bool
+    {
+        return array_key_exists($department, appCustomerOrderDepartments());
+    }
+}
+
+if (!function_exists('appUserHasBoxInfo')) {
+    function appUserHasBoxInfo(array $user): bool
+    {
+        $role = (int) ($user['capo'] ?? 0);
+        $department = trim((string) ($user['reparto'] ?? ''));
+
+        return $role === 3
+            || ((int) ($user['box_info'] ?? 0) === 1)
+            || $department === 'box'
+            || ($role === 1 && $department === 'cs');
     }
 }
 

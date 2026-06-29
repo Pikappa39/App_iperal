@@ -71,6 +71,26 @@ try {
         ];
     }
 
+    $orderStmt = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM customer_order_notifications
+         WHERE BINARY recipient_cf = BINARY ?
+           AND read_at IS NULL'
+    );
+    $orderStmt->execute([$viewerCf]);
+    $orderCount = (int) $orderStmt->fetchColumn();
+    if ($orderCount > 0) {
+        $items[] = [
+            'type' => 'customer_orders',
+            'title' => 'Ordini clienti',
+            'body' => $orderCount === 1
+                ? 'Hai 1 aggiornamento ordine da vedere.'
+                : 'Hai ' . $orderCount . ' aggiornamenti ordine da vedere.',
+            'count' => $orderCount,
+            'url' => 'index.php?orders=1',
+        ];
+    }
+
     if (in_array($viewerRole, [1, 3], true)) {
         $query = "SELECT COUNT(*)
                   FROM schedule_adjustment_requests

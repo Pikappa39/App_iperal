@@ -138,6 +138,19 @@ function mostraProfilo() {
     const subtitle = document.createElement("p");
     subtitle.textContent = "Gestisci i dettagli base del tuo profilo.";
     titleGroup.append(title, subtitle);
+
+    if (window.appBootstrap?.canUseBoxOrders) {
+        const badgeRow = document.createElement("div");
+        badgeRow.className = "profile-card__badges";
+
+        const boxBadge = document.createElement("span");
+        boxBadge.className = "profile-card__badge profile-card__badge--box";
+        boxBadge.textContent = "Box informazioni";
+        boxBadge.title = "Profilo abilitato alle funzioni box";
+
+        badgeRow.appendChild(boxBadge);
+        titleGroup.appendChild(badgeRow);
+    }
     header.append(avatarButton, titleGroup);
 
     const reparti = window.appBootstrap?.departments || {};

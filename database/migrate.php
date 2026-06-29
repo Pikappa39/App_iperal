@@ -121,6 +121,19 @@ if (!$inviteRoleColumn) {
     echo "Colonna user_invites.invited_capo aggiunta.\n";
 }
 
+$inviteBoxInfoColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'user_invites'
+       AND COLUMN_NAME = 'invited_box_info'
+     LIMIT 1"
+)->fetchColumn();
+if (!$inviteBoxInfoColumn) {
+    $pdo->exec('ALTER TABLE user_invites ADD invited_box_info TINYINT(1) NOT NULL DEFAULT 0 AFTER invited_capo');
+    echo "Colonna user_invites.invited_box_info aggiunta.\n";
+}
+
 $activeUserColumn = $pdo->query(
     "SELECT 1
      FROM information_schema.COLUMNS
@@ -132,6 +145,19 @@ $activeUserColumn = $pdo->query(
 if (!$activeUserColumn) {
     $pdo->exec('ALTER TABLE utenti ADD attivo TINYINT(1) NOT NULL DEFAULT 1 AFTER reparto');
     echo "Colonna utenti.attivo aggiunta.\n";
+}
+
+$boxInfoColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utenti'
+       AND COLUMN_NAME = 'box_info'
+     LIMIT 1"
+)->fetchColumn();
+if (!$boxInfoColumn) {
+    $pdo->exec('ALTER TABLE utenti ADD box_info TINYINT(1) NOT NULL DEFAULT 0 AFTER reparto');
+    echo "Colonna utenti.box_info aggiunta.\n";
 }
 
 $sessionVersionColumn = $pdo->query(
@@ -158,6 +184,19 @@ $lastSeenColumn = $pdo->query(
 if (!$lastSeenColumn) {
     $pdo->exec('ALTER TABLE utenti ADD last_seen DATETIME NULL DEFAULT NULL AFTER session_version');
     echo "Colonna utenti.last_seen aggiunta.\n";
+}
+
+$itemPriceColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'customer_order_items'
+       AND COLUMN_NAME = 'price_at_order'
+     LIMIT 1"
+)->fetchColumn();
+if (!$itemPriceColumn) {
+    $pdo->exec('ALTER TABLE customer_order_items ADD price_at_order DECIMAL(10,2) NULL DEFAULT NULL AFTER quantity');
+    echo "Colonna customer_order_items.price_at_order aggiunta.\n";
 }
 
 $auditCreatedIndex = $pdo->query(

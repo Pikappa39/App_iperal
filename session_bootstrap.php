@@ -230,7 +230,7 @@ function app_session_validate_user(): void
 
     try {
         $statement = $pdo->prepare(
-            'SELECT session_version, nome, cognome, avatar, capo, reparto, attivo
+            'SELECT session_version, nome, cognome, avatar, capo, reparto, box_info, attivo
              FROM utenti
              WHERE cod_fiscale = ?
              LIMIT 1'
@@ -250,6 +250,7 @@ function app_session_validate_user(): void
             'avatar' => (string) ($currentUser['avatar'] ?? 'default'),
             'capo' => (int) ($currentUser['capo'] ?? 0),
             'reparto' => (string) ($currentUser['reparto'] ?? ''),
+            'box_info' => (int) ($currentUser['box_info'] ?? 0),
         ]);
 
         app_session_touch_user($pdo, $cf);

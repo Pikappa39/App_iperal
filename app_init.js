@@ -4,10 +4,6 @@ back.onclick = function () {
 
 if (openOrari) {
     openOrari.addEventListener("click", () => {
-        if (!getCurrentUserKey()) {
-            window.location.assign("login_reg.php");
-            return;
-        }
         appRunWithBusyElement(openOrari, async () => {
             await appLoadFeature("calendar");
             appState.currentYear = today.getFullYear();
@@ -51,6 +47,14 @@ if (departmentOverviewItem) {
         }, "Apro...");
     });
 }
+if (customerOrdersItem) {
+    customerOrdersItem.addEventListener("click", () => {
+        appRunWithBusyElement(customerOrdersItem, async () => {
+            await appLoadFeature("customerOrders");
+            await mostraOrdiniClienti();
+        }, "Apro...");
+    });
+}
 if (communicationsItem) {
     communicationsItem.addEventListener("click", () => {
         appRunWithBusyElement(communicationsItem, async () => {
@@ -89,6 +93,10 @@ if (startupParams.get("communications") === "1") {
 if (startupParams.get("adjustments") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
     appLoadFeature("adjustments").then(() => mostraRichiesteOre());
+}
+if (startupParams.get("orders") === "1") {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    appLoadFeature("customerOrders").then(() => mostraOrdiniClienti());
 }
 if (startupParams.get("orari") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
