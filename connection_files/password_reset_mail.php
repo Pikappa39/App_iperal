@@ -20,7 +20,7 @@ function smtpReadResponse($socket): array
     return [$code, implode("\n", $lines)];
 }
 
-function smtpExpect($socket, ?string $command, array $acceptedCodes): void
+function smtpExpect($socket, ?string $command, array $acceptedCodes): array
 {
     if ($command !== null) {
         $written = fwrite($socket, $command . "\r\n");
@@ -29,10 +29,12 @@ function smtpExpect($socket, ?string $command, array $acceptedCodes): void
         }
     }
 
-    [$code] = smtpReadResponse($socket);
+    [$code, $response] = smtpReadResponse($socket);
     if (!in_array($code, $acceptedCodes, true)) {
         throw new RuntimeException('Il server SMTP ha rifiutato la richiesta');
     }
+
+    return [$code, $response];
 }
 
 function smtpSanitizeHeaderValue(string $value): string
@@ -63,7 +65,7 @@ function smtpEncodeHeader(string $value): string
     return '=?UTF-8?B?' . base64_encode(smtpSanitizeHeaderValue($value)) . '?=';
 }
 
-function smtpSendPlainTextEmail(string $recipient, string $subject, string $body): void
+function smtpSendPlainTextEmail(string $recipient, string $subject, string $body): array
 {
     $username = appSmtpUsername();
     $password = appSmtpPassword();
@@ -105,26 +107,36 @@ function smtpSendPlainTextEmail(string $recipient, string $subject, string $body
         $safeSubject = smtpSanitizeHeaderValue($subject);
         $safeBody = preg_replace('/(?m)^\./', '..', str_replace("\r\n", "\n", $body));
         $safeBody = str_replace("\n", "\r\n", (string) $safeBody);
+        $messageId = smtpMessageId($username);
         $message = 'Date: ' . date(DATE_RFC2822) . "\r\n"
-            . 'Message-ID: ' . smtpMessageId($username) . "\r\n"
+            . 'Message-ID: ' . $messageId . "\r\n"
             . "From: " . smtpEncodeHeader($fromName) . " <{$username}>\r\n"
             . "Reply-To: " . smtpEncodeHeader($fromName) . " <{$username}>\r\n"
+            . "Sender: <{$username}>\r\n"
             . "To: <{$recipient}>\r\n"
             . 'Subject: ' . smtpEncodeHeader($safeSubject) . "\r\n"
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=UTF-8\r\n"
             . "Content-Transfer-Encoding: quoted-printable\r\n"
+            . "Importance: normal\r\n"
+            . "X-Priority: 3\r\n"
             . "X-Mailer: MyOrari\r\n"
             . "Auto-Submitted: auto-generated\r\n\r\n"
             . quoted_printable_encode($safeBody) . "\r\n.";
-        smtpExpect($socket, $message, [250]);
+        [$acceptedCode, $acceptedResponse] = smtpExpect($socket, $message, [250]);
         smtpExpect($socket, 'QUIT', [221]);
+
+        return [
+            'message_id' => $messageId,
+            'smtp_code' => $acceptedCode,
+            'smtp_response' => $acceptedResponse,
+        ];
     } finally {
         fclose($socket);
     }
 }
 
-function sendPasswordResetEmail(string $recipient, string $resetUrl): void
+function sendPasswordResetEmail(string $recipient, string $resetUrl): array
 {
     $body = "Ciao,\r\n\r\n"
         . "abbiamo ricevuto una richiesta per reimpostare la password del tuo account MyOrari.\r\n\r\n"
@@ -132,10 +144,10 @@ function sendPasswordResetEmail(string $recipient, string $resetUrl): void
         . $resetUrl . "\r\n\r\n"
         . "Se non hai richiesto tu questa operazione, puoi ignorare questa email: la password attuale resterà invariata.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    smtpSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
+    return smtpSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
 }
 
-function sendInvitationEmail(string $recipient, string $name, string $department, string $inviteUrl, string $expiresAt): void
+function sendInvitationEmail(string $recipient, string $name, string $department, string $inviteUrl, string $expiresAt): array
 {
     $expiry = strtotime($expiresAt);
     $expiryLabel = $expiry === false ? 'entro 7 giorni' : date('d/m/Y \a\l\l\e H:i', $expiry);
@@ -148,5 +160,5 @@ function sendInvitationEmail(string $recipient, string $name, string $department
         . "Dovrai solo scegliere una password personale. Il link è individuale e non va inoltrato ad altre persone.\r\n\r\n"
         . "Se non ti aspettavi questo invito, puoi ignorare questa email.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    smtpSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body);
+    return smtpSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body);
 }

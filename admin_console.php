@@ -89,6 +89,7 @@ function appAdminConsoleAuditActionLabel(string $action): string
         'console_unlock_failed' => 'Codice console errato',
         'console_lock' => 'Console bloccata',
         'invite_created' => 'Invito creato',
+        'invite_email_sent' => 'Email invito inviata',
         'invite_regenerated' => 'Invito rigenerato',
         'invite_manual_link_generated' => 'Link invito generato',
         'invite_revoked' => 'Invito revocato',
@@ -130,6 +131,12 @@ function appAdminConsoleAuditDetailsLabel(?string $detailsJson): string
     }
     if (isset($details['deleted_count'])) {
         $parts[] = 'Eliminati: ' . (int) $details['deleted_count'];
+    }
+    if (!empty($details['message_id'])) {
+        $parts[] = 'Message-ID: ' . (string) $details['message_id'];
+    }
+    if (!empty($details['smtp_code'])) {
+        $parts[] = 'SMTP: ' . (int) $details['smtp_code'];
     }
 
     return implode(' · ', $parts);
@@ -1260,24 +1267,6 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                 </span>
             </summary>
             <div class="admin-console-section__body">
-            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
-                <div class="text-muted">
-                    <?php if ($departmentFilter !== ''): ?>
-                        Revocati nel reparto selezionato: <?php echo (int) $revokedInvitesCount; ?>.
-                    <?php else: ?>
-                        Inviti revocati totali: <?php echo (int) $revokedInvitesCount; ?>.
-                    <?php endif; ?>
-                </div>
-                <form method="post" data-admin-console-confirm="Eliminare definitivamente gli inviti revocati? Questa operazione non può essere annullata.">
-                    <input type="hidden" name="csrf_token" value="<?php echo appAdminConsoleEscape($appCsrfToken); ?>">
-                    <input type="hidden" name="action" value="delete_revoked_invites">
-                    <input type="hidden" name="reparto" value="<?php echo appAdminConsoleEscape($departmentFilter); ?>">
-                    <input type="hidden" name="stato" value="<?php echo appAdminConsoleEscape($inviteStatusFilter); ?>">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" <?php echo $revokedInvitesCount > 0 ? '' : 'disabled'; ?>>
-                        Elimina inviti revocati
-                    </button>
-                </form>
-            </div>
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>
@@ -1446,6 +1435,24 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                 </span>
             </summary>
             <div class="admin-console-section__body">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+                <div class="text-muted">
+                    <?php if ($departmentFilter !== ''): ?>
+                        Revocati nel reparto selezionato: <?php echo (int) $revokedInvitesCount; ?>.
+                    <?php else: ?>
+                        Inviti revocati totali: <?php echo (int) $revokedInvitesCount; ?>.
+                    <?php endif; ?>
+                </div>
+                <form method="post" data-admin-console-confirm="Eliminare definitivamente gli inviti revocati? Questa operazione non può essere annullata.">
+                    <input type="hidden" name="csrf_token" value="<?php echo appAdminConsoleEscape($appCsrfToken); ?>">
+                    <input type="hidden" name="action" value="delete_revoked_invites">
+                    <input type="hidden" name="reparto" value="<?php echo appAdminConsoleEscape($departmentFilter); ?>">
+                    <input type="hidden" name="stato" value="<?php echo appAdminConsoleEscape($inviteStatusFilter); ?>">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" <?php echo $revokedInvitesCount > 0 ? '' : 'disabled'; ?>>
+                        Elimina inviti revocati
+                    </button>
+                </form>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>

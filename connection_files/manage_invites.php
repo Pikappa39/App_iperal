@@ -24,6 +24,18 @@ function appInviteSetFlash(string $type, string $message, ?string $link = null):
     }
 }
 
+function appInviteAuditEmailSent(PDO $pdo, array $sessionUser, int $inviteId, string $email, string $reparto, string $source, array $mailInfo): void
+{
+    appAdminAuditLog($pdo, $sessionUser, 'invite_email_sent', 'user_invite', $inviteId > 0 ? (string) $inviteId : null, [
+        'email' => $email,
+        'reparto' => $reparto,
+        'source' => $source,
+        'message_id' => (string) ($mailInfo['message_id'] ?? ''),
+        'smtp_code' => (int) ($mailInfo['smtp_code'] ?? 0),
+        'smtp_response' => mb_substr((string) ($mailInfo['smtp_response'] ?? ''), 0, 255, 'UTF-8'),
+    ]);
+}
+
 $sessionUser = $_SESSION['user'] ?? null;
 if (!is_array($sessionUser) || !appInviteCanManage($sessionUser) || ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     appInviteRedirect();
@@ -71,13 +83,14 @@ try {
         ]);
         $departmentLabel = appDepartments()[(string) $invite['reparto']] ?? (string) $invite['reparto'];
         try {
-            sendInvitationEmail(
+            $mailInfo = sendInvitationEmail(
                 (string) $invite['invited_email'],
                 trim((string) $invite['invited_nome'] . ' ' . (string) $invite['invited_cognome']),
                 $departmentLabel,
                 $link,
                 (string) $regenerated['expires_at']
             );
+            appInviteAuditEmailSent($pdo, $sessionUser, $inviteId, (string) $invite['invited_email'], (string) $invite['reparto'], 'addetti', $mailInfo);
             appInviteSetFlash('success', 'Nuovo invito inviato via email a ' . (string) $invite['invited_email'] . '.');
         } catch (Throwable $mailError) {
             error_log('Invio email invito non riuscito: ' . $mailError->getMessage());
@@ -155,7 +168,8 @@ try {
     $link = appInviteBuildUrl($token);
     $departmentLabel = appDepartments()[$reparto] ?? $reparto;
     try {
-        sendInvitationEmail($email, trim($nome . ' ' . $cognome), $departmentLabel, $link, date('Y-m-d H:i:s', strtotime('+7 days')));
+        $mailInfo = sendInvitationEmail($email, trim($nome . ' ' . $cognome), $departmentLabel, $link, date('Y-m-d H:i:s', strtotime('+7 days')));
+        appInviteAuditEmailSent($pdo, $sessionUser, $newInviteId, $email, $reparto, 'addetti', $mailInfo);
         appInviteSetFlash('success', 'Invito inviato via email a ' . $email . '.');
     } catch (Throwable $mailError) {
         error_log('Invio email invito non riuscito: ' . $mailError->getMessage());
