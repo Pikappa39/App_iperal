@@ -1,7 +1,13 @@
 {
-    "latest": "0.12.5",
-    "updated_at": "2026-06-30T00:41:27+00:00",
+    "latest": "0.12.6",
+    "updated_at": "2026-06-30T01:12:00+00:00",
     "releases": [
+        {
+            "version": "0.12.6",
+            "previous_version": "0.12.5",
+            "description": "Supporto SMTP Brevo con STARTTLS",
+            "released_at": "2026-06-30T01:12:00+00:00"
+        },
         {
             "version": "0.12.5",
             "previous_version": "0.12.4",

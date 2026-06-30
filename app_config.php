@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.12.5');
+    define('APP_VERSION', '0.12.6');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -212,6 +212,13 @@ if (!function_exists('appSmtpPassword')) {
     function appSmtpPassword(): string
     {
         return appEnv('APP_SMTP_PASSWORD');
+    }
+}
+
+if (!function_exists('appSmtpFromEmail')) {
+    function appSmtpFromEmail(): string
+    {
+        return appEnv('APP_SMTP_FROM_EMAIL') ?: appSmtpUsername();
     }
 }
 

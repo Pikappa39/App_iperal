@@ -17,6 +17,7 @@ return [
     'APP_SMTP_PORT' => '465',
     'APP_SMTP_USERNAME' => 'supporto@myorari.it',
     'APP_SMTP_PASSWORD' => '',
+    'APP_SMTP_FROM_EMAIL' => 'supporto@myorari.it',
     'APP_SMTP_FROM_NAME' => 'MyOrari',
     // Genera il valore con:
     // php -r "echo password_hash('codice-scelto', PASSWORD_DEFAULT) . PHP_EOL;"

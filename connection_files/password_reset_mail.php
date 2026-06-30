@@ -31,7 +31,7 @@ function smtpExpect($socket, ?string $command, array $acceptedCodes): array
 
     [$code, $response] = smtpReadResponse($socket);
     if (!in_array($code, $acceptedCodes, true)) {
-        throw new RuntimeException('Il server SMTP ha rifiutato la richiesta');
+        throw new RuntimeException('Il server SMTP ha rifiutato la richiesta: ' . $response);
     }
 
     return [$code, $response];
@@ -67,21 +67,30 @@ function smtpEncodeHeader(string $value): string
 
 function smtpSendPlainTextEmail(string $recipient, string $subject, string $body): array
 {
+    $host = appSmtpHost();
+    $port = appSmtpPort();
     $username = appSmtpUsername();
     $password = appSmtpPassword();
-    if ($username === '' || $password === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+    $fromEmail = appSmtpFromEmail();
+    if (
+        $username === ''
+        || $password === ''
+        || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
+        || !filter_var($recipient, FILTER_VALIDATE_EMAIL)
+    ) {
         throw new RuntimeException('Configurazione SMTP incompleta');
     }
 
+    $implicitTls = $port === 465;
     $context = stream_context_create([
         'ssl' => [
             'verify_peer' => true,
             'verify_peer_name' => true,
-            'peer_name' => appSmtpHost(),
+            'peer_name' => $host,
         ],
     ]);
     $socket = @stream_socket_client(
-        'ssl://' . appSmtpHost() . ':' . appSmtpPort(),
+        ($implicitTls ? 'ssl://' : 'tcp://') . $host . ':' . $port,
         $errorNumber,
         $errorMessage,
         15,
@@ -96,10 +105,17 @@ function smtpSendPlainTextEmail(string $recipient, string $subject, string $body
     try {
         smtpExpect($socket, null, [220]);
         smtpExpect($socket, 'EHLO myorari.it', [250]);
+        if (!$implicitTls) {
+            smtpExpect($socket, 'STARTTLS', [220]);
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                throw new RuntimeException('Impossibile attivare STARTTLS sul server SMTP');
+            }
+            smtpExpect($socket, 'EHLO myorari.it', [250]);
+        }
         smtpExpect($socket, 'AUTH LOGIN', [334]);
         smtpExpect($socket, base64_encode($username), [334]);
         smtpExpect($socket, base64_encode($password), [235]);
-        smtpExpect($socket, 'MAIL FROM:<' . $username . '>', [250]);
+        smtpExpect($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
         smtpExpect($socket, 'RCPT TO:<' . $recipient . '>', [250, 251]);
         smtpExpect($socket, 'DATA', [354]);
 
@@ -107,12 +123,12 @@ function smtpSendPlainTextEmail(string $recipient, string $subject, string $body
         $safeSubject = smtpSanitizeHeaderValue($subject);
         $safeBody = preg_replace('/(?m)^\./', '..', str_replace("\r\n", "\n", $body));
         $safeBody = str_replace("\n", "\r\n", (string) $safeBody);
-        $messageId = smtpMessageId($username);
+        $messageId = smtpMessageId($fromEmail);
         $message = 'Date: ' . date(DATE_RFC2822) . "\r\n"
             . 'Message-ID: ' . $messageId . "\r\n"
-            . "From: " . smtpEncodeHeader($fromName) . " <{$username}>\r\n"
-            . "Reply-To: " . smtpEncodeHeader($fromName) . " <{$username}>\r\n"
-            . "Sender: <{$username}>\r\n"
+            . "From: " . smtpEncodeHeader($fromName) . " <{$fromEmail}>\r\n"
+            . "Reply-To: " . smtpEncodeHeader($fromName) . " <{$fromEmail}>\r\n"
+            . "Sender: <{$fromEmail}>\r\n"
             . "To: <{$recipient}>\r\n"
             . 'Subject: ' . smtpEncodeHeader($safeSubject) . "\r\n"
             . "MIME-Version: 1.0\r\n"
