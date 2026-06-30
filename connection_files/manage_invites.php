@@ -37,6 +37,19 @@ function appInviteAuditEmailSent(PDO $pdo, array $sessionUser, int $inviteId, st
     ]);
 }
 
+function appInviteAuditTestEmailSent(PDO $pdo, array $sessionUser, string $email, string $reparto, array $mailInfo): void
+{
+    appAdminAuditLog($pdo, $sessionUser, 'invite_test_email_sent', 'email_test', null, [
+        'email' => $email,
+        'reparto' => $reparto,
+        'message_id' => (string) ($mailInfo['message_id'] ?? ''),
+        'smtp_code' => (int) ($mailInfo['smtp_code'] ?? 0),
+        'smtp_response' => mb_substr((string) ($mailInfo['smtp_response'] ?? ''), 0, 255, 'UTF-8'),
+        'transport' => (string) ($mailInfo['transport'] ?? ''),
+        'source' => 'addetti_test',
+    ]);
+}
+
 $sessionUser = $_SESSION['user'] ?? null;
 if (!is_array($sessionUser) || !appInviteCanManage($sessionUser) || ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     appInviteRedirect();
@@ -57,6 +70,35 @@ $inviteId = (int) ($_POST['invite_id'] ?? 0);
 $managerCf = (string) ($sessionUser['cf'] ?? '');
 
 try {
+    if ($action === 'send_test') {
+        if ((int) ($sessionUser['capo'] ?? 0) !== 3) {
+            throw new RuntimeException('Solo un admin puÃ² inviare email di test.');
+        }
+
+        $email = appInviteNormalizeEmail((string) ($_POST['email'] ?? ''));
+        $nome = appInviteNormalizeName((string) ($_POST['nome'] ?? ''));
+        $reparto = trim((string) ($_POST['reparto'] ?? ''));
+        $departmentLabel = appDepartments()[$reparto] ?? '';
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Inserisci un indirizzo email valido per il test.');
+        }
+        if ($nome !== '' && mb_strlen($nome) > 100) {
+            throw new RuntimeException('Il nome del destinatario di test Ã¨ troppo lungo.');
+        }
+
+        $requestedBy = trim((string) (($sessionUser['nome'] ?? '') . ' ' . ($sessionUser['cognome'] ?? '')));
+        if ($requestedBy === '') {
+            $requestedBy = (string) ($sessionUser['email'] ?? $managerCf);
+        }
+
+        $testUrl = appPublicUrl() . '/login_reg.php?test_invite=1';
+        $mailInfo = sendTestInvitationEmail($email, $nome, $departmentLabel, $testUrl, $requestedBy);
+        appInviteAuditTestEmailSent($pdo, $sessionUser, $email, $reparto, $mailInfo);
+        appInviteSetFlash('success', 'Email di test inviata a ' . $email . '. Nessun invito operativo Ã¨ stato creato.');
+        appInviteRedirect();
+    }
+
     if ($action === 'revoke' || $action === 'regenerate') {
         $pdo->beginTransaction();
         if ($action === 'revoke') {

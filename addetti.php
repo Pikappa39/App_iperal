@@ -340,6 +340,43 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                     </div>
                 </form>
 
+                <?php if ($isGlobalAdmin): ?>
+                    <hr class="my-4">
+
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                        <div>
+                            <h3 class="h6 mb-1">Inviti di test</h3>
+                            <p class="text-muted mb-0">Invia una mail di prova usando lo stesso trasporto reale, senza creare record in <code>user_invites</code>.</p>
+                        </div>
+                    </div>
+                    <form action="connection_files/manage_invites.php" method="post" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                        <input type="hidden" name="action" value="send_test">
+                        <div class="col-md-5">
+                            <label class="form-label" for="testInviteEmail">Email destinataria</label>
+                            <input class="form-control" type="email" id="testInviteEmail" name="email" maxlength="255" autocomplete="email" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="testInviteNome">Nome visualizzato</label>
+                            <input class="form-control" type="text" id="testInviteNome" name="nome" maxlength="100" placeholder="Facoltativo">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="testInviteReparto">Reparto simulato</label>
+                            <select class="form-select" id="testInviteReparto" name="reparto">
+                                <option value="">Nessun reparto</option>
+                                <?php foreach (appDepartments() as $code => $label): ?>
+                                    <option value="<?php echo appAddettiEscape($code); ?>"<?php echo $code === $reparto ? ' selected' : ''; ?>>
+                                        <?php echo appAddettiEscape($label); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-primary">Invia email di test</button>
+                        </div>
+                    </form>
+                <?php endif; ?>
+
                 <hr class="my-4">
 
                 <h3 class="h6">Inviti recenti</h3>

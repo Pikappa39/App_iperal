@@ -286,3 +286,19 @@ function sendInvitationEmail(string $recipient, string $name, string $department
         . "Grazie,\r\nIl team MyOrari";
     return appSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body, appEmailHtmlFromText($body));
 }
+
+function sendTestInvitationEmail(string $recipient, string $name, string $department, string $testUrl, string $requestedBy): array
+{
+    $greetingName = trim($name) !== '' ? trim($name) : 'collega';
+    $departmentText = $department !== '' ? " per il reparto {$department}" : '';
+    $body = "Ciao {$greetingName},\r\n\r\n"
+        . "questa e una mail di test inviata da MyOrari{$departmentText}.\r\n\r\n"
+        . "Serve solo a verificare il provider email, la consegna e la configurazione di sicurezza: non crea account e non registra alcun invito operativo nel database.\r\n\r\n"
+        . "Questo collegamento e puramente dimostrativo e non attiva nessun profilo:\r\n"
+        . "{$testUrl}\r\n\r\n"
+        . "Richiesta di test eseguita da: {$requestedBy}\r\n"
+        . 'Data e ora test: ' . date('d/m/Y H:i:s') . "\r\n\r\n"
+        . "Se non ti aspettavi questa email, puoi ignorarla.\r\n\r\n"
+        . "Grazie,\r\nIl team MyOrari";
+    return appSendPlainTextEmail($recipient, '[TEST] Invito MyOrari', $body, appEmailHtmlFromText($body));
+}

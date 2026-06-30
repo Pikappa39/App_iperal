@@ -1,7 +1,13 @@
 {
-    "latest": "0.12.8",
-    "updated_at": "2026-06-30T07:25:58+00:00",
+    "latest": "0.13.0",
+    "updated_at": "2026-06-30T12:16:01+02:00",
     "releases": [
+        {
+            "version": "0.13.0",
+            "previous_version": "0.12.8",
+            "description": "Aggiunge inviti di test separati dagli inviti reali",
+            "released_at": "2026-06-30T12:16:01+02:00"
+        },
         {
             "version": "0.12.8",
             "previous_version": "0.12.7",
