@@ -2,6 +2,9 @@
 require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 require_once __DIR__ . '/connection_files/connection.php';
 require_once __DIR__ . '/connection_files/invite_lib.php';
 require __DIR__ . '/gestore_ods/orario_converter_lib.php';
@@ -106,11 +109,10 @@ if (!$databaseError) {
                 'SELECT *
                  FROM user_invites
                  WHERE reparto = ?
-                   AND invited_by_cf = ?
                  ORDER BY created_at DESC
                  LIMIT 30'
             );
-            $inviteQuery->execute([$reparto, (string) ($_SESSION['user']['cf'] ?? '')]);
+            $inviteQuery->execute([$reparto]);
         }
     }
     $invites = $inviteQuery ? $inviteQuery->fetchAll(PDO::FETCH_ASSOC) : [];

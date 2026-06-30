@@ -129,12 +129,9 @@ function appInviteCanManageInvite(array $sessionUser, array $invite): bool
     }
 
     $managerDepartment = trim((string) ($sessionUser['reparto'] ?? ''));
-    $managerCf = trim((string) ($sessionUser['cf'] ?? ''));
     return $viewerRole === 1
         && $managerDepartment !== ''
-        && $managerCf !== ''
-        && (string) ($invite['reparto'] ?? '') === $managerDepartment
-        && (string) ($invite['invited_by_cf'] ?? '') === $managerCf;
+        && (string) ($invite['reparto'] ?? '') === $managerDepartment;
 }
 
 function appInviteLoadForUpdate(PDO $pdo, int $inviteId, array $sessionUser): array

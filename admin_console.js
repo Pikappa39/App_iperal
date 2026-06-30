@@ -47,18 +47,28 @@
 
     document.querySelectorAll("form").forEach((form) => {
         const action = form.querySelector('input[name="action"]')?.value || "";
-        if (!["manual_invite_link", "revoke_invite"].includes(action)) {
+        if (!["manual_invite_link", "revoke_invite", "delete_revoked_invites"].includes(action)) {
             return;
         }
 
         form.addEventListener("submit", (event) => {
+            const confirmation = form.dataset.adminConsoleConfirm || "";
+            if (confirmation && !window.confirm(confirmation)) {
+                event.preventDefault();
+                return;
+            }
+
             if (form.dataset.submitting === "1") {
                 event.preventDefault();
                 return;
             }
 
             form.dataset.submitting = "1";
-            const label = action === "revoke_invite" ? "Revoco..." : "Genero...";
+            const label = action === "revoke_invite"
+                ? "Revoco..."
+                : action === "delete_revoked_invites"
+                    ? "Elimino..."
+                    : "Genero...";
             form.querySelectorAll('button[type="submit"]').forEach((button) => {
                 button.disabled = true;
                 button.textContent = label;

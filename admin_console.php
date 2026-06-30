@@ -8,6 +8,9 @@ error_reporting(E_ALL);
 require __DIR__ . '/app_config.php';
 require __DIR__ . '/session_bootstrap.php';
 app_session_start();
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 require_once __DIR__ . '/connection_files/connection.php';
 require_once __DIR__ . '/connection_files/admin_audit_lib.php';
 require_once __DIR__ . '/connection_files/invite_lib.php';
@@ -89,6 +92,7 @@ function appAdminConsoleAuditActionLabel(string $action): string
         'invite_regenerated' => 'Invito rigenerato',
         'invite_manual_link_generated' => 'Link invito generato',
         'invite_revoked' => 'Invito revocato',
+        'revoked_invites_deleted' => 'Inviti revocati eliminati',
         default => $action,
     };
 }
@@ -123,6 +127,9 @@ function appAdminConsoleAuditDetailsLabel(?string $detailsJson): string
     }
     if (!empty($details['reason'])) {
         $parts[] = 'Motivo: ' . (string) $details['reason'];
+    }
+    if (isset($details['deleted_count'])) {
+        $parts[] = 'Eliminati: ' . (int) $details['deleted_count'];
     }
 
     return implode(' · ', $parts);
@@ -776,6 +783,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
     $inviteId = (int) ($_POST['invite_id'] ?? 0);
     try {
+        if ($action === 'delete_revoked_invites') {
+            $deleteSql = 'DELETE FROM user_invites WHERE revoked_at IS NOT NULL';
+            $deleteParams = [];
+            if ($postedDepartment !== '') {
+                $deleteSql .= ' AND reparto = ?';
+                $deleteParams[] = $postedDepartment;
+            }
+
+            $pdo->beginTransaction();
+            $deleteStatement = $pdo->prepare($deleteSql);
+            $deleteStatement->execute($deleteParams);
+            $deletedCount = $deleteStatement->rowCount();
+            $pdo->commit();
+
+            appAdminAuditLog($pdo, $sessionUser, 'revoked_invites_deleted', 'user_invite', null, [
+                'reparto' => $postedDepartment,
+                'deleted_count' => $deletedCount,
+            ]);
+            appAdminConsoleFlash(
+                $deletedCount > 0 ? 'success' : 'info',
+                $deletedCount === 1
+                    ? '1 invito revocato eliminato.'
+                    : $deletedCount . ' inviti revocati eliminati.'
+            );
+            appAdminConsoleRedirect($redirectParams);
+        }
+
         if ($inviteId <= 0 || !in_array($action, ['manual_invite_link', 'revoke_invite'], true)) {
             throw new RuntimeException('Operazione non valida.');
         }
@@ -823,6 +857,7 @@ $mappings = [];
 $invites = [];
 $auditLogs = [];
 $auditLogError = false;
+$revokedInvitesCount = 0;
 $diagnostics = [];
 $diagnosticSummary = ['ok' => 0, 'warning' => 0, 'danger' => 0, 'info' => 0];
 $performanceReport = [
@@ -906,6 +941,16 @@ if ($unlocked && !$databaseError) {
         $invite['computed_status'] = $status;
         $invites[] = $invite;
     }
+
+    $revokedCountSql = 'SELECT COUNT(*) FROM user_invites WHERE revoked_at IS NOT NULL';
+    $revokedCountParams = [];
+    if ($departmentFilter !== '') {
+        $revokedCountSql .= ' AND reparto = ?';
+        $revokedCountParams[] = $departmentFilter;
+    }
+    $revokedCountStatement = $pdo->prepare($revokedCountSql);
+    $revokedCountStatement->execute($revokedCountParams);
+    $revokedInvitesCount = (int) $revokedCountStatement->fetchColumn();
 
     $stats['active_users'] = count($users);
     $stats['mappings'] = count($mappings);
@@ -1215,6 +1260,24 @@ $expiresAt = (int) ($_SESSION['admin_console_until'] ?? 0);
                 </span>
             </summary>
             <div class="admin-console-section__body">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+                <div class="text-muted">
+                    <?php if ($departmentFilter !== ''): ?>
+                        Revocati nel reparto selezionato: <?php echo (int) $revokedInvitesCount; ?>.
+                    <?php else: ?>
+                        Inviti revocati totali: <?php echo (int) $revokedInvitesCount; ?>.
+                    <?php endif; ?>
+                </div>
+                <form method="post" data-admin-console-confirm="Eliminare definitivamente gli inviti revocati? Questa operazione non può essere annullata.">
+                    <input type="hidden" name="csrf_token" value="<?php echo appAdminConsoleEscape($appCsrfToken); ?>">
+                    <input type="hidden" name="action" value="delete_revoked_invites">
+                    <input type="hidden" name="reparto" value="<?php echo appAdminConsoleEscape($departmentFilter); ?>">
+                    <input type="hidden" name="stato" value="<?php echo appAdminConsoleEscape($inviteStatusFilter); ?>">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" <?php echo $revokedInvitesCount > 0 ? '' : 'disabled'; ?>>
+                        Elimina inviti revocati
+                    </button>
+                </form>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle admin-console-table">
                     <thead>
