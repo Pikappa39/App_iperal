@@ -19,6 +19,9 @@ return [
     'APP_SMTP_PASSWORD' => '',
     'APP_SMTP_FROM_EMAIL' => 'supporto@myorari.it',
     'APP_SMTP_FROM_NAME' => 'MyOrari',
+    // Se configurata, l'app usa Brevo API al posto del relay SMTP e forza
+    // trackOpens/trackClicks a false per le email transazionali.
+    'APP_BREVO_API_KEY' => '',
     // Genera il valore con:
     // php -r "echo password_hash('codice-scelto', PASSWORD_DEFAULT) . PHP_EOL;"
     'APP_ADMIN_CONSOLE_CODE_HASH' => '',

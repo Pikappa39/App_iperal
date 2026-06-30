@@ -1,7 +1,13 @@
 {
-    "latest": "0.12.6",
-    "updated_at": "2026-06-30T01:12:00+00:00",
+    "latest": "0.12.7",
+    "updated_at": "2026-06-30T01:53:18+00:00",
     "releases": [
+        {
+            "version": "0.12.7",
+            "previous_version": "0.12.6",
+            "description": "Invio inviti via Brevo API senza tracking",
+            "released_at": "2026-06-30T01:53:18+00:00"
+        },
         {
             "version": "0.12.6",
             "previous_version": "0.12.5",

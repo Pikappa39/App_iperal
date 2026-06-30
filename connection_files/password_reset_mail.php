@@ -65,6 +65,85 @@ function smtpEncodeHeader(string $value): string
     return '=?UTF-8?B?' . base64_encode(smtpSanitizeHeaderValue($value)) . '?=';
 }
 
+function brevoApiSendPlainTextEmail(string $recipient, string $subject, string $body): array
+{
+    $apiKey = appBrevoApiKey();
+    $fromEmail = appSmtpFromEmail();
+    if ($apiKey === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL) || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException('Configurazione Brevo API incompleta');
+    }
+
+    $fromName = smtpSanitizeHeaderValue(appSmtpFromName());
+    $safeSubject = smtpSanitizeHeaderValue($subject);
+    $originMessageId = smtpMessageId($fromEmail);
+    $payload = [
+        'sender' => [
+            'name' => $fromName,
+            'email' => $fromEmail,
+        ],
+        'to' => [
+            ['email' => $recipient],
+        ],
+        'replyTo' => [
+            'name' => $fromName,
+            'email' => $fromEmail,
+        ],
+        'subject' => $safeSubject,
+        'textContent' => $body,
+        'headers' => [
+            'Auto-Submitted' => 'auto-generated',
+            'Importance' => 'normal',
+            'X-Mailer' => 'MyOrari',
+            'X-MyOrari-Message-ID' => $originMessageId,
+            'X-Priority' => '3',
+        ],
+        'trackOpens' => false,
+        'trackClicks' => false,
+    ];
+    $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($encodedPayload)) {
+        throw new RuntimeException('Impossibile preparare la richiesta Brevo API');
+    }
+
+    $httpResponseHeaders = [];
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => implode("\r\n", [
+                'Accept: application/json',
+                'Content-Type: application/json',
+                'api-key: ' . $apiKey,
+            ]),
+            'content' => $encodedPayload,
+            'ignore_errors' => true,
+            'timeout' => 15,
+        ],
+    ]);
+    $response = @file_get_contents('https://api.brevo.com/v3/smtp/email', false, $context);
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        $httpResponseHeaders = $http_response_header;
+    }
+
+    $statusCode = 0;
+    if (isset($httpResponseHeaders[0]) && preg_match('/\s(\d{3})\s/', (string) $httpResponseHeaders[0], $matches)) {
+        $statusCode = (int) $matches[1];
+    }
+    $responseText = is_string($response) ? $response : '';
+    if ($statusCode < 200 || $statusCode >= 300 || $response === false) {
+        throw new RuntimeException('Brevo API ha rifiutato la richiesta: HTTP ' . $statusCode . ' ' . mb_substr($responseText, 0, 300, 'UTF-8'));
+    }
+
+    $decoded = json_decode($responseText, true);
+    $brevoMessageId = is_array($decoded) ? (string) ($decoded['messageId'] ?? '') : '';
+
+    return [
+        'message_id' => $brevoMessageId !== '' ? $brevoMessageId : $originMessageId,
+        'smtp_code' => $statusCode,
+        'smtp_response' => $responseText,
+        'transport' => 'brevo_api',
+    ];
+}
+
 function smtpSendPlainTextEmail(string $recipient, string $subject, string $body): array
 {
     $host = appSmtpHost();
@@ -146,10 +225,20 @@ function smtpSendPlainTextEmail(string $recipient, string $subject, string $body
             'message_id' => $messageId,
             'smtp_code' => $acceptedCode,
             'smtp_response' => $acceptedResponse,
+            'transport' => 'smtp',
         ];
     } finally {
         fclose($socket);
     }
+}
+
+function appSendPlainTextEmail(string $recipient, string $subject, string $body): array
+{
+    if (appBrevoApiKey() !== '') {
+        return brevoApiSendPlainTextEmail($recipient, $subject, $body);
+    }
+
+    return smtpSendPlainTextEmail($recipient, $subject, $body);
 }
 
 function sendPasswordResetEmail(string $recipient, string $resetUrl): array
@@ -160,7 +249,7 @@ function sendPasswordResetEmail(string $recipient, string $resetUrl): array
         . $resetUrl . "\r\n\r\n"
         . "Se non hai richiesto tu questa operazione, puoi ignorare questa email: la password attuale resterà invariata.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    return smtpSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
+    return appSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
 }
 
 function sendInvitationEmail(string $recipient, string $name, string $department, string $inviteUrl, string $expiresAt): array
@@ -176,5 +265,5 @@ function sendInvitationEmail(string $recipient, string $name, string $department
         . "Dovrai solo scegliere una password personale. Il link è individuale e non va inoltrato ad altre persone.\r\n\r\n"
         . "Se non ti aspettavi questo invito, puoi ignorare questa email.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    return smtpSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body);
+    return appSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body);
 }

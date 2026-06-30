@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.12.6');
+    define('APP_VERSION', '0.12.7');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -226,6 +226,13 @@ if (!function_exists('appSmtpFromName')) {
     function appSmtpFromName(): string
     {
         return appEnv('APP_SMTP_FROM_NAME') ?: 'MyOrari';
+    }
+}
+
+if (!function_exists('appBrevoApiKey')) {
+    function appBrevoApiKey(): string
+    {
+        return appEnv('APP_BREVO_API_KEY');
     }
 }
 

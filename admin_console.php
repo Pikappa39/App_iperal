@@ -126,6 +126,9 @@ function appAdminConsoleAuditDetailsLabel(?string $detailsJson): string
     if (!empty($details['source'])) {
         $parts[] = 'Origine: ' . (string) $details['source'];
     }
+    if (!empty($details['transport'])) {
+        $parts[] = 'Canale: ' . (string) $details['transport'];
+    }
     if (!empty($details['reason'])) {
         $parts[] = 'Motivo: ' . (string) $details['reason'];
     }

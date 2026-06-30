@@ -33,6 +33,7 @@ function appInviteAuditEmailSent(PDO $pdo, array $sessionUser, int $inviteId, st
         'message_id' => (string) ($mailInfo['message_id'] ?? ''),
         'smtp_code' => (int) ($mailInfo['smtp_code'] ?? 0),
         'smtp_response' => mb_substr((string) ($mailInfo['smtp_response'] ?? ''), 0, 255, 'UTF-8'),
+        'transport' => (string) ($mailInfo['transport'] ?? ''),
     ]);
 }
 
