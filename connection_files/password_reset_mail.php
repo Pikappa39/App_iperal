@@ -105,7 +105,6 @@ function brevoApiSendPlainTextEmail(string $recipient, string $subject, string $
         ],
         'subject' => $safeSubject,
         'textContent' => $body,
-        'htmlContent' => $htmlBody ?? appEmailHtmlFromText($body),
         'headers' => [
             'Auto-Submitted' => 'auto-generated',
             'Importance' => 'normal',
