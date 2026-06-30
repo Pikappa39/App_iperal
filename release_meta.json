@@ -1,7 +1,13 @@
 {
-    "latest": "0.12.7",
-    "updated_at": "2026-06-30T01:53:18+00:00",
+    "latest": "0.12.8",
+    "updated_at": "2026-06-30T07:25:58+00:00",
     "releases": [
+        {
+            "version": "0.12.8",
+            "previous_version": "0.12.7",
+            "description": "Migliora contenuto email inviti per antispam",
+            "released_at": "2026-06-30T07:25:58+00:00"
+        },
         {
             "version": "0.12.7",
             "previous_version": "0.12.6",

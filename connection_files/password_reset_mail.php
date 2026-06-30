@@ -65,7 +65,22 @@ function smtpEncodeHeader(string $value): string
     return '=?UTF-8?B?' . base64_encode(smtpSanitizeHeaderValue($value)) . '?=';
 }
 
-function brevoApiSendPlainTextEmail(string $recipient, string $subject, string $body): array
+function appEmailHtmlFromText(string $body): string
+{
+    $escaped = htmlspecialchars($body, ENT_QUOTES, 'UTF-8');
+    $paragraphs = preg_split('/\R{2,}/', $escaped) ?: [$escaped];
+    $htmlParagraphs = array_map(
+        static fn (string $paragraph): string => '<p>' . nl2br(trim($paragraph), false) . '</p>',
+        array_filter($paragraphs, static fn (string $paragraph): bool => trim($paragraph) !== '')
+    );
+
+    return '<!doctype html><html lang="it"><head><meta charset="utf-8"></head>'
+        . '<body style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937">'
+        . implode('', $htmlParagraphs)
+        . '</body></html>';
+}
+
+function brevoApiSendPlainTextEmail(string $recipient, string $subject, string $body, ?string $htmlBody = null): array
 {
     $apiKey = appBrevoApiKey();
     $fromEmail = appSmtpFromEmail();
@@ -90,6 +105,7 @@ function brevoApiSendPlainTextEmail(string $recipient, string $subject, string $
         ],
         'subject' => $safeSubject,
         'textContent' => $body,
+        'htmlContent' => $htmlBody ?? appEmailHtmlFromText($body),
         'headers' => [
             'Auto-Submitted' => 'auto-generated',
             'Importance' => 'normal',
@@ -232,10 +248,10 @@ function smtpSendPlainTextEmail(string $recipient, string $subject, string $body
     }
 }
 
-function appSendPlainTextEmail(string $recipient, string $subject, string $body): array
+function appSendPlainTextEmail(string $recipient, string $subject, string $body, ?string $htmlBody = null): array
 {
     if (appBrevoApiKey() !== '') {
-        return brevoApiSendPlainTextEmail($recipient, $subject, $body);
+        return brevoApiSendPlainTextEmail($recipient, $subject, $body, $htmlBody);
     }
 
     return smtpSendPlainTextEmail($recipient, $subject, $body);
@@ -245,11 +261,13 @@ function sendPasswordResetEmail(string $recipient, string $resetUrl): array
 {
     $body = "Ciao,\r\n\r\n"
         . "abbiamo ricevuto una richiesta per reimpostare la password del tuo account MyOrari.\r\n\r\n"
-        . "Per scegliere una nuova password apri questo link entro 60 minuti:\r\n"
+        . "MyOrari è lo strumento usato per consultare turni, comunicazioni e servizi interni collegati al tuo reparto.\r\n\r\n"
+        . "Per motivi di sicurezza il collegamento è personale e rimane valido per 60 minuti. Aprilo per scegliere una nuova password:\r\n"
         . $resetUrl . "\r\n\r\n"
         . "Se non hai richiesto tu questa operazione, puoi ignorare questa email: la password attuale resterà invariata.\r\n\r\n"
+        . "Per assistenza puoi rispondere a questa email o contattare il tuo responsabile.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    return appSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body);
+    return appSendPlainTextEmail($recipient, 'Reimposta la password di MyOrari', $body, appEmailHtmlFromText($body));
 }
 
 function sendInvitationEmail(string $recipient, string $name, string $department, string $inviteUrl, string $expiresAt): array
@@ -260,10 +278,11 @@ function sendInvitationEmail(string $recipient, string $name, string $department
     $departmentText = $department !== '' ? " per il reparto {$department}" : '';
     $body = "Ciao {$greetingName},\r\n\r\n"
         . "ti abbiamo inviato un invito per attivare il tuo account MyOrari{$departmentText}.\r\n\r\n"
-        . "Per completare l'attivazione apri questo link entro {$expiryLabel}:\r\n"
+        . "MyOrari è l'app interna usata per consultare gli orari, ricevere comunicazioni di reparto e accedere ai servizi collegati alla gestione del lavoro.\r\n\r\n"
+        . "Per completare l'attivazione apri il collegamento qui sotto entro {$expiryLabel}. Il link ti porterà alla pagina sicura dove potrai scegliere la tua password personale:\r\n"
         . "{$inviteUrl}\r\n\r\n"
-        . "Dovrai solo scegliere una password personale. Il link è individuale e non va inoltrato ad altre persone.\r\n\r\n"
-        . "Se non ti aspettavi questo invito, puoi ignorare questa email.\r\n\r\n"
+        . "Il collegamento è individuale, valido solo per il tuo account e non va inoltrato ad altre persone.\r\n\r\n"
+        . "Se non ti aspettavi questo invito, puoi ignorare questa email oppure contattare il responsabile del reparto per una verifica.\r\n\r\n"
         . "Grazie,\r\nIl team MyOrari";
-    return appSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body);
+    return appSendPlainTextEmail($recipient, 'Attiva il tuo account MyOrari', $body, appEmailHtmlFromText($body));
 }
