@@ -12,8 +12,8 @@ echo json_encode([
     'start_url' => './index.php',
     'scope' => './',
     'display' => 'standalone',
-    'background_color' => '#f5f7fb',
-    'theme_color' => '#0d6efd',
+    'background_color' => '#e8f2ff',
+    'theme_color' => '#07146a',
     'icons' => [
         [
             'src' => 'img/icon-192.png?v=' . $version,

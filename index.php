@@ -84,6 +84,7 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
         try {
             var isDark = localStorage.getItem("app-iperal-theme") === "dark";
             document.documentElement.dataset.theme = isDark ? "dark" : "light";
+            document.documentElement.style.backgroundColor = isDark ? "#07146a" : "#e8f2ff";
             if (isDark) {
                 var preload = document.createElement("link");
                 preload.rel = "preload";
@@ -96,11 +97,22 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
         }
     })();
     </script>
+    <style>
+    html,
+    body {
+        background-color: #e8f2ff;
+    }
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
+        background-color: #07146a;
+    }
+    </style>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="manifest" href="manifest.php?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="apple-touch-icon" href="img/icon-192.png?v=<?php echo rawurlencode(APP_VERSION); ?>">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e8f2ff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07146a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

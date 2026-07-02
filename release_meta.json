@@ -1,7 +1,13 @@
 {
-    "latest": "0.14.1",
-    "updated_at": "2026-07-02T20:04:05+02:00",
+    "latest": "0.14.2",
+    "updated_at": "2026-07-02T22:29:45+02:00",
     "releases": [
+        {
+            "version": "0.14.2",
+            "previous_version": "0.14.1",
+            "description": "Estende sfondo PWA nella safe area iPhone",
+            "released_at": "2026-07-02T22:29:45+02:00"
+        },
         {
             "version": "0.14.1",
             "previous_version": "0.14.0",
