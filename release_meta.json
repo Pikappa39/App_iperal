@@ -1,7 +1,13 @@
 {
-    "latest": "0.13.1",
-    "updated_at": "2026-06-30T12:38:56+02:00",
+    "latest": "0.14.0",
+    "updated_at": "2026-07-02T19:54:33+02:00",
     "releases": [
+        {
+            "version": "0.14.0",
+            "previous_version": "0.13.1",
+            "description": "Restyling home con dashboard glass ottimizzata e asset WebP",
+            "released_at": "2026-07-02T19:54:33+02:00"
+        },
         {
             "version": "0.13.1",
             "previous_version": "0.13.0",

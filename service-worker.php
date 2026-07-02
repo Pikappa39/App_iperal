@@ -12,6 +12,7 @@ $staticAssets = [
     './app_init.js?v=' . $assetVersion,
     './sfera.css?v=' . $assetVersion,
     './manifest.php?v=' . $assetVersion,
+    './img/home-background-dark.webp',
     './img/icon-192.png?v=' . $assetVersion,
     './img/default.webp?v=' . $assetVersion,
 ];

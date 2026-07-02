@@ -16,10 +16,9 @@ function syncCurrentAvatar(avatar) {
         window.userSession.avatar = avatar;
     }
 
-    const profileImg = document.getElementById("profileImg");
-    if (profileImg) {
-        profileImg.src = getAvatarImagePath(avatar);
-    }
+    document.querySelectorAll("#profileImg, .profile-drawer__avatar").forEach((image) => {
+        image.src = getAvatarImagePath(avatar);
+    });
 }
 
 async function saveProfileAvatar(avatar) {

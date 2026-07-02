@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.13.1');
+    define('APP_VERSION', '0.14.0');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -152,11 +152,11 @@ if (!function_exists('appAvailableAvatars')) {
     function appAvailableAvatars(): array
     {
         $avatars = [];
-        $files = glob(__DIR__ . '/img/*.png') ?: [];
+        $files = glob(__DIR__ . '/img/*.webp') ?: [];
 
         foreach ($files as $file) {
             $avatar = pathinfo($file, PATHINFO_FILENAME);
-            if (!preg_match('/^[A-Za-z0-9_-]+$/', $avatar) || str_starts_with($avatar, 'icon-')) {
+            if (!preg_match('/^[A-Za-z0-9_-]+$/', $avatar) || str_starts_with($avatar, 'icon-') || str_starts_with($avatar, 'home-')) {
                 continue;
             }
 

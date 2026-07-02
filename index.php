@@ -49,6 +49,32 @@ $clientBootstrap = [
     'appVersion' => APP_VERSION,
     'releaseMeta' => $releaseMeta,
 ];
+
+$homeAssetVersion = rawurlencode(APP_VERSION);
+$homeRole = (int) ($_SESSION['user']['capo'] ?? 0);
+$homeCanManagePeople = in_array($homeRole, [1, 2, 3], true);
+
+function app_home_theme_icon(string $name, string $assetVersion): string
+{
+    $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    $safeVersion = htmlspecialchars($assetVersion, ENT_QUOTES, 'UTF-8');
+
+    return '<span class="home-theme-icon">'
+        . '<img class="home-theme-icon__img home-theme-icon__img--light" src="img/home-icon-ui-light-' . $safeName . '.webp?v=' . $safeVersion . '" alt="">'
+        . '<img class="home-theme-icon__img home-theme-icon__img--dark" src="img/home-icon-ui-dark-' . $safeName . '.webp?v=' . $safeVersion . '" alt="">'
+        . '</span>';
+}
+
+function app_home_tile_content(string $iconName, string $title, string $subtitle, string $assetVersion): string
+{
+    return '<span class="home-tile__icon" aria-hidden="true">'
+        . app_home_theme_icon($iconName, $assetVersion)
+        . '</span><span><strong>'
+        . htmlspecialchars($title, ENT_QUOTES, 'UTF-8')
+        . '</strong><small>'
+        . htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8')
+        . '</small></span>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -56,7 +82,15 @@ $clientBootstrap = [
     <script>
     (function () {
         try {
-            document.documentElement.dataset.theme = localStorage.getItem("app-iperal-theme") === "dark" ? "dark" : "light";
+            var isDark = localStorage.getItem("app-iperal-theme") === "dark";
+            document.documentElement.dataset.theme = isDark ? "dark" : "light";
+            if (isDark) {
+                var preload = document.createElement("link");
+                preload.rel = "preload";
+                preload.as = "image";
+                preload.href = "img/home-background-dark.webp";
+                document.head.appendChild(preload);
+            }
         } catch (error) {
             document.documentElement.dataset.theme = "light";
         }
@@ -103,23 +137,9 @@ $clientBootstrap = [
             </div>
           </div>
         </div>
-        <div class="dropdown">
-          <button class="btn avatar-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu profilo">
-            <img id="profileImg" src="img/default.webp?v=<?php echo rawurlencode(APP_VERSION); ?>" width="40" height="40" class="rounded-circle" alt="Profilo">
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><button type="button"  class="dropdown-item" id="profileItem" >Profilo</button></li>
-            <li><button type="button" class="dropdown-item" id="guideItem">Guida</button></li>
-            <li><button type="button" class="dropdown-item" id="checkUpdatesItem">Controlla aggiornamenti</button></li>
-            <li><button type="button" class="dropdown-item " id="setting">Impostazioni</button></li>
-            <li>
-              <form id="logoutForm" action="connection_files/logout.php" method="post">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(app_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
-                <button class="dropdown-item" id="logoutLink" type="submit">Logout</button>
-              </form>
-            </li>
-          </ul>
-        </div>
+        <button class="avatar-toggle home-profile-trigger" type="button" id="profileMenuTrigger" aria-expanded="false" aria-controls="profileDrawer" aria-label="Menu profilo">
+          <img id="profileImg" src="img/default.webp?v=<?php echo rawurlencode(APP_VERSION); ?>" width="40" height="40" class="rounded-circle" alt="Profilo">
+        </button>
       <?php endif; ?>
     </div>
   </header>
@@ -142,65 +162,133 @@ $clientBootstrap = [
     </div>
   </div>
 
-  <section id="homeScreen" class="home-screen">
-    <div class="home-dashboard">
-      <div class="home-actions">
-        <button type="button" id="openOrari" class="home-orari sfera">
-          <span class="home-action-icon" aria-hidden="true">⏱</span>
-          <span class="home-action-label">Orari</span>
+  <?php if (isset($_SESSION["user"])): ?>
+    <div class="profile-drawer-backdrop app-hidden" id="profileDrawerBackdrop" hidden></div>
+    <aside class="profile-drawer app-hidden" id="profileDrawer" aria-hidden="true" aria-label="Menu profilo" hidden>
+      <div class="profile-drawer__header">
+        <img class="profile-drawer__avatar" src="img/<?php echo htmlspecialchars((string) ($_SESSION['user']['avatar'] ?? 'default'), ENT_QUOTES, 'UTF-8'); ?>.webp?v=<?php echo rawurlencode(APP_VERSION); ?>" alt="">
+        <div>
+          <strong><?php echo htmlspecialchars(trim((string) ($_SESSION['user']['nome'] ?? '') . ' ' . (string) ($_SESSION['user']['cognome'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></strong>
+          <span><?php echo htmlspecialchars(appDepartments()[(string) ($_SESSION['user']['reparto'] ?? '')] ?? (string) ($_SESSION['user']['reparto'] ?? 'Reparto'), ENT_QUOTES, 'UTF-8'); ?></span>
+        </div>
+        <button class="profile-drawer__close" type="button" id="profileDrawerClose" aria-label="Chiudi menu"></button>
+      </div>
+
+      <div class="profile-drawer__section">
+        <p>Area personale</p>
+        <button type="button" class="profile-drawer__item" id="profileItem">
+          <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M5 21a7 7 0 0 1 14 0"></path></svg></span>
+          <span><strong>Profilo</strong><small>Avatar e dati account</small></span>
         </button>
-        <button type="button" id="communicationsItem" class="home-orari sfera home-communications">
-          <span class="home-action-icon" aria-hidden="true">✉</span>
-          <span class="home-action-label">Comunicazioni</span>
+        <button type="button" class="profile-drawer__item" id="setting">
+          <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3"></path><path d="M12 18v3"></path><path d="M3 12h3"></path><path d="M18 12h3"></path><circle cx="12" cy="12" r="4"></circle></svg></span>
+          <span><strong>Impostazioni</strong><small>Tema e notifiche</small></span>
         </button>
-        <button type="button" id="scheduleAdjustmentsItem" class="home-orari sfera home-adjustments">
-          <span class="home-action-icon" aria-hidden="true">±</span>
-          <span class="home-action-label">Richieste ore</span>
-        </button>
-        <button type="button" id="customerOrdersItem" class="home-orari sfera home-customer-orders">
-          <span class="home-action-icon" aria-hidden="true">▤</span>
-          <span class="home-action-label">Ordini clienti</span>
+        <button type="button" class="profile-drawer__item" id="guideItem">
+          <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h10a4 4 0 0 1 4 4v10H9a4 4 0 0 0-4-4Z"></path><path d="M5 5v14"></path><path d="M9 9h6"></path><path d="M9 12h4"></path></svg></span>
+          <span><strong>Guida</strong><small>Manuale e supporto</small></span>
         </button>
       </div>
 
-      <?php if (isset($_SESSION['user'])): ?>
-        <div class="home-tools" aria-label="Funzioni operative">
-          <button type="button" class="home-tool" id="scheduleChangesItem">
-            <span class="home-tool-icon" aria-hidden="true">↻</span>
-            <strong>Aggiornamenti orari</strong>
-            <span>Variazioni pubblicate</span>
+      <div class="profile-drawer__section">
+        <p>Sistema</p>
+        <?php if ((int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
+          <a href="admin_console.php" class="profile-drawer__item">
+            <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"></path><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span>
+            <span><strong>Console</strong><small>Supervisione sistema</small></span>
+          </a>
+        <?php endif; ?>
+        <button type="button" class="profile-drawer__item" id="checkUpdatesItem">
+          <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.6-5.7"></path><path d="M18 3v5h-5"></path><path d="M20 12a8 8 0 0 1-13.6 5.7"></path><path d="M6 21v-5h5"></path></svg></span>
+          <span><strong>Aggiornamenti</strong><small>Controlla novita</small></span>
+        </button>
+        <form id="logoutForm" action="connection_files/logout.php" method="post">
+          <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(app_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+          <button class="profile-drawer__item" id="logoutLink" type="submit">
+            <span class="profile-drawer__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 6h3v12h-3"></path><path d="M10 9 7 12l3 3"></path><path d="M7 12h9"></path></svg></span>
+            <span><strong>Logout</strong><small>Esci dall'app</small></span>
           </button>
-          <?php if (in_array((int) ($_SESSION['user']['capo'] ?? 0), [1, 2, 3], true)): ?>
-            <a href="addetti.php" class="home-tool">
-              <span class="home-tool-icon" aria-hidden="true">◎</span>
-              <strong>Addetti</strong>
-              <span>Utenti e associazioni</span>
-            </a>
-            <a class="home-tool" id="uploadItem" href="testjs.php">
-              <span class="home-tool-icon" aria-hidden="true">↑</span>
-              <strong>Upload</strong>
-              <span>Carica file orari</span>
-            </a>
-            <button type="button" class="home-tool d-none" id="noteAdminItem">
-              <span class="home-tool-icon" aria-hidden="true">✎</span>
-              <strong>Note</strong>
-              <span>Gestione note reparto</span>
+        </form>
+      </div>
+    </aside>
+  <?php endif; ?>
+
+  <section id="homeScreen" class="home-screen">
+    <div class="home-dashboard">
+      <details class="home-board home-board--schedule" open>
+        <summary class="home-board__header">
+          <div>
+            <h2>Orari personali</h2>
+            <p>Consultazione, variazioni e caricamento dei turni</p>
+          </div>
+          <span class="home-board__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="home-board__content">
+          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '3' : '2'; ?>">
+            <button type="button" id="openOrari" class="home-tile home-tile--icon-only home-tile--blue">
+              <?php echo app_home_tile_content('orari-clock', 'Orari', 'Vista personale dei turni', $homeAssetVersion); ?>
             </button>
-          <?php endif; ?>
-          <button type="button" class="home-tool" id="departmentOverviewItem">
-            <span class="home-tool-icon" aria-hidden="true">▦</span>
-            <strong>Panoramica reparto</strong>
-            <span>Chi lavora oggi</span>
-          </button>
-          <?php if ((int) ($_SESSION['user']['capo'] ?? 0) === 3): ?>
-            <a href="admin_console.php" class="home-tool home-tool--admin">
-              <span class="home-tool-icon" aria-hidden="true">⌘</span>
-              <strong>Console</strong>
-              <span>Supervisione sistema</span>
-            </a>
-          <?php endif; ?>
+            <button type="button" id="scheduleChangesItem" class="home-tile home-tile--icon-only home-tile--green">
+              <?php echo app_home_tile_content('aggiornamenti-sync', 'Aggiornamenti', 'Variazioni pubblicate', $homeAssetVersion); ?>
+            </button>
+            <?php if ($homeCanManagePeople): ?>
+              <a id="uploadItem" href="testjs.php" class="home-tile home-tile--icon-only home-tile--amber">
+                <?php echo app_home_tile_content('upload-arrow', 'Upload', 'Carica file orari', $homeAssetVersion); ?>
+              </a>
+            <?php endif; ?>
+          </div>
         </div>
-      <?php endif; ?>
+      </details>
+
+      <details class="home-board home-board--people is-closed" data-initial-closed="1" open>
+        <summary class="home-board__header">
+          <div>
+            <h2>Gestione reparto</h2>
+            <p>Persone, comunicazioni e richieste operative</p>
+          </div>
+          <span class="home-board__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="home-board__content">
+          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '5' : '3'; ?>">
+            <button type="button" id="communicationsItem" class="home-tile home-tile--icon-only home-tile--cyan">
+              <?php echo app_home_tile_content('comunicazioni-chat', 'Comunicazioni', 'Messaggi di reparto', $homeAssetVersion); ?>
+            </button>
+            <button type="button" id="scheduleAdjustmentsItem" class="home-tile home-tile--icon-only home-tile--red">
+              <?php echo app_home_tile_content('richieste-ore-alarm', 'Richieste ore', 'Extra e variazioni', $homeAssetVersion); ?>
+            </button>
+            <?php if ($homeCanManagePeople): ?>
+              <a href="addetti.php" class="home-tile home-tile--icon-only home-tile--green">
+                <?php echo app_home_tile_content('addetti-users', 'Addetti', 'Utenti e inviti', $homeAssetVersion); ?>
+              </a>
+            <?php endif; ?>
+            <button type="button" id="departmentOverviewItem" class="home-tile home-tile--icon-only home-tile--violet">
+              <?php echo app_home_tile_content('panoramica-grid', 'Panoramica', 'Presenze reparto', $homeAssetVersion); ?>
+            </button>
+            <?php if ($homeCanManagePeople): ?>
+              <button type="button" id="noteAdminItem" class="home-tile home-tile--icon-only home-tile--slate">
+                <?php echo app_home_tile_content('note-pencil', 'Note', 'Gestione note reparto', $homeAssetVersion); ?>
+              </button>
+            <?php endif; ?>
+          </div>
+        </div>
+      </details>
+
+      <details class="home-board home-board--department is-closed" data-initial-closed="1" open>
+        <summary class="home-board__header">
+          <div>
+            <h2>Attività reparto</h2>
+            <p>Strumenti collegati al lavoro quotidiano</p>
+          </div>
+          <span class="home-board__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="home-board__content">
+          <div class="home-tile-grid home-tile-grid--1">
+            <button type="button" id="customerOrdersItem" class="home-tile home-tile--icon-only home-tile--lime">
+              <?php echo app_home_tile_content('ordini-cart', 'Ordini clienti', 'Preparazione e ritiro', $homeAssetVersion); ?>
+            </button>
+          </div>
+        </div>
+      </details>
     </div>
 
   </section>
@@ -1181,11 +1269,200 @@ const profileImg = document.querySelector("#profileImg");
 if (profileImg) {
     profileImg.src = "img/" + avatar + ".webp?v=" + encodeURIComponent(String(window.appAssetVersion || window.appVersion || ""));
 }
+document.querySelectorAll(".profile-drawer__avatar").forEach(function (image) {
+    image.src = "img/" + avatar + ".webp?v=" + encodeURIComponent(String(window.appAssetVersion || window.appVersion || ""));
+});
 
-const capo = String(window.capo ?? "0");
-if (noteAdminItem && (capo === "1" || capo === "2" || capo === "3")) {
-    noteAdminItem.classList.remove("d-none");
+function initProfileDrawer() {
+    const trigger = document.getElementById("profileMenuTrigger");
+    const drawer = document.getElementById("profileDrawer");
+    const backdrop = document.getElementById("profileDrawerBackdrop");
+    const close = document.getElementById("profileDrawerClose");
+    if (!trigger || !drawer || !backdrop || !close) return;
+
+    function openDrawer() {
+        drawer.hidden = false;
+        backdrop.hidden = false;
+        drawer.classList.remove("app-hidden");
+        backdrop.classList.remove("app-hidden");
+        drawer.classList.remove("profile-drawer-entering");
+        void drawer.offsetWidth;
+        drawer.classList.add("profile-drawer-entering");
+        document.body.classList.add("profile-drawer-open");
+        drawer.setAttribute("aria-hidden", "false");
+        trigger.setAttribute("aria-expanded", "true");
+    }
+
+    function closeDrawer() {
+        document.body.classList.remove("profile-drawer-open");
+        drawer.setAttribute("aria-hidden", "true");
+        trigger.setAttribute("aria-expanded", "false");
+        window.setTimeout(function () {
+            if (!document.body.classList.contains("profile-drawer-open")) {
+                drawer.hidden = true;
+                backdrop.hidden = true;
+                drawer.classList.add("app-hidden");
+                backdrop.classList.add("app-hidden");
+            }
+        }, 260);
+    }
+
+    trigger.addEventListener("click", openDrawer);
+    drawer.addEventListener("animationend", function (event) {
+        if (event.animationName === "profileDrawerEnter") {
+            drawer.classList.remove("profile-drawer-entering");
+        }
+    });
+    close.addEventListener("click", closeDrawer);
+    backdrop.addEventListener("click", closeDrawer);
+    drawer.querySelectorAll(".profile-drawer__item").forEach(function (item) {
+        item.addEventListener("click", function () {
+            if (item.id !== "logoutLink") closeDrawer();
+        });
+    });
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeDrawer();
+    });
 }
+
+function initHomeBoards() {
+    const dashboard = document.querySelector(".home-dashboard");
+    if (!dashboard) return;
+
+    const desktopBoards = window.matchMedia("(min-width: 900px) and (min-height: 650px) and (hover: hover) and (pointer: fine)");
+    dashboard.querySelectorAll(".home-board").forEach(function (board) {
+        if (board.dataset.boardReady === "1") return;
+        board.dataset.boardReady = "1";
+
+        const summary = board.querySelector(".home-board__header");
+        const content = board.querySelector(".home-board__content");
+        if (!summary || !content) return;
+
+        function measureOpenHeight() {
+            const previousHeight = content.style.height;
+            const wasClosed = board.classList.contains("is-closed");
+            board.classList.remove("is-closed", "is-collapsing");
+            content.style.height = "auto";
+            content.dataset.openHeight = String(content.scrollHeight);
+            if (wasClosed) {
+                board.classList.add("is-closed");
+                content.style.height = "0px";
+            } else {
+                content.style.height = previousHeight === "0px" ? content.dataset.openHeight + "px" : previousHeight || "auto";
+            }
+        }
+
+        function syncBoardMode() {
+            if (desktopBoards.matches) {
+                board.open = true;
+                board.classList.remove("is-closed", "is-collapsing");
+                content.style.height = "auto";
+                return;
+            }
+            measureOpenHeight();
+            if (board.dataset.initialClosed === "1") {
+                board.classList.add("is-closed");
+                content.style.height = "0px";
+                return;
+            }
+            content.style.height = content.dataset.openHeight + "px";
+        }
+
+        syncBoardMode();
+
+        if (desktopBoards.addEventListener) {
+            desktopBoards.addEventListener("change", syncBoardMode);
+        } else {
+            desktopBoards.addListener(syncBoardMode);
+        }
+
+        summary.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            if (desktopBoards.matches) {
+                board.open = true;
+                board.classList.remove("is-closed", "is-collapsing");
+                content.style.height = "auto";
+                return;
+            }
+
+            if (!board.classList.contains("is-closed")) {
+                board.classList.add("is-collapsing");
+                const openHeight = content.dataset.openHeight || String(content.scrollHeight);
+                content.style.height = openHeight + "px";
+                requestAnimationFrame(function () {
+                    content.style.height = "0px";
+                });
+                return;
+            }
+
+            board.classList.remove("is-closed", "is-collapsing");
+            board.open = true;
+            content.style.height = "0px";
+            const targetHeight = content.dataset.openHeight || String(content.scrollHeight);
+            requestAnimationFrame(function () {
+                content.style.height = targetHeight + "px";
+            });
+        });
+
+        content.addEventListener("transitionend", function (event) {
+            if (event.propertyName !== "height") return;
+            if (content.style.height === "0px") {
+                board.open = true;
+                board.classList.add("is-closed");
+                board.classList.remove("is-collapsing");
+                return;
+            }
+            if (!board.classList.contains("is-closed")) {
+                content.dataset.openHeight = String(content.scrollHeight);
+                content.style.height = "auto";
+            }
+        });
+    });
+}
+
+function initHomeBackgroundMotion() {
+    const homeScreen = document.getElementById("homeScreen");
+    if (!homeScreen) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const limitedMotion = window.matchMedia("(pointer: coarse)");
+    let ticking = false;
+
+    function updateBackgroundOffset() {
+        ticking = false;
+        if (reducedMotion.matches || limitedMotion.matches) {
+            document.documentElement.style.setProperty("--bg-y", "0px");
+            return;
+        }
+
+        const offset = Math.max(-42, Math.min(42, window.scrollY * -0.08));
+        document.documentElement.style.setProperty("--bg-y", offset.toFixed(2) + "px");
+    }
+
+    function requestBackgroundUpdate() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateBackgroundOffset);
+    }
+
+    updateBackgroundOffset();
+    window.addEventListener("scroll", requestBackgroundUpdate, { passive: true });
+    if (reducedMotion.addEventListener) {
+        reducedMotion.addEventListener("change", requestBackgroundUpdate);
+    } else {
+        reducedMotion.addListener(requestBackgroundUpdate);
+    }
+    if (limitedMotion.addEventListener) {
+        limitedMotion.addEventListener("change", requestBackgroundUpdate);
+    } else {
+        limitedMotion.addListener(requestBackgroundUpdate);
+    }
+}
+
+initProfileDrawer();
+initHomeBoards();
+initHomeBackgroundMotion();
 })();
 </script>
 </body>
