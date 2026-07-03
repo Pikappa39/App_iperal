@@ -3793,12 +3793,16 @@ body.profile-drawer-open .profile-drawer.profile-drawer-entering {
 
 :root[data-theme="dark"] body:has(.home-screen) {
     background:
+        linear-gradient(180deg, rgba(1, 5, 18, 0.16), rgba(1, 5, 18, 0.34)),
+        url("img/home-background-dark.webp") center top / cover no-repeat,
         radial-gradient(circle at 50% 0%, rgba(11, 52, 160, 0.46), transparent 44%),
         linear-gradient(180deg, #07146a 0%, #020922 100%);
 }
 
 :root[data-theme="dark"]:has(body .home-screen) {
     background:
+        linear-gradient(180deg, rgba(1, 5, 18, 0.16), rgba(1, 5, 18, 0.34)),
+        url("img/home-background-dark.webp") center top / cover no-repeat,
         radial-gradient(circle at 50% 0%, rgba(11, 52, 160, 0.46), transparent 44%),
         linear-gradient(180deg, #07146a 0%, #020922 100%);
 }

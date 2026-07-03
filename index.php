@@ -79,13 +79,32 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <meta id="appThemeColor" name="theme-color" content="#e8f2ff">
     <script>
     (function () {
+        var themeColors = {
+            light: "#e8f2ff",
+            dark: "#07146a"
+        };
+
+        window.appApplyThemeChrome = function (theme) {
+            var selectedTheme = theme === "dark" ? "dark" : "light";
+            var themeColor = themeColors[selectedTheme];
+            var themeColorMeta = document.getElementById("appThemeColor");
+
+            document.documentElement.dataset.theme = selectedTheme;
+            document.documentElement.style.backgroundColor = themeColor;
+            document.documentElement.style.setProperty("--app-status-bg", themeColor);
+
+            if (themeColorMeta) {
+                themeColorMeta.setAttribute("content", themeColor);
+            }
+        };
+
         try {
-            var isDark = localStorage.getItem("app-iperal-theme") === "dark";
-            document.documentElement.dataset.theme = isDark ? "dark" : "light";
-            document.documentElement.style.backgroundColor = isDark ? "#07146a" : "#e8f2ff";
-            if (isDark) {
+            var selectedTheme = localStorage.getItem("app-iperal-theme") === "dark" ? "dark" : "light";
+            window.appApplyThemeChrome(selectedTheme);
+            if (selectedTheme === "dark") {
                 var preload = document.createElement("link");
                 preload.rel = "preload";
                 preload.as = "image";
@@ -93,7 +112,7 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
                 document.head.appendChild(preload);
             }
         } catch (error) {
-            document.documentElement.dataset.theme = "light";
+            window.appApplyThemeChrome("light");
         }
     })();
     </script>
@@ -111,8 +130,6 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="manifest" href="manifest.php?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="apple-touch-icon" href="img/icon-192.png?v=<?php echo rawurlencode(APP_VERSION); ?>">
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e8f2ff">
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07146a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

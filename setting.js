@@ -4,6 +4,9 @@ function applyTheme(theme) {
     const selectedTheme = theme === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = selectedTheme;
     localStorage.setItem(APP_THEME_KEY, selectedTheme);
+    if (typeof window.appApplyThemeChrome === "function") {
+        window.appApplyThemeChrome(selectedTheme);
+    }
 }
 
 function getTheme() {
