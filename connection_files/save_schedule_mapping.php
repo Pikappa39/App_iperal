@@ -66,6 +66,13 @@ if (empty($_SESSION['schedule_mapping_csrf']) || !hash_equals((string) $_SESSION
 
 $scheduleName = normalizzaChiaveAddetto((string) ($_POST['schedule_name'] ?? ''));
 $userCf = trim((string) ($_POST['user_cf'] ?? ''));
+$departmentGroup = trim((string) ($_POST['department_group'] ?? ''));
+if ($reparto !== 'gro') {
+    $departmentGroup = '';
+}
+if (!in_array($departmentGroup, ['', 'grocery_1', 'grocery_2'], true)) {
+    appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
+}
 if (!$connessione || !($pdo instanceof PDO) || !appIsValidDepartment($reparto) || $scheduleName === '') {
     appScheduleMappingRedirect(appScheduleMappingQuery($reparto, ['error' => 1]));
 }
@@ -160,23 +167,24 @@ try {
 
     if ($action === 'delete') {
         $hideMapping = $pdo->prepare(
-            'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
-             VALUES (?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
+            "INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf, department_group)
+             VALUES (?, ?, ?, ?, NULLIF(?, ''))
+             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf), department_group = VALUES(department_group)"
         );
         $hideMapping->execute([
             $reparto,
             $scheduleName,
             APP_SCHEDULE_MAPPING_IGNORED_VALUE,
             (string) ($_SESSION['user']['cf'] ?? ''),
+            $departmentGroup,
         ]);
     } else {
         $saveMapping = $pdo->prepare(
-            'INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf)
-             VALUES (?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf)'
+            "INSERT INTO schedule_name_mappings (reparto, schedule_name, user_cf, created_by_cf, department_group)
+             VALUES (?, ?, ?, ?, NULLIF(?, ''))
+             ON DUPLICATE KEY UPDATE user_cf = VALUES(user_cf), created_by_cf = VALUES(created_by_cf), department_group = VALUES(department_group)"
         );
-        $saveMapping->execute([$reparto, $scheduleName, $userCf, (string) ($_SESSION['user']['cf'] ?? '')]);
+        $saveMapping->execute([$reparto, $scheduleName, $userCf, (string) ($_SESSION['user']['cf'] ?? ''), $departmentGroup]);
     }
     $pdo->commit();
 } catch (Throwable $error) {

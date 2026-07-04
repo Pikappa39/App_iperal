@@ -42,7 +42,7 @@ function appUserManagementRemoveNotes(array $userKeys, ?string $userName = null)
         foreach ($files as $file) {
             $lock = fopen($file . '.lock', 'c');
             if ($lock === false || !flock($lock, LOCK_EX)) {
-                throw new RuntimeException('Impossibile bloccare le note dell’utente.');
+                throw new RuntimeException("Impossibile bloccare le note dell'utente.");
             }
             $locks[] = $lock;
         }
@@ -82,7 +82,7 @@ function appUserManagementRemoveNotes(array $userKeys, ?string $userName = null)
 
             $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             if ($encoded === false) {
-                throw new RuntimeException('Impossibile aggiornare le note dell’utente.');
+                throw new RuntimeException("Impossibile aggiornare le note dell'utente.");
             }
             $changes[] = ['file' => $file, 'original' => $raw, 'content' => $encoded . PHP_EOL];
         }
@@ -124,7 +124,7 @@ if (!app_csrf_request_is_valid()) {
     appUserManagementRedirect($department);
 }
 if (!$connessione || !($pdo instanceof PDO)) {
-    appUserManagementFlash('danger', 'Database non disponibile. Riprova più tardi.');
+    appUserManagementFlash('danger', 'Database non disponibile. Riprova piu tardi.');
     appUserManagementRedirect($department);
 }
 
@@ -133,7 +133,7 @@ $targetCf = trim((string) ($_POST['user_cf'] ?? ''));
 $viewerCf = (string) ($sessionUser['cf'] ?? '');
 
 try {
-    if (!in_array($action, ['deactivate', 'reactivate', 'delete', 'set_box_info'], true) || $targetCf === '') {
+    if (!in_array($action, ['deactivate', 'reactivate', 'delete', 'set_box_info', 'set_department_group'], true) || $targetCf === '') {
         throw new RuntimeException('Operazione non valida.');
     }
     if (hash_equals($viewerCf, $targetCf)) {
@@ -141,7 +141,7 @@ try {
     }
 
     $pdo->beginTransaction();
-    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, email, capo, reparto, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
+    $targetQuery = $pdo->prepare('SELECT cod_fiscale, nome, cognome, email, capo, reparto, department_group, attivo FROM utenti WHERE cod_fiscale = ? LIMIT 1 FOR UPDATE');
     $targetQuery->execute([$targetCf]);
     $target = $targetQuery->fetch(PDO::FETCH_ASSOC);
     if (!is_array($target)) {
@@ -156,14 +156,29 @@ try {
         $hasImplicitBox = (string) ($target['reparto'] ?? '') === 'box'
             || ((int) ($target['capo'] ?? 0) === 1 && (string) ($target['reparto'] ?? '') === 'cs');
         if ($hasImplicitBox) {
-            throw new RuntimeException('Questo account ha già l’abilitazione box automatica.');
+            throw new RuntimeException('Questo account ha gia abilitazione box automatica.');
         }
 
         $boxInfo = (int) ($_POST['box_info'] ?? 0) === 1 ? 1 : 0;
         $pdo->prepare('UPDATE utenti SET box_info = ?, session_version = session_version + 1 WHERE cod_fiscale = ?')
             ->execute([$boxInfo, $targetCf]);
         $pdo->commit();
-        appUserManagementFlash('success', $boxInfo === 1 ? $name . ' è abilitato al box informazioni.' : $name . ' non è più abilitato al box informazioni.');
+        appUserManagementFlash('success', $boxInfo === 1 ? $name . ' e abilitato al box informazioni.' : $name . ' non e piu abilitato al box informazioni.');
+        appUserManagementRedirect($department);
+    }
+
+    if ($action === 'set_department_group') {
+        if ((string) ($target['reparto'] ?? '') !== 'gro') {
+            throw new RuntimeException('Il gruppo operativo e disponibile solo per Grocery.');
+        }
+        $departmentGroup = trim((string) ($_POST['department_group'] ?? ''));
+        if (!in_array($departmentGroup, ['', 'grocery_1', 'grocery_2'], true)) {
+            throw new RuntimeException('Gruppo Grocery non valido.');
+        }
+        $pdo->prepare("UPDATE utenti SET department_group = NULLIF(?, ''), session_version = session_version + 1 WHERE cod_fiscale = ?")
+            ->execute([$departmentGroup, $targetCf]);
+        $pdo->commit();
+        appUserManagementFlash('success', 'Gruppo Grocery aggiornato per ' . $name . '.');
         appUserManagementRedirect($department);
     }
 
@@ -180,7 +195,7 @@ try {
                 ->execute([$targetCf]);
         }
         $pdo->commit();
-        appUserManagementFlash('success', $active === 1 ? $name . ' è stato riattivato.' : $name . ' è stato disattivato e scollegato.');
+        appUserManagementFlash('success', $active === 1 ? $name . ' e stato riattivato.' : $name . ' e stato disattivato e scollegato.');
         appUserManagementRedirect($department);
     }
 

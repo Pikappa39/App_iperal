@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS utenti (
     avatar VARCHAR(50) NOT NULL DEFAULT 'default',
     capo TINYINT UNSIGNED NOT NULL DEFAULT 0,
     reparto VARCHAR(20) NULL DEFAULT NULL,
+    department_group VARCHAR(40) NULL DEFAULT NULL,
     box_info TINYINT(1) NOT NULL DEFAULT 0,
     attivo TINYINT(1) NOT NULL DEFAULT 1,
     session_version INT UNSIGNED NOT NULL DEFAULT 0,
@@ -19,6 +20,7 @@ CREATE TABLE IF NOT EXISTS schedule_name_mappings (
     schedule_name VARCHAR(191) NOT NULL,
     user_cf VARCHAR(16) NOT NULL,
     created_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    department_group VARCHAR(40) NULL DEFAULT NULL,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (reparto, schedule_name),
     INDEX idx_schedule_name_mappings_user (user_cf)
@@ -180,6 +182,69 @@ CREATE TABLE IF NOT EXISTS schedule_adjustment_day_locks (
     schedule_date DATE NOT NULL,
     touched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (user_cf, schedule_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS department_holidays (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    person_key VARCHAR(220) NOT NULL,
+    user_cf VARCHAR(16) NULL DEFAULT NULL,
+    schedule_name VARCHAR(191) NOT NULL,
+    display_name VARCHAR(220) NOT NULL,
+    created_by_cf VARCHAR(16) NOT NULL,
+    updated_by_cf VARCHAR(16) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_department_holidays_week_person (reparto, iso_year, iso_week, person_key),
+    INDEX idx_department_holidays_week (reparto, iso_year, iso_week),
+    INDEX idx_department_holidays_user (user_cf, iso_year, iso_week)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS holiday_campaigns (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    reparto VARCHAR(20) NOT NULL,
+    holiday_year SMALLINT UNSIGNED NOT NULL,
+    status ENUM('draft', 'open', 'closed') NOT NULL DEFAULT 'draft',
+    opened_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    opened_at DATETIME NULL DEFAULT NULL,
+    closed_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    closed_at DATETIME NULL DEFAULT NULL,
+    submitted_to_director TINYINT(1) NOT NULL DEFAULT 0,
+    submitted_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    submitted_at DATETIME NULL DEFAULT NULL,
+    director_approved TINYINT(1) NOT NULL DEFAULT 0,
+    director_approval_simulated TINYINT(1) NOT NULL DEFAULT 0,
+    director_approved_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    director_approved_at DATETIME NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_holiday_campaign_department_year (reparto, holiday_year),
+    INDEX idx_holiday_campaign_status (reparto, status, holiday_year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS holiday_preferences (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    campaign_id BIGINT UNSIGNED NOT NULL,
+    reparto VARCHAR(20) NOT NULL,
+    iso_year SMALLINT UNSIGNED NOT NULL,
+    iso_week TINYINT UNSIGNED NOT NULL,
+    user_cf VARCHAR(16) NOT NULL,
+    person_key VARCHAR(220) NOT NULL,
+    display_name VARCHAR(220) NOT NULL,
+    status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+    approved_by_manager TINYINT(1) NOT NULL DEFAULT 0,
+    approved_by_admin TINYINT(1) NOT NULL DEFAULT 0,
+    approved_by_director TINYINT(1) NOT NULL DEFAULT 1,
+    decided_by_cf VARCHAR(16) NULL DEFAULT NULL,
+    decided_at DATETIME NULL DEFAULT NULL,
+    decision_note VARCHAR(1000) NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_holiday_preferences_user_week (campaign_id, user_cf, iso_year, iso_week),
+    INDEX idx_holiday_preferences_week (campaign_id, iso_year, iso_week, status),
+    INDEX idx_holiday_preferences_user (user_cf, campaign_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS extra_hour_requests (

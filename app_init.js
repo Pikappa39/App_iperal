@@ -38,6 +38,16 @@ if (scheduleAdjustmentsItem) {
         }, "Apro...");
     });
 }
+if (personalHolidaysItem) {
+    personalHolidaysItem.addEventListener("click", () => {
+        appRunWithBusyElement(personalHolidaysItem, () => mostraFeriePersonali(), "Apro...");
+    });
+}
+if (departmentHolidaysItem) {
+    departmentHolidaysItem.addEventListener("click", () => {
+        appRunWithBusyElement(departmentHolidaysItem, () => mostraElencoFerie(), "Apro...");
+    });
+}
 if (departmentOverviewItem) {
     departmentOverviewItem.addEventListener("click", () => {
         appRunWithBusyElement(departmentOverviewItem, async () => {
@@ -53,6 +63,11 @@ if (customerOrdersItem) {
             await appLoadFeature("customerOrders");
             await mostraOrdiniClienti();
         }, "Apro...");
+    });
+}
+if (holidayCampaignItem) {
+    holidayCampaignItem.addEventListener("click", () => {
+        appRunWithBusyElement(holidayCampaignItem, () => mostraAttivitaFerie(), "Apro...");
     });
 }
 if (communicationsItem) {

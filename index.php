@@ -253,12 +253,15 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
           <span class="home-board__chevron" aria-hidden="true"></span>
         </summary>
         <div class="home-board__content">
-          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '3' : '2'; ?>">
+          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '4' : '3'; ?>">
             <button type="button" id="openOrari" class="home-tile home-tile--icon-only home-tile--blue">
               <?php echo app_home_tile_content('orari-clock', 'Orari', 'Vista personale dei turni', $homeAssetVersion); ?>
             </button>
             <button type="button" id="scheduleChangesItem" class="home-tile home-tile--icon-only home-tile--green">
               <?php echo app_home_tile_content('aggiornamenti-sync', 'Aggiornamenti', 'Variazioni pubblicate', $homeAssetVersion); ?>
+            </button>
+            <button type="button" id="personalHolidaysItem" class="home-tile home-tile--icon-only home-tile--cyan">
+              <?php echo app_home_tile_content('ferie-calendar', 'Ferie personali', 'Richieste e calendario', $homeAssetVersion); ?>
             </button>
             <?php if ($homeCanManagePeople): ?>
               <a id="uploadItem" href="testjs.php" class="home-tile home-tile--icon-only home-tile--amber">
@@ -278,7 +281,7 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
           <span class="home-board__chevron" aria-hidden="true"></span>
         </summary>
         <div class="home-board__content">
-          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '5' : '3'; ?>">
+          <div class="home-tile-grid home-tile-grid--<?php echo $homeCanManagePeople ? '6' : '3'; ?>">
             <button type="button" id="communicationsItem" class="home-tile home-tile--icon-only home-tile--cyan">
               <?php echo app_home_tile_content('comunicazioni-chat', 'Comunicazioni', 'Messaggi di reparto', $homeAssetVersion); ?>
             </button>
@@ -297,6 +300,9 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
               <button type="button" id="noteAdminItem" class="home-tile home-tile--icon-only home-tile--slate">
                 <?php echo app_home_tile_content('note-pencil', 'Note', 'Gestione note reparto', $homeAssetVersion); ?>
               </button>
+              <button type="button" id="departmentHolidaysItem" class="home-tile home-tile--icon-only home-tile--amber">
+                <?php echo app_home_tile_content('ferie-calendar', 'Elenco ferie', 'Ferie del reparto', $homeAssetVersion); ?>
+              </button>
             <?php endif; ?>
           </div>
         </div>
@@ -311,9 +317,12 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
           <span class="home-board__chevron" aria-hidden="true"></span>
         </summary>
         <div class="home-board__content">
-          <div class="home-tile-grid home-tile-grid--1">
+          <div class="home-tile-grid home-tile-grid--2">
             <button type="button" id="customerOrdersItem" class="home-tile home-tile--icon-only home-tile--lime">
               <?php echo app_home_tile_content('ordini-cart', 'Ordini clienti', 'Preparazione e ritiro', $homeAssetVersion); ?>
+            </button>
+            <button type="button" id="holidayCampaignItem" class="home-tile home-tile--icon-only home-tile--cyan">
+              <?php echo app_home_tile_content('ferie-calendar', 'Inserimento ferie', 'Preferenze reparto', $homeAssetVersion); ?>
             </button>
           </div>
         </div>

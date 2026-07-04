@@ -160,6 +160,32 @@ if (!$boxInfoColumn) {
     echo "Colonna utenti.box_info aggiunta.\n";
 }
 
+$userDepartmentGroupColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utenti'
+       AND COLUMN_NAME = 'department_group'
+     LIMIT 1"
+)->fetchColumn();
+if (!$userDepartmentGroupColumn) {
+    $pdo->exec('ALTER TABLE utenti ADD department_group VARCHAR(40) NULL DEFAULT NULL AFTER reparto');
+    echo "Colonna utenti.department_group aggiunta.\n";
+}
+
+$mappingDepartmentGroupColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'schedule_name_mappings'
+       AND COLUMN_NAME = 'department_group'
+     LIMIT 1"
+)->fetchColumn();
+if (!$mappingDepartmentGroupColumn) {
+    $pdo->exec('ALTER TABLE schedule_name_mappings ADD department_group VARCHAR(40) NULL DEFAULT NULL AFTER created_by_cf');
+    echo "Colonna schedule_name_mappings.department_group aggiunta.\n";
+}
+
 $sessionVersionColumn = $pdo->query(
     "SELECT 1
      FROM information_schema.COLUMNS
@@ -184,6 +210,144 @@ $lastSeenColumn = $pdo->query(
 if (!$lastSeenColumn) {
     $pdo->exec('ALTER TABLE utenti ADD last_seen DATETIME NULL DEFAULT NULL AFTER session_version');
     echo "Colonna utenti.last_seen aggiunta.\n";
+}
+
+$holidayPersonIndex = $pdo->query(
+    "SELECT 1
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'department_holidays'
+       AND INDEX_NAME = 'uq_department_holidays_week_person'
+     LIMIT 1"
+)->fetchColumn();
+if (!$holidayPersonIndex) {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS department_holidays (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            reparto VARCHAR(20) NOT NULL,
+            iso_year SMALLINT UNSIGNED NOT NULL,
+            iso_week TINYINT UNSIGNED NOT NULL,
+            person_key VARCHAR(220) NOT NULL,
+            user_cf VARCHAR(16) NULL DEFAULT NULL,
+            schedule_name VARCHAR(191) NOT NULL,
+            display_name VARCHAR(220) NOT NULL,
+            created_by_cf VARCHAR(16) NOT NULL,
+            updated_by_cf VARCHAR(16) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_department_holidays_week_person (reparto, iso_year, iso_week, person_key),
+            INDEX idx_department_holidays_week (reparto, iso_year, iso_week),
+            INDEX idx_department_holidays_user (user_cf, iso_year, iso_week)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci'
+    );
+    echo "Tabella department_holidays verificata.\n";
+}
+
+$holidayCampaignIndex = $pdo->query(
+    "SELECT 1
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'holiday_campaigns'
+       AND INDEX_NAME = 'uq_holiday_campaign_department_year'
+     LIMIT 1"
+)->fetchColumn();
+if (!$holidayCampaignIndex) {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS holiday_campaigns (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            reparto VARCHAR(20) NOT NULL,
+            holiday_year SMALLINT UNSIGNED NOT NULL,
+            status ENUM('draft', 'open', 'closed') NOT NULL DEFAULT 'draft',
+            opened_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            opened_at DATETIME NULL DEFAULT NULL,
+            closed_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            closed_at DATETIME NULL DEFAULT NULL,
+            submitted_to_director TINYINT(1) NOT NULL DEFAULT 0,
+            submitted_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            submitted_at DATETIME NULL DEFAULT NULL,
+            director_approved TINYINT(1) NOT NULL DEFAULT 0,
+            director_approval_simulated TINYINT(1) NOT NULL DEFAULT 0,
+            director_approved_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            director_approved_at DATETIME NULL DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_holiday_campaign_department_year (reparto, holiday_year),
+            INDEX idx_holiday_campaign_status (reparto, status, holiday_year)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+    );
+    echo "Tabella holiday_campaigns verificata.\n";
+}
+
+$holidayPreferenceIndex = $pdo->query(
+    "SELECT 1
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'holiday_preferences'
+       AND INDEX_NAME = 'uq_holiday_preferences_user_week'
+     LIMIT 1"
+)->fetchColumn();
+if (!$holidayPreferenceIndex) {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS holiday_preferences (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            campaign_id BIGINT UNSIGNED NOT NULL,
+            reparto VARCHAR(20) NOT NULL,
+            iso_year SMALLINT UNSIGNED NOT NULL,
+            iso_week TINYINT UNSIGNED NOT NULL,
+            user_cf VARCHAR(16) NOT NULL,
+            person_key VARCHAR(220) NOT NULL,
+            display_name VARCHAR(220) NOT NULL,
+            status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+            approved_by_manager TINYINT(1) NOT NULL DEFAULT 0,
+            approved_by_admin TINYINT(1) NOT NULL DEFAULT 0,
+            approved_by_director TINYINT(1) NOT NULL DEFAULT 1,
+            decided_by_cf VARCHAR(16) NULL DEFAULT NULL,
+            decided_at DATETIME NULL DEFAULT NULL,
+            decision_note VARCHAR(1000) NULL DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_holiday_preferences_user_week (campaign_id, user_cf, iso_year, iso_week),
+            INDEX idx_holiday_preferences_week (campaign_id, iso_year, iso_week, status),
+            INDEX idx_holiday_preferences_user (user_cf, campaign_id, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+    );
+    echo "Tabella holiday_preferences verificata.\n";
+}
+
+$holidayCampaignSubmittedColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'holiday_campaigns'
+       AND COLUMN_NAME = 'submitted_to_director'
+     LIMIT 1"
+)->fetchColumn();
+if (!$holidayCampaignSubmittedColumn) {
+    $pdo->exec("ALTER TABLE holiday_campaigns
+        ADD submitted_to_director TINYINT(1) NOT NULL DEFAULT 0 AFTER closed_at,
+        ADD submitted_by_cf VARCHAR(16) NULL DEFAULT NULL AFTER submitted_to_director,
+        ADD submitted_at DATETIME NULL DEFAULT NULL AFTER submitted_by_cf,
+        ADD director_approved TINYINT(1) NOT NULL DEFAULT 0 AFTER submitted_at,
+        ADD director_approval_simulated TINYINT(1) NOT NULL DEFAULT 0 AFTER director_approved,
+        ADD director_approved_by_cf VARCHAR(16) NULL DEFAULT NULL AFTER director_approval_simulated,
+        ADD director_approved_at DATETIME NULL DEFAULT NULL AFTER director_approved_by_cf");
+    echo "Colonne holiday_campaigns approvazione direttore aggiunte.\n";
+}
+
+$holidayPreferenceManagerColumn = $pdo->query(
+    "SELECT 1
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'holiday_preferences'
+       AND COLUMN_NAME = 'approved_by_manager'
+     LIMIT 1"
+)->fetchColumn();
+if (!$holidayPreferenceManagerColumn) {
+    $pdo->exec("ALTER TABLE holiday_preferences
+        ADD approved_by_manager TINYINT(1) NOT NULL DEFAULT 0 AFTER status,
+        ADD approved_by_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER approved_by_manager,
+        ADD approved_by_director TINYINT(1) NOT NULL DEFAULT 1 AFTER approved_by_admin");
+    echo "Colonne holiday_preferences approvazione settimanale aggiunte.\n";
 }
 
 $itemPriceColumn = $pdo->query(

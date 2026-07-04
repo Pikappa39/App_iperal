@@ -23,6 +23,33 @@ function appAddettiEscape(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
+function appAddettiDepartmentGroupLabel(?string $group): string
+{
+    return [
+        'grocery_1' => 'Grocery 1',
+        'grocery_2' => 'Grocery 2',
+    ][$group ?? ''] ?? 'Non assegnato';
+}
+
+function appAddettiGroceryGroupSelect(string $name, string $currentGroup, string $id, array $attributes = []): string
+{
+    $options = [
+        '' => 'Non assegnato',
+        'grocery_1' => 'Grocery 1',
+        'grocery_2' => 'Grocery 2',
+    ];
+    $attributeHtml = '';
+    foreach ($attributes as $attribute => $value) {
+        $attributeHtml .= ' ' . appAddettiEscape((string) $attribute) . '="' . appAddettiEscape((string) $value) . '"';
+    }
+    $html = '<select class="form-select form-select-sm" name="' . appAddettiEscape($name) . '" id="' . appAddettiEscape($id) . '"' . $attributeHtml . '>';
+    foreach ($options as $value => $label) {
+        $selected = $value === $currentGroup ? ' selected' : '';
+        $html .= '<option value="' . appAddettiEscape($value) . '"' . $selected . '>' . appAddettiEscape($label) . '</option>';
+    }
+    return $html . '</select>';
+}
+
 function appAddettiLastSeenLabel($value): string
 {
     if (!is_string($value) || trim($value) === '') {
@@ -64,6 +91,7 @@ $reparto = $isGlobalAdmin && appIsValidDepartment($requestedReparto)
     ? $requestedReparto
     : $sessionReparto;
 $repartoLabel = appDepartments()[$reparto] ?? 'non assegnato';
+$isGroceryDepartment = $reparto === 'gro';
 $users = [];
 $mappings = [];
 $invites = [];
@@ -75,7 +103,7 @@ unset($_SESSION['user_management_flash']);
 
 if (!$databaseError) {
     $userQuery =
-        'SELECT cod_fiscale, nome, cognome, reparto, capo, box_info, attivo, last_seen
+        'SELECT cod_fiscale, nome, cognome, reparto, department_group, capo, box_info, attivo, last_seen
          FROM utenti
          WHERE reparto = ?';
     if (!$isGlobalAdmin) {
@@ -87,7 +115,7 @@ if (!$databaseError) {
     $users = $userStatement->fetchAll(PDO::FETCH_ASSOC);
 
     $mappingStatement = $pdo->prepare(
-        'SELECT schedule_name, user_cf, updated_at
+        'SELECT schedule_name, user_cf, department_group, updated_at
          FROM schedule_name_mappings
          WHERE reparto = ?
          ORDER BY schedule_name'
@@ -165,6 +193,7 @@ foreach ($mappings as $mapping) {
             'key' => $key,
             'name' => $scheduleName,
             'user_cf' => $userCf,
+            'department_group' => (string) ($mapping['department_group'] ?? ''),
         ];
         continue;
     }
@@ -173,6 +202,7 @@ foreach ($mappings as $mapping) {
         'key' => $key,
         'name' => $scheduleName,
         'status' => $userCf === '__UNREGISTERED__' ? 'Utente non registrato' : 'Associazione da verificare',
+        'department_group' => (string) ($mapping['department_group'] ?? ''),
     ];
 }
 
@@ -184,6 +214,7 @@ foreach ($scheduleNames as $key => $scheduleName) {
         'key' => $key,
         'name' => $scheduleName,
         'status' => 'Da associare',
+        'department_group' => '',
     ];
 }
 
@@ -458,6 +489,9 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             <?php if ($canViewLastSeen): ?>
                                 <th>Ultima attività</th>
                             <?php endif; ?>
+                            <?php if ($isGroceryDepartment): ?>
+                                <th>Gruppo Grocery</th>
+                            <?php endif; ?>
                             <?php if ($isGlobalAdmin): ?>
                                 <th>Stato</th>
                                 <th>Box info</th>
@@ -484,6 +518,18 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                 <?php endif; ?>
                                 <?php if ($canViewLastSeen): ?>
                                     <td><?php echo appAddettiEscape(appAddettiLastSeenLabel($user['last_seen'] ?? null)); ?></td>
+                                <?php endif; ?>
+                                <?php if ($isGroceryDepartment): ?>
+                                    <td>
+                                        <form action="connection_files/manage_users.php" method="post" class="d-flex gap-2 align-items-center">
+                                            <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($appCsrfToken); ?>">
+                                            <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
+                                            <input type="hidden" name="action" value="set_department_group">
+                                            <input type="hidden" name="user_cf" value="<?php echo appAddettiEscape($userCf); ?>">
+                                            <?php echo appAddettiGroceryGroupSelect('department_group', (string) ($user['department_group'] ?? ''), 'user-group-' . $userCf); ?>
+                                            <button type="submit" class="btn btn-outline-dark btn-sm">Salva</button>
+                                        </form>
+                                    </td>
                                 <?php endif; ?>
                                 <?php if ($isGlobalAdmin): ?>
                                     <td>
@@ -558,7 +604,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($users === []): ?>
-                            <tr><td colspan="<?php echo 2 + ($isGlobalAdmin ? 4 : 0) + ($canViewLastSeen ? 1 : 0); ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
+                            <tr><td colspan="<?php echo 2 + ($isGlobalAdmin ? 4 : 0) + ($canViewLastSeen ? 1 : 0) + ($isGroceryDepartment ? 1 : 0); ?>" class="text-muted">Non ci sono utenti registrati in questo reparto.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -572,13 +618,16 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                 <p class="text-muted">Puoi correggere l'utente associato a un nominativo oppure eliminare l'associazione se è storica o buggata. Uno stesso addetto può avere più varianti del nome negli orari.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
-                        <thead><tr><th>Nominativo nell'orario</th><th>Associato a</th><th>Modifica associazione</th><th>Elimina</th></tr></thead>
+                        <thead><tr><th>Nominativo nell'orario</th><th>Associato a</th><?php if ($isGroceryDepartment): ?><th>Gruppo Grocery</th><?php endif; ?><th>Modifica associazione</th><th>Elimina</th></tr></thead>
                         <tbody>
                         <?php foreach ($mappedScheduleRows as $row): ?>
                             <?php $mappedUser = $usersByCf[$row['user_cf']]; ?>
                             <tr>
                                 <td><?php echo appAddettiEscape($row['name']); ?></td>
                                 <td><?php echo appAddettiEscape(trim((string) $mappedUser['nome'] . ' ' . (string) $mappedUser['cognome'])); ?></td>
+                                <?php if ($isGroceryDepartment): ?>
+                                    <td><?php echo appAddettiEscape(appAddettiDepartmentGroupLabel((string) ($row['department_group'] ?? ''))); ?></td>
+                                <?php endif; ?>
                                 <td>
                                     <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
                                         <input type="hidden" name="action" value="save">
@@ -591,6 +640,9 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                                                 <option value="<?php echo appAddettiEscape($userCf); ?>"<?php echo $userCf === $row['user_cf'] ? ' selected' : ''; ?>><?php echo appAddettiEscape(trim((string) $user['nome'] . ' ' . (string) $user['cognome'])); ?></option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <?php if ($isGroceryDepartment): ?>
+                                            <?php echo appAddettiGroceryGroupSelect('department_group', (string) ($row['department_group'] ?? ''), 'mapped-group-' . $row['key']); ?>
+                                        <?php endif; ?>
                                         <button type="submit" class="btn btn-outline-dark btn-sm">Aggiorna</button>
                                     </form>
                                 </td>
@@ -606,7 +658,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($mappedScheduleRows === []): ?>
-                            <tr><td colspan="4" class="text-muted">Non ci sono ancora associazioni salvate.</td></tr>
+                            <tr><td colspan="<?php echo $isGroceryDepartment ? 5 : 4; ?>" class="text-muted">Non ci sono ancora associazioni salvate.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -620,14 +672,18 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                 <p class="text-muted">Qui compaiono i nominativi non collegati a un utente registrato, inclusi quelli segnati come non registrati.</p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
-                        <thead><tr><th>Nominativo nell'orario</th><th>Stato</th><th>Associa a</th><th>Escludi</th></tr></thead>
+                        <thead><tr><th>Nominativo nell'orario</th><th>Stato</th><?php if ($isGroceryDepartment): ?><th>Gruppo Grocery</th><?php endif; ?><th>Associa a</th><th>Escludi</th></tr></thead>
                         <tbody>
                         <?php foreach ($scheduleOnlyRows as $row): ?>
+                            <?php $assignFormId = 'schedule-assign-' . hash('sha256', (string) $row['key']); ?>
                             <tr>
                                 <td><?php echo appAddettiEscape($row['name']); ?></td>
                                 <td><?php echo appAddettiEscape($row['status']); ?></td>
+                                <?php if ($isGroceryDepartment): ?>
+                                    <td><?php echo appAddettiGroceryGroupSelect('department_group', (string) ($row['department_group'] ?? ''), 'schedule-group-' . hash('sha256', (string) $row['key']), ['form' => $assignFormId]); ?></td>
+                                <?php endif; ?>
                                 <td>
-                                    <form action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
+                                    <form id="<?php echo appAddettiEscape($assignFormId); ?>" action="connection_files/save_schedule_mapping.php" method="post" class="d-flex gap-2 align-items-center">
                                         <input type="hidden" name="action" value="save">
                                         <input type="hidden" name="csrf_token" value="<?php echo appAddettiEscape($csrfToken); ?>">
                                         <input type="hidden" name="reparto" value="<?php echo appAddettiEscape($reparto); ?>">
@@ -654,7 +710,7 @@ usort($mappedScheduleRows, static fn (array $a, array $b): int => strnatcasecmp(
                             </tr>
                         <?php endforeach; ?>
                         <?php if ($scheduleOnlyRows === []): ?>
-                            <tr><td colspan="4" class="text-muted">Non ci sono nominativi in attesa di associazione.</td></tr>
+                            <tr><td colspan="<?php echo $isGroceryDepartment ? 5 : 4; ?>" class="text-muted">Non ci sono nominativi in attesa di associazione.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
