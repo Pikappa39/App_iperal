@@ -1,15 +1,4 @@
 <?php
-require __DIR__ . '/../session_bootstrap.php';
-app_session_start();
+declare(strict_types=1);
 
-if (isset($_SESSION['user'])) {
-    echo json_encode([
-        "logged" => true,
-        "nome" => $_SESSION['user']['nome']
-    ]);
-} else {
-    echo json_encode([
-        "logged" => false
-    ]);
-}
-?>
+require __DIR__ . '/../modules/auth/php/endpoints/check_login_endpoint.php';

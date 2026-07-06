@@ -43,7 +43,7 @@ function communicationCard(item, statusText = "") {
     title.textContent = item.title;
     const meta = document.createElement("div");
     meta.className = "small communication-card__meta mb-2";
-    meta.textContent = (item.author_name ? "Da " + item.author_name + " · " : "") + formatCommunicationDate(item.created_at);
+    meta.textContent = (item.author_name ? "Da " + item.author_name + " \u00B7 " : "") + formatCommunicationDate(item.created_at);
     const text = document.createElement("p");
     text.className = "mb-2";
     text.textContent = item.message;
@@ -174,6 +174,6 @@ async function mostraComunicazioni() {
         const data = await communicationFetch("sent");
         sent.innerHTML = "";
         if (!data.communications.length) sent.textContent = "Non hai ancora inviato comunicazioni.";
-        data.communications.forEach((item) => sent.appendChild(communicationCard(item, "Destinatari: " + item.recipients + " · Letta: " + item.read_count + " · Confermata: " + item.acknowledged_count)));
+        data.communications.forEach((item) => sent.appendChild(communicationCard(item, "Destinatari: " + item.recipients + " \u00B7 Letta: " + item.read_count + " \u00B7 Confermata: " + item.acknowledged_count)));
     } catch (error) { sent.textContent = error.message; }
 }

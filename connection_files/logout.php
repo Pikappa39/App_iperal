@@ -1,13 +1,4 @@
 <?php
-require __DIR__ . '/../session_bootstrap.php';
-app_session_start();
+declare(strict_types=1);
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !app_csrf_request_is_valid()) {
-    http_response_code(403);
-    exit('Richiesta non valida');
-}
-
-app_session_destroy_current();
-
-header("Location: ../index.php");
-exit;
+require __DIR__ . '/../modules/auth/php/endpoints/logout_endpoint.php';

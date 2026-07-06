@@ -138,7 +138,7 @@ function overviewCreateTimeline(day, carryIntervals = []) {
     const nextDayLabel = continuesNextDay
         ? "continua " + ownIntervals.filter((interval) => interval.end > 24 * 60).map((interval) => "00:00-" + overviewFormatTime(interval.end)).join(" / ")
         : "";
-    text.textContent = [shift.toUpperCase() === "RIPOSO" ? "" : shift, carryLabel, nextDayLabel].filter(Boolean).join(" · ");
+    text.textContent = [shift.toUpperCase() === "RIPOSO" ? "" : shift, carryLabel, nextDayLabel].filter(Boolean).join(" \u00B7 ");
     cell.title = variation === "approved" && day.original_shift !== shift
         ? "Previsto: " + day.original_shift + " | Effettivo approvato: " + shift
         : shift;

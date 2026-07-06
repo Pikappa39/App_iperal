@@ -498,10 +498,10 @@ function customerOrderSummary(order) {
         customerOrderMainItemLabel(order),
         order.customer_phone,
         order.target_reparto_label
-    ].filter(Boolean).join(" · ");
+    ].filter(Boolean).join(" \u00B7 ");
 
     const metaLine = document.createElement("small");
-    metaLine.textContent = "Preso da " + order.taken_by_name + " · " + customerOrderDate(order.taken_at);
+    metaLine.textContent = "Preso da " + order.taken_by_name + " \u00B7 " + customerOrderDate(order.taken_at);
 
     main.append(customer, compact, metaLine);
 
@@ -556,7 +556,7 @@ function customerOrderCard(order, meta, reload) {
 
     const metaLine = document.createElement("p");
     metaLine.className = "customer-order-card__muted";
-    metaLine.textContent = "Preso da " + order.taken_by_name + " · " + customerOrderDate(order.taken_at);
+    metaLine.textContent = "Preso da " + order.taken_by_name + " \u00B7 " + customerOrderDate(order.taken_at);
 
     const contacts = document.createElement("div");
     contacts.className = "customer-order-card__contacts";
@@ -682,7 +682,7 @@ function customerOrdersHelpPanel(meta) {
     ].forEach(([status, text]) => {
         const pill = document.createElement("span");
         pill.className = "customer-order-help__pill";
-        pill.textContent = customerOrderStatusLabel(status) + " · " + text;
+        pill.textContent = customerOrderStatusLabel(status) + " \u00B7 " + text;
         states.appendChild(pill);
     });
 

@@ -27,7 +27,10 @@ if (noteAdminItem) {
 }
 if (scheduleChangesItem) {
     scheduleChangesItem.addEventListener("click", () => {
-        appRunWithBusyElement(scheduleChangesItem, () => mostraModificheOrari(), "Apro...");
+        appRunWithBusyElement(scheduleChangesItem, async () => {
+            await appLoadFeature("scheduleChanges");
+            await mostraModificheOrari();
+        }, "Apro...");
     });
 }
 if (scheduleAdjustmentsItem) {
@@ -40,12 +43,18 @@ if (scheduleAdjustmentsItem) {
 }
 if (personalHolidaysItem) {
     personalHolidaysItem.addEventListener("click", () => {
-        appRunWithBusyElement(personalHolidaysItem, () => mostraFeriePersonali(), "Apro...");
+        appRunWithBusyElement(personalHolidaysItem, async () => {
+            await appLoadFeature("holidays");
+            await mostraFeriePersonali();
+        }, "Apro...");
     });
 }
 if (departmentHolidaysItem) {
     departmentHolidaysItem.addEventListener("click", () => {
-        appRunWithBusyElement(departmentHolidaysItem, () => mostraElencoFerie(), "Apro...");
+        appRunWithBusyElement(departmentHolidaysItem, async () => {
+            await appLoadFeature("holidays");
+            await mostraElencoFerie();
+        }, "Apro...");
     });
 }
 if (departmentOverviewItem) {
@@ -67,7 +76,10 @@ if (customerOrdersItem) {
 }
 if (holidayCampaignItem) {
     holidayCampaignItem.addEventListener("click", () => {
-        appRunWithBusyElement(holidayCampaignItem, () => mostraAttivitaFerie(), "Apro...");
+        appRunWithBusyElement(holidayCampaignItem, async () => {
+            await appLoadFeature("holidays");
+            await mostraAttivitaFerie();
+        }, "Apro...");
     });
 }
 if (communicationsItem) {
@@ -98,8 +110,8 @@ if(setting){
 
 showHomeScreen();
 const startupParams = new URLSearchParams(window.location.search);
-if (window.openScheduleChangesFromUrl) {
-    window.openScheduleChangesFromUrl();
+if (startupParams.get("changes") === "1") {
+    appLoadFeature("scheduleChanges").then(() => window.openScheduleChangesFromUrl?.());
 }
 if (startupParams.get("communications") === "1") {
     window.history.replaceState({}, document.title, window.location.pathname);
