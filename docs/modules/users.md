@@ -19,8 +19,11 @@ Le pagine UI principali `addetti.php` e `admin_console.php` restano nella root e
 | Libreria inviti | `modules/users/php/invites/invite_lib.php` | Permessi, stati, token e rigenerazione inviti. |
 | Endpoint inviti | `modules/users/php/invites/manage_invites_endpoint.php` | Creazione, revoca, rigenerazione e test email invito. |
 | Endpoint utenti | `modules/users/php/management/manage_users_endpoint.php` | Disattivazione, riattivazione, eliminazione, box info e gruppo Grocery. |
-| UI addetti | `addetti.php` | Pagina visuale ancora da scorporare. |
-| UI console admin | `admin_console.php` | Console visuale ancora da scorporare. |
+| Endpoint avatar | `modules/users/php/profile/update_avatar_endpoint.php` | Aggiornamento avatar profilo dell'utente corrente. |
+| Contesto addetti | `modules/users/php/addetti/page_context.php` | Query e dati renderizzati da `addetti.php`. |
+| Helper console admin | `modules/users/php/admin/console_helpers.php` | Query, diagnostica e rendering dati console. |
+| UI addetti | `addetti.php`, `assets/js/modules/users/addetti.js` | Pagina addetti con JS esterno. |
+| UI console admin | `admin_console.php`, `assets/js/pages/admin-console.js` | Console visuale con helper modulo e CSS dedicato. |
 
 ## Permessi
 
@@ -77,7 +80,7 @@ flowchart TD
 
 ## Note tecniche
 
-- Gli URL pubblici non cambiano: i form continuano a usare `connection_files/manage_users.php` e `connection_files/manage_invites.php`.
+- Gli URL pubblici non cambiano: i form continuano a usare `connection_files/manage_users.php`, `connection_files/manage_invites.php` e `connection_files/update_avatar.php`.
 - Le librerie `connection_files/invite_lib.php` e `connection_files/admin_audit_lib.php` restano disponibili come wrapper per compatibilita con `addetti.php`, `admin_console.php` e `accept_invite.php`.
 - La directory `modules/` e stata aggiunta alle regole di blocco HTTP: il browser passa dai wrapper pubblici, mentre gli include PHP interni continuano a funzionare.
-- La prossima fase naturale e lo scorporo delle pagine UI `addetti.php` e `admin_console.php`, separando query, rendering e azioni.
+- Le pagine UI `addetti.php` e `admin_console.php` restano entry point pubblici, ma query/helper e JS sono gia spostati nel modulo o negli asset dedicati.

@@ -1,7 +1,13 @@
 {
-    "latest": "0.15.13",
-    "updated_at": "2026-07-06T20:28:08+02:00",
+    "latest": "0.15.14",
+    "updated_at": "2026-07-06T20:42:13+02:00",
     "releases": [
+        {
+            "version": "0.15.14",
+            "previous_version": "0.15.13",
+            "description": "Scorpora upload turni, pagine auth e profilo avatar",
+            "released_at": "2026-07-06T20:42:13+02:00"
+        },
         {
             "version": "0.15.13",
             "previous_version": "0.15.12",
