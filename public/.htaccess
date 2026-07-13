@@ -4,7 +4,7 @@ Options -Indexes
     RewriteEngine On
     RewriteRule ^(?:\.git|storage|turni_json|note_json|xlms|scripts|database|deploy|vendor|gestore_ods|modules|legacy)(?:/|$) - [F,L,NC]
     RewriteRule ^app_local_env\.php$ - [F,L,NC]
-    RewriteRule ^connection_files/(?:connection|invite_lib|password_reset_mail|push_lib)\.php$ - [F,L,NC]
+    RewriteRule ^connection_files/(?:connection|invite_lib|password_reset_mail|push_lib|admin_audit_lib|schedule_adjustment_lib)\.php$ - [F,L,NC]
 </IfModule>
 
 <IfModule mod_headers.c>

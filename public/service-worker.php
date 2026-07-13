@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/app_config.php';
+require dirname(__DIR__) . '/app_config.php';
 
 header('Content-Type: application/javascript; charset=utf-8');
 header('Service-Worker-Allowed: ./');
@@ -26,6 +26,11 @@ $staticAssets = [
     './assets/js/modules/holidays/campaign.js?v=' . $assetVersion,
     './assets/js/modules/customer-orders/customer-orders.js?v=' . $assetVersion,
     './assets/css/modules/admin-console.css?v=' . $assetVersion,
+    './assets/css/modules/auth.css?v=' . $assetVersion,
+    './assets/css/modules/profile.css?v=' . $assetVersion,
+    './assets/css/modules/upload.css?v=' . $assetVersion,
+    './assets/css/modules/holidays.css?v=' . $assetVersion,
+    './assets/css/modules/customer-orders.css?v=' . $assetVersion,
     './sfera.css?v=' . $assetVersion,
     './manifest.php?v=' . $assetVersion,
     './img/home-background-dark.webp',

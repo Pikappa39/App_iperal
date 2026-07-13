@@ -2,6 +2,13 @@
 
 Per i controlli prima e dopo un rilascio, consulta [TESTING.md](TESTING.md).
 
+## Documentazione
+
+- [Indice della documentazione](docs/README.md)
+- [Architettura](docs/architecture.md)
+- [Deploy XAMPP ed EC2](docs/deployment.md)
+- [Indice dei moduli](modules/README.md)
+
 ## Installazione e aggiornamento database
 
 Configura le variabili in `app_local_env.php` oppure nell'ambiente del server, poi esegui una sola volta dal terminale del server:
@@ -13,6 +20,8 @@ php database/migrate.php
 L'applicazione non modifica più lo schema database durante le richieste degli utenti. Esegui sempre un backup del database prima di una migrazione.
 
 ## Sicurezza dati
+
+Il DocumentRoot del server deve puntare alla cartella `public/`. La root progetto contiene configurazione, moduli PHP, storage e script operativi e non deve essere servita direttamente dal browser.
 
 Le cartelle `storage`, `turni_json`, `note_json` e `xlms` devono restare non pubbliche. I turni sono erogati esclusivamente da `connection_files/schedule.php` agli utenti autenticati del rispettivo reparto.
 
@@ -79,6 +88,8 @@ Dopo aver aggiornato il codice e ricaricato Apache su EC2, esegui il controllo H
 cd /var/www/html/App_iperal-1
 bash scripts/post_deploy_check.sh
 ```
+
+Prima del controllo, verifica che il virtual host punti a `/var/www/html/App_iperal-1/public`.
 
 Lo script termina con errore se un endpoint non risponde con `200` o con il tipo di contenuto previsto. Per verificare un ambiente diverso puoi passare l'URL completo come argomento:
 

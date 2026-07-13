@@ -4,6 +4,8 @@
 
 Il modulo Orari e il modulo madre che gestisce la lettura, visualizzazione, caricamento e riconciliazione degli orari. Per ridurre il rischio, il refactor viene diviso in sotto-aree funzionali.
 
+Nota webroot: da `0.15.16` le pagine e gli asset serviti dal browser vivono in `public/`. Nei diagrammi, `connection_files/...` indica l'URL pubblico; il wrapper fisico si trova in `public/connection_files/...`.
+
 ## Sotto-aree previste
 
 | Area | Stato | Responsabilita |
@@ -33,15 +35,16 @@ Il modulo Orari e il modulo madre che gestisce la lettura, visualizzazione, cari
 | Service reparto | `modules/schedules/php/calendar/services/department_calendar_service.php` | Costruzione elenco persone/giorni/stati reparto. |
 | Endpoint modifiche | `modules/schedules/php/changes/schedule_changes_endpoint.php` | Lettura storico modifiche e mark-as-read. |
 | Wrapper upload | `connection_files/upload.php` | Mantiene URL pubblico usato dalla pagina upload. |
-| Pagina upload | `upload_turni.php` | Entry point pubblico per caricare Excel. |
+| Pagina upload | `public/upload_turni.php` | Entry point pubblico per caricare Excel. |
 | Contesto upload | `modules/schedules/php/upload/upload_page_context.php` | Autorizzazione pagina upload e dati reparto. |
 | Endpoint upload | `modules/schedules/php/upload/upload_endpoint.php` | Preview file Excel, associazioni temporanee, salvataggio versioni e notifiche. |
 | Wrapper mapping | `connection_files/save_schedule_mapping.php` | Mantiene URL pubblico dei form in gestione addetti. |
 | Endpoint mapping | `modules/schedules/php/mapping/save_schedule_mapping_endpoint.php` | Salva/rimuove associazioni nominativi Excel e aggiorna gli orari storici. |
-| UI calendario | `assets/js/modules/schedules/calendar.js` | Vista calendario personale. |
-| UI panoramica reparto | `assets/js/modules/schedules/department-overview.js` | Vista reparto giornaliera/settimanale per caporeparto e admin. |
-| UI modifiche | `assets/js/modules/schedules/changes.js` | Vista aggiornamenti orari. |
-| UI upload | `assets/js/modules/schedules/upload-page.js` | Gestione preview, mapping e submit upload Excel. |
+| UI calendario | `public/assets/js/modules/schedules/calendar.js` | Vista calendario personale. |
+| UI panoramica reparto | `public/assets/js/modules/schedules/department-overview.js` | Vista reparto giornaliera/settimanale per caporeparto e admin. |
+| UI modifiche | `public/assets/js/modules/schedules/changes.js` | Vista aggiornamenti orari. |
+| UI upload | `public/assets/js/modules/schedules/upload-page.js` | Gestione preview, mapping e submit upload Excel. |
+| CSS upload | `public/assets/css/modules/upload.css` | Stili specifici della pagina caricamento turni. |
 | Wrapper libreria condivisa | `connection_files/schedule_adjustment_lib.php` | Mantiene compatibilita con endpoint esterni al modulo Orari. |
 | Shared Orari | `modules/schedules/php/shared/schedule_adjustment_lib.php` | Carica funzioni comuni per date, turni, file, lock, versioni e riconciliazione. |
 
@@ -56,7 +59,7 @@ flowchart TD
     D --> F["modules/schedules/php/shared"]
     E --> F
     G["UI panoramica reparto"] --> H["connection_files/department_schedule.php"]
-    G --> V["assets/js/modules/schedules/department-overview.js"]
+    G --> V["public/assets/js/modules/schedules/department-overview.js"]
     H --> I["modules/schedules/php/calendar/department_overview_endpoint.php"]
     I --> J["department_calendar_service.php"]
     J --> F
@@ -88,7 +91,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Utente apre Orari"] --> B["JS carica assets/js/modules/schedules/calendar.js"]
+    A["Utente apre Orari"] --> B["JS carica public/assets/js/modules/schedules/calendar.js"]
     B --> C["Richiede mese o settimana"]
     C --> D["Endpoint modulo Orari"]
     D --> E["Legge versione attiva e variazioni approvate"]
@@ -99,7 +102,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Utente apre Aggiornamenti orari"] --> B["JS carica assets/js/modules/schedules/changes.js"]
+    A["Utente apre Aggiornamenti orari"] --> B["JS carica public/assets/js/modules/schedules/changes.js"]
     B --> C["Endpoint legge schedule_change_log"]
     C --> D["Restituisce ultime modifiche"]
     D --> E["Endpoint marca le righe come lette"]
@@ -137,4 +140,4 @@ flowchart TD
 - La libreria `connection_files/schedule_adjustment_lib.php` resta come wrapper di compatibilita.
 - La logica condivisa e ora in `modules/schedules/php/shared`, divisa per supporto, repository e permessi.
 - La UI degli aggiornamenti orari ora e caricata come feature lazy `scheduleChanges`.
-- La pagina `upload_turni.php` resta raggiungibile dalla dashboard, mentre `testjs.php` e solo un wrapper di compatibilita.
+- La pagina `public/upload_turni.php` resta raggiungibile dalla dashboard, mentre `public/testjs.php` e solo un wrapper di compatibilita.

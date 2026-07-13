@@ -1,7 +1,19 @@
 {
-    "latest": "0.15.14",
-    "updated_at": "2026-07-06T20:42:13+02:00",
+    "latest": "0.15.16",
+    "updated_at": "2026-07-06T21:18:30+02:00",
     "releases": [
+        {
+            "version": "0.15.16",
+            "previous_version": "0.15.15",
+            "description": "Sposta la superficie pubblica in public",
+            "released_at": "2026-07-06T21:18:30+02:00"
+        },
+        {
+            "version": "0.15.15",
+            "previous_version": "0.15.14",
+            "description": "Scorpora CSS auth, upload, profilo, ferie e ordini clienti",
+            "released_at": "2026-07-06T20:49:59+02:00"
+        },
         {
             "version": "0.15.14",
             "previous_version": "0.15.13",

@@ -15,9 +15,9 @@ Ogni destinatario ha uno stato personale di lettura e conferma tramite `communic
 
 | Schermata | Funzione | File JS principale |
 | --- | --- | --- |
-| Comunicazioni ricevute | Mostra inbox personale e permette la presa visione | `assets/js/modules/communications/communications.js` |
-| Nuova comunicazione | Permette a capo/vice/admin di inviare comunicazioni | `assets/js/modules/communications/communications.js` |
-| Comunicazioni inviate | Mostra riepilogo destinatari, letture e conferme | `assets/js/modules/communications/communications.js` |
+| Comunicazioni ricevute | Mostra inbox personale e permette la presa visione | `public/assets/js/modules/communications/communications.js` |
+| Nuova comunicazione | Permette a capo/vice/admin di inviare comunicazioni | `public/assets/js/modules/communications/communications.js` |
+| Comunicazioni inviate | Mostra riepilogo destinatari, letture e conferme | `public/assets/js/modules/communications/communications.js` |
 
 Il modulo viene caricato dal loader frontend in `app_core.js` tramite la feature `communications`.
 
@@ -141,7 +141,7 @@ L'endpoint pubblico resta in `connection_files` per non rompere fetch frontend, 
 ## Struttura Codice
 
 ```text
-assets/js/modules/communications/
+public/assets/js/modules/communications/
   communications.js
 
 modules/communications/php/
@@ -212,7 +212,7 @@ Prima di considerare stabile una modifica al modulo comunicazioni, verificare:
 ## Test Tecnici Consigliati
 
 - `php -l` su tutti i file `modules/communications/php`.
-- `node --check` su `assets/js/modules/communications/communications.js`.
+- `node --check` su `public/assets/js/modules/communications/communications.js`.
 - Smoke test CLI endpoint pubblico:
   `php connection_files/communications.php`
 - Verifica che il centro notifiche continui a leggere correttamente `communication_recipients`.

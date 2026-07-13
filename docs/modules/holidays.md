@@ -10,22 +10,26 @@ Il modulo ferie gestisce tre aree dell'app:
 
 La distinzione principale e questa: le preferenze della campagna ferie sono richieste modificabili e da approvare; l'elenco ferie contiene invece le ferie ufficiali pubblicate.
 
+Nota webroot: da `0.15.16` le pagine e gli asset serviti dal browser vivono in `public/`. Nei diagrammi, `connection_files/...` indica l'URL pubblico; il wrapper fisico si trova in `public/connection_files/...`.
+
 ## Schermate
 
 | Schermata | Funzione | File JS principale |
 | --- | --- | --- |
-| Ferie personali | Mostra countdown, stato ferie corrente e lista ferie annuali dell'utente | `assets/js/modules/holidays/personal.js` |
-| Elenco ferie | Mostra griglia settimane, dettaglio settimana, aggiunta/rimozione ferie ufficiali | `assets/js/modules/holidays/department.js` |
-| Inserimento ferie | Mostra campagna ferie, preferenze utenti, revisione e invio proposta | `assets/js/modules/holidays/campaign.js` |
+| Ferie personali | Mostra countdown, stato ferie corrente e lista ferie annuali dell'utente | `public/assets/js/modules/holidays/personal.js` |
+| Elenco ferie | Mostra griglia settimane, dettaglio settimana, aggiunta/rimozione ferie ufficiali | `public/assets/js/modules/holidays/department.js` |
+| Inserimento ferie | Mostra campagna ferie, preferenze utenti, revisione e invio proposta | `public/assets/js/modules/holidays/campaign.js` |
+
+CSS modulo: `public/assets/css/modules/holidays.css`.
 
 Il modulo viene caricato dal loader frontend in `app_core.js` tramite la feature `holidays`:
 
 ```js
 holidays: [
-  "assets/js/modules/holidays/common.js",
-  "assets/js/modules/holidays/department.js",
-  "assets/js/modules/holidays/personal.js",
-  "assets/js/modules/holidays/campaign.js"
+  "public/assets/js/modules/holidays/common.js",
+  "public/assets/js/modules/holidays/department.js",
+  "public/assets/js/modules/holidays/personal.js",
+  "public/assets/js/modules/holidays/campaign.js"
 ]
 ```
 
@@ -220,7 +224,7 @@ Gli endpoint pubblici restano in `connection_files` per non rompere fetch fronte
 ## Struttura Codice
 
 ```text
-assets/js/modules/holidays/
+public/assets/js/modules/holidays/
   common.js
   department.js
   personal.js
@@ -288,7 +292,7 @@ Prima di considerare stabile una modifica al modulo ferie, verificare:
 ## Test Tecnici Consigliati
 
 - `php -l` su tutti i file `modules/holidays/php`.
-- `node --check` sui file `assets/js/modules/holidays`.
+- `node --check` sui file `public/assets/js/modules/holidays`.
 - Smoke test CLI degli endpoint pubblici:
   `php connection_files/holidays.php`
   `php connection_files/holiday_campaign.php`

@@ -3,7 +3,7 @@
 require_once __DIR__ . '/php_runtime.php';
 
 if (!defined('APP_VERSION')) {
-    define('APP_VERSION', '0.15.14');
+    define('APP_VERSION', '0.15.16');
 }
 
 if (!defined('APP_SCHEDULE_MAPPING_IGNORED_VALUE')) {
@@ -152,7 +152,7 @@ if (!function_exists('appAvailableAvatars')) {
     function appAvailableAvatars(): array
     {
         $avatars = [];
-        $files = glob(__DIR__ . '/img/*.webp') ?: [];
+        $files = glob(__DIR__ . '/public/img/*.webp') ?: [];
 
         foreach ($files as $file) {
             $avatar = pathinfo($file, PATHINFO_FILENAME);

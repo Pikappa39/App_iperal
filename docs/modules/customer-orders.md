@@ -4,6 +4,8 @@
 
 Il modulo Ordini Clienti gestisce gli ordini raccolti dal box informazioni o dai reparti: inserimento cliente, articoli richiesti, stato di avanzamento, notifiche interne e consultazione degli ordini aperti o chiusi.
 
+Nota webroot: da `0.15.16` le pagine e gli asset serviti dal browser vivono in `public/`. Nei diagrammi, `connection_files/...` indica l'URL pubblico; il wrapper fisico si trova in `public/connection_files/...`.
+
 ## File principali
 
 | Area | File | Responsabilita |
@@ -16,7 +18,8 @@ Il modulo Ordini Clienti gestisce gli ordini raccolti dal box informazioni o dai
 | Permessi | `modules/customer-orders/php/permissions/customer_order_permissions.php` | Accesso reparto, box informazioni e admin. |
 | Repository | `modules/customer-orders/php/repositories/customer_order_repository.php` | Query su ordini, articoli, eventi e notifiche. |
 | Service | `modules/customer-orders/php/services/customer_order_service.php` | Payload meta/lista e azioni di modifica. |
-| UI | `assets/js/modules/customer-orders/customer-orders.js` | Vista ordini, filtri, form creazione e aggiornamento stati. |
+| UI | `public/assets/js/modules/customer-orders/customer-orders.js` | Vista ordini, filtri, form creazione e aggiornamento stati. |
+| CSS | `public/assets/css/modules/customer-orders.css` | Stili della vista ordini clienti. |
 | Tabelle | `customer_orders`, `customer_order_items`, `customer_order_events`, `customer_order_notifications` | Persistenza ordini, righe articolo, audit e notifiche. |
 
 ## Permessi

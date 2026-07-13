@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/modules/auth/php/pages/login_page_context.php';
+require dirname(__DIR__) . '/modules/auth/php/pages/login_page_context.php';
 
 $loginContext = appAuthLoginPageContext();
 extract($loginContext, EXTR_SKIP);
@@ -9,6 +9,7 @@ extract($loginContext, EXTR_SKIP);
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="stylesheet" href="assets/css/modules/auth.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>

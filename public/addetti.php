@@ -1,14 +1,14 @@
 <?php
-require __DIR__ . '/app_config.php';
-require __DIR__ . '/session_bootstrap.php';
+require dirname(__DIR__) . '/app_config.php';
+require dirname(__DIR__) . '/session_bootstrap.php';
 app_session_start();
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
-require_once __DIR__ . '/connection_files/connection.php';
-require_once __DIR__ . '/connection_files/invite_lib.php';
-require __DIR__ . '/gestore_ods/orario_converter_lib.php';
-require_once __DIR__ . '/modules/users/php/addetti/page_context.php';
+require_once dirname(__DIR__) . '/connection_files/connection.php';
+require_once dirname(__DIR__) . '/connection_files/invite_lib.php';
+require dirname(__DIR__) . '/gestore_ods/orario_converter_lib.php';
+require_once dirname(__DIR__) . '/modules/users/php/addetti/page_context.php';
 
 $capo = (int) ($_SESSION['user']['capo'] ?? 0);
 if (!isset($_SESSION['user']) || !in_array($capo, [1, 2, 3], true)) {

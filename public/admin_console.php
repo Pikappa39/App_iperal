@@ -5,16 +5,16 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-require __DIR__ . '/app_config.php';
-require __DIR__ . '/session_bootstrap.php';
+require dirname(__DIR__) . '/app_config.php';
+require dirname(__DIR__) . '/session_bootstrap.php';
 app_session_start();
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
-require_once __DIR__ . '/connection_files/connection.php';
-require_once __DIR__ . '/connection_files/admin_audit_lib.php';
-require_once __DIR__ . '/connection_files/invite_lib.php';
-require_once __DIR__ . '/connection_files/push_lib.php';
+require_once dirname(__DIR__) . '/connection_files/connection.php';
+require_once dirname(__DIR__) . '/connection_files/admin_audit_lib.php';
+require_once dirname(__DIR__) . '/connection_files/invite_lib.php';
+require_once dirname(__DIR__) . '/connection_files/push_lib.php';
 
 $sessionUser = $_SESSION['user'] ?? null;
 if (!is_array($sessionUser) || (int) ($sessionUser['capo'] ?? 0) !== 3) {
@@ -22,7 +22,7 @@ if (!is_array($sessionUser) || (int) ($sessionUser['capo'] ?? 0) !== 3) {
     exit;
 }
 
-require_once __DIR__ . '/modules/users/php/admin/console_helpers.php';
+require_once dirname(__DIR__) . '/modules/users/php/admin/console_helpers.php';
 $codeHash = appAdminConsoleCodeHash();
 $consoleConfigured = $codeHash !== '';
 $unlocked = appAdminConsoleIsUnlocked($sessionUser);

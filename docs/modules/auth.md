@@ -4,6 +4,8 @@
 
 Il modulo Auth raccoglie login, registrazione autonoma, stato sessione, logout, reset password e funzioni di identita account. Gli URL pubblici restano invariati per non modificare form e chiamate JavaScript esistenti.
 
+Nota webroot: da `0.15.16` le pagine e gli asset serviti dal browser vivono in `public/`. Nei diagrammi, `connection_files/...` indica l'URL pubblico; il wrapper fisico si trova in `public/connection_files/...`.
+
 ## File principali
 
 | Area | File | Responsabilita |
@@ -18,8 +20,9 @@ Il modulo Auth raccoglie login, registrazione autonoma, stato sessione, logout, 
 | Identita | `modules/auth/php/identity/account_identity.php` | Generazione badge e identificativi tecnici. |
 | Mail account | `modules/auth/php/mail/password_reset_mail.php` | SMTP/Brevo e template email invito/reset. |
 | Contesti pagine | `modules/auth/php/pages/*.php` | Preparazione dati per login, reset password e accettazione invito. |
-| UI auth | `assets/js/modules/auth/*.js` | Login, registrazione, richiesta reset e conferma reset senza JS inline nelle pagine. |
-| Wrapper pubblici | `connection_files/*.php`, `account_identity.php` | Compatibilita con URL e include esistenti. |
+| UI auth | `public/assets/js/modules/auth/*.js` | Login, registrazione, richiesta reset e conferma reset senza JS inline nelle pagine. |
+| CSS auth | `public/assets/css/modules/auth.css` | Stili specifici dei form account. |
+| Wrapper pubblici | `public/connection_files/*.php` | Compatibilita con URL e include esistenti. |
 
 ## Flusso login
 
@@ -54,8 +57,8 @@ flowchart TD
 
 ## Note tecniche
 
-- Gli endpoint pubblici non cambiano: `connection_files/signin.php`, `signup.php`, `logout.php`, `check_login.php`, `request_password_reset.php`, `confirm_password_reset.php`.
-- Le pagine pubbliche `login_reg.php`, `forgot_password.php`, `reset_password.php` e `accept_invite.php` restano in root come entry point, ma usano contesti del modulo auth.
-- `account_identity.php` resta nella root come wrapper per compatibilita con inviti e registrazione.
+- Gli endpoint pubblici non cambiano come URL: `connection_files/signin.php`, `signup.php`, `logout.php`, `check_login.php`, `request_password_reset.php`, `confirm_password_reset.php`.
+- Le pagine pubbliche `login_reg.php`, `forgot_password.php`, `reset_password.php` e `accept_invite.php` stanno in `public/` come entry point, ma usano contesti del modulo auth.
+- `account_identity.php` resta fuori dal DocumentRoot come wrapper PHP interno per compatibilita con inviti e registrazione.
 - Le email account sono nel modulo auth, ma sono ancora usate anche dal modulo users per gli inviti.
 - La cartella `modules/` e bloccata via HTTP: il browser deve passare dai wrapper pubblici.

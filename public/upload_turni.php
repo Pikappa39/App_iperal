@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/modules/schedules/php/upload/upload_page_context.php';
+require dirname(__DIR__) . '/modules/schedules/php/upload/upload_page_context.php';
 
 $uploadContext = appScheduleUploadPageContext();
 extract($uploadContext, EXTR_SKIP);
@@ -21,6 +21,7 @@ extract($uploadContext, EXTR_SKIP);
     </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="stylesheet" href="assets/css/modules/upload.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
 </head>
 <body class="p-4 upload-page">
     <div class="container">

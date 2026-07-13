@@ -1,0 +1,5 @@
+/* Auth module styles. */
+
+.auth-form {
+    width: min(100%, 460px);
+}

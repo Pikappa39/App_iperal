@@ -3,9 +3,9 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-require __DIR__ . '/session_bootstrap.php';
-require __DIR__ . '/app_config.php';
-require __DIR__ . '/connection_files/push_lib.php';
+require dirname(__DIR__) . '/session_bootstrap.php';
+require dirname(__DIR__) . '/app_config.php';
+require dirname(__DIR__) . '/connection_files/push_lib.php';
 app_session_start();
 
 if (!isset($_SESSION['user'])) {
@@ -26,7 +26,7 @@ try {
 }
 
 $releaseMeta = [];
-$releaseMetaPath = __DIR__ . '/release_meta.json';
+$releaseMetaPath = dirname(__DIR__) . '/release_meta.json';
 if (is_file($releaseMetaPath)) {
     $decodedReleaseMeta = json_decode((string) file_get_contents($releaseMetaPath), true);
     if (is_array($decodedReleaseMeta)) {
@@ -129,6 +129,9 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
     </style>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="sfera.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="stylesheet" href="assets/css/modules/profile.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="stylesheet" href="assets/css/modules/holidays.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
+    <link rel="stylesheet" href="assets/css/modules/customer-orders.css?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="manifest" href="manifest.php?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <link rel="apple-touch-icon" href="img/icon-192.png?v=<?php echo rawurlencode(APP_VERSION); ?>">
     <meta name="mobile-web-app-capable" content="yes">
@@ -137,9 +140,7 @@ function app_home_tile_content(string $iconName, string $title, string $subtitle
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>La mia pagina</title>
-<link rel="icon" type="image/png" href="/favicon.png">
-    
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=<?php echo rawurlencode(APP_VERSION); ?>">
 </head>
 <body>
 <div class="app-shell">

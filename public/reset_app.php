@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/app_config.php';
+require dirname(__DIR__) . '/app_config.php';
 
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -123,7 +123,7 @@ header('Clear-Site-Data: "cache", "storage"');
 <body>
 <main>
     <h1>Ripristina MyOrari</h1>
-    <p>Usa questa pagina se l'app si apre ma i pulsanti non rispondono, oppure se la PWA è rimasta bloccata dopo un aggiornamento.</p>
+    <p>Usa questa pagina se l'app si apre ma i pulsanti non rispondono, oppure se la PWA &egrave; rimasta bloccata dopo un aggiornamento.</p>
     <button type="button" id="resetBtn">Ripristina app su questo dispositivo</button>
     <a href="index.php?reset=1">Torna all'app</a>
     <p id="status" role="status" aria-live="polite"></p>

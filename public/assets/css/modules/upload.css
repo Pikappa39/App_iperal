@@ -1,0 +1,11 @@
+/* Schedule upload page styles. */
+
+.upload-page .container {
+    max-width: 960px;
+}
+
+.upload-page #uploadForm {
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+}

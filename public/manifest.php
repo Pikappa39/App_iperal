@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/app_config.php';
+require dirname(__DIR__) . '/app_config.php';
 
 header('Content-Type: application/manifest+json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');

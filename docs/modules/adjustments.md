@@ -22,7 +22,7 @@ Il modulo e pensato per mantenere separata la richiesta dell'addetto dalla decis
 | Permessi | `modules/adjustments/php/permissions/adjustment_permissions.php` | Controlla ruoli e lati approvabili nelle ore extra reparto. |
 | Repository variazioni | `modules/adjustments/php/repositories/schedule_adjustment_repository.php` | Lettura richieste di variazione turno. |
 | Repository ore extra | `modules/adjustments/php/repositories/extra_hour_repository.php` | Lettura richieste ore extra e mapping per la UI. |
-| JS modulo | `assets/js/modules/adjustments/adjustments.js` | Pannelli UI, form, fetch, azioni di approvazione/rifiuto. |
+| JS modulo | `public/assets/js/modules/adjustments/adjustments.js` | Pannelli UI, form, fetch, azioni di approvazione/rifiuto. |
 | Libreria condivisa | `connection_files/schedule_adjustment_lib.php` | Wrapper compatibile verso le funzioni condivise del modulo Orari. |
 
 ## Tabelle database

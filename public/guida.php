@@ -3,8 +3,8 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
-require __DIR__ . '/session_bootstrap.php';
-require __DIR__ . '/app_config.php';
+require dirname(__DIR__) . '/session_bootstrap.php';
+require dirname(__DIR__) . '/app_config.php';
 app_session_start();
 
 if (!isset($_SESSION['user'])) {

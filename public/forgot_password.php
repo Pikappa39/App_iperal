@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/modules/auth/php/pages/password_reset_page_context.php';
+require dirname(__DIR__) . '/modules/auth/php/pages/password_reset_page_context.php';
 
 $pageContext = appAuthForgotPasswordPageContext();
 extract($pageContext, EXTR_SKIP);

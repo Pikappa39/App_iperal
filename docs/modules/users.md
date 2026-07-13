@@ -4,7 +4,9 @@
 
 Il modulo Utenti raccoglie la logica backend legata alla gestione degli account, degli addetti e degli inviti. In questa fase il modulo copre gli endpoint operativi di gestione utenti e inviti, piu le librerie condivise per permessi invito e audit admin.
 
-Le pagine UI principali `addetti.php` e `admin_console.php` restano nella root e continuano a usare i wrapper pubblici in `connection_files`.
+Le pagine UI principali `addetti.php` e `admin_console.php` restano come URL pubblici, ma fisicamente vivono in `public/` e continuano a usare i wrapper pubblici in `connection_files`.
+
+Nota webroot: da `0.15.16` le pagine e gli asset serviti dal browser vivono in `public/`. Nei diagrammi, `connection_files/...` indica l'URL pubblico; il wrapper fisico si trova in `public/connection_files/...`.
 
 ## File principali
 
@@ -22,8 +24,9 @@ Le pagine UI principali `addetti.php` e `admin_console.php` restano nella root e
 | Endpoint avatar | `modules/users/php/profile/update_avatar_endpoint.php` | Aggiornamento avatar profilo dell'utente corrente. |
 | Contesto addetti | `modules/users/php/addetti/page_context.php` | Query e dati renderizzati da `addetti.php`. |
 | Helper console admin | `modules/users/php/admin/console_helpers.php` | Query, diagnostica e rendering dati console. |
-| UI addetti | `addetti.php`, `assets/js/modules/users/addetti.js` | Pagina addetti con JS esterno. |
-| UI console admin | `admin_console.php`, `assets/js/pages/admin-console.js` | Console visuale con helper modulo e CSS dedicato. |
+| UI addetti | `public/addetti.php`, `public/assets/js/modules/users/addetti.js` | Pagina addetti con JS esterno. |
+| UI console admin | `public/admin_console.php`, `public/assets/js/pages/admin-console.js` | Console visuale con helper modulo e CSS dedicato. |
+| CSS profilo | `public/assets/css/modules/profile.css` | Stili della schermata profilo e scelta avatar. |
 
 ## Permessi
 
@@ -82,5 +85,5 @@ flowchart TD
 
 - Gli URL pubblici non cambiano: i form continuano a usare `connection_files/manage_users.php`, `connection_files/manage_invites.php` e `connection_files/update_avatar.php`.
 - Le librerie `connection_files/invite_lib.php` e `connection_files/admin_audit_lib.php` restano disponibili come wrapper per compatibilita con `addetti.php`, `admin_console.php` e `accept_invite.php`.
-- La directory `modules/` e stata aggiunta alle regole di blocco HTTP: il browser passa dai wrapper pubblici, mentre gli include PHP interni continuano a funzionare.
-- Le pagine UI `addetti.php` e `admin_console.php` restano entry point pubblici, ma query/helper e JS sono gia spostati nel modulo o negli asset dedicati.
+- La directory `modules/` resta fuori dal DocumentRoot: il browser passa dai wrapper pubblici, mentre gli include PHP interni continuano a funzionare.
+- Le pagine UI `public/addetti.php` e `public/admin_console.php` restano entry point pubblici, ma query/helper e JS sono gia spostati nel modulo o negli asset dedicati.

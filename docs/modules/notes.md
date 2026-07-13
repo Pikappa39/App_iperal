@@ -15,7 +15,7 @@ Il modulo Note gestisce le note giornaliere legate agli orari. Ogni utente può 
 | Supporto validazione | `modules/notes/php/support/validation.php` | Normalizzazione data e mese. |
 | Permessi | `modules/notes/php/permissions/note_permissions.php` | Visibilità note per utente, reparto e admin. |
 | Service | `modules/notes/php/services/note_service.php` | Payload GET, salvataggio e cancellazione admin. |
-| UI note | `assets/js/modules/notes/notes.js` | Pannello giorno, salvataggio nota, vista note dipendenti. |
+| UI note | `public/assets/js/modules/notes/notes.js` | Pannello giorno, salvataggio nota, vista note dipendenti. |
 | Storage note | `note_json/*.json` | File mensili delle note. |
 | Shared orari | `connection_files/schedule_adjustment_lib.php` | Wrapper per fingerprint e controllo versione orario. |
 

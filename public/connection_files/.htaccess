@@ -1,0 +1,5 @@
+Options -Indexes
+
+<FilesMatch "^(?:connection|invite_lib|password_reset_mail|push_lib|admin_audit_lib|schedule_adjustment_lib)\.php$">
+    Require all denied
+</FilesMatch>
